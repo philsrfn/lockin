@@ -25,7 +25,13 @@
     "scheme": "lockin",
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "lockin scans food barcodes to log what you eat."
+        }
+      ]
     ],
     "extra": {
       "router": {},

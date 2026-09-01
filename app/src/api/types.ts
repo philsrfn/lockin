@@ -145,11 +145,34 @@ export type Meal = {
   source: string | null;
 };
 
+export type BarcodeCandidate = {
+  barcode: string;
+  name: string;
+  kcal: number;
+  proteinG: number;
+  fatG: number | null;
+  carbsG: number | null;
+  known: boolean;
+  basis: string;
+  brand: string | null;
+};
+
+export type FoodEstimate = {
+  name: string;
+  kcal: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  confidence: 'low' | 'medium' | 'high';
+  assumptions: string;
+};
+
 export type Today = {
   date: string;
   profile: Profile;
   context: Context | null;
   openSession: Session | null;
+  completedToday: Session[];
   plan: WorkoutPlan;
   weight: WeightSummary;
   macros: {

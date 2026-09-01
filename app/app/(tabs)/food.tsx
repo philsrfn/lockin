@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '../../src/api/client';
 import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
+import { FoodCapture } from '../../src/components/FoodCapture';
 import { colors, radius, space, type as typo } from '../../src/theme';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -33,6 +34,7 @@ export default function FoodScreen() {
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -203,8 +205,26 @@ export default function FoodScreen() {
           </>
         ) : null}
 
-        <Button title="Add something else" variant="secondary" onPress={() => setManualOpen(true)} />
+        <View style={styles.captureRow}>
+          <Button title="Scan" variant="secondary" style={styles.flex} onPress={() => setCapture('scan')} />
+          <Button
+            title="Describe it"
+            variant="secondary"
+            style={styles.flex}
+            onPress={() => setCapture('describe')}
+          />
+        </View>
+        <Button title="Enter by hand" variant="ghost" onPress={() => setManualOpen(true)} />
       </ScrollView>
+
+      <FoodCapture
+        mode={capture}
+        onClose={() => setCapture(null)}
+        onLogged={async () => {
+          setCapture(null);
+          await load();
+        }}
+      />
 
       <ManualEntry
         visible={manualOpen}
@@ -411,6 +431,8 @@ const styles = StyleSheet.create({
   subtle: { ...typo.bodyDim, color: colors.textDim },
   error: { color: colors.danger, fontSize: 14 },
   pressed: { opacity: 0.7 },
+  captureRow: { flexDirection: 'row', gap: space.sm },
+  flex: { flex: 1 },
 
   backdrop: { flex: 1, justifyContent: 'flex-end' },
   backdropFill: {

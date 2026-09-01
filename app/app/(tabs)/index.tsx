@@ -60,8 +60,11 @@ export default function TodayScreen() {
     );
   }
 
-  const { plan, weight, macros, week, openSession, context, date } = today.data;
+  const { plan, weight, macros, week, openSession, context, date, completedToday } = today.data;
   const inProgress = openSession !== null;
+  // Once he has finished a session, offering the same plan again reads as
+  // "you still owe me this". Show what he did instead.
+  const done = !inProgress && (completedToday?.length ?? 0) > 0;
 
   return (
     <Screen onRefresh={today.reload} refreshing={today.refreshing}>
@@ -93,27 +96,39 @@ export default function TodayScreen() {
         />
       ) : null}
 
-      <Card label={`DAY ${plan.template}`}>
-        {plan.exercises.map((exercise) => (
-          <View key={exercise.exerciseId} style={styles.exerciseRow}>
-            <Text style={styles.exerciseName} numberOfLines={1}>
-              {exercise.name}
-            </Text>
-            <Text style={styles.exercisePrescription}>
-              {prescriptionLine(exercise.sets, exercise.targetReps, exercise.weightKg)}
-            </Text>
-          </View>
-        ))}
+      <Card label={done ? 'DONE TODAY' : `DAY ${plan.template}`}>
+        {done ? (
+          <DoneSummary sessions={completedToday} />
+        ) : (
+          plan.exercises.map((exercise) => (
+            <View key={exercise.exerciseId} style={styles.exerciseRow}>
+              <Text style={styles.exerciseName} numberOfLines={1}>
+                {exercise.name}
+              </Text>
+              <Text style={styles.exercisePrescription}>
+                {prescriptionLine(exercise.sets, exercise.targetReps, exercise.weightKg)}
+              </Text>
+            </View>
+          ))
+        )}
 
         <Button
           title={
             inProgress
               ? 'Resume workout'
-              : coach && coach.sessionType !== 'strength'
-                ? 'Lift anyway'
-                : 'Start workout'
+              : done
+                ? 'Train again'
+                : coach && coach.sessionType !== 'strength'
+                  ? 'Lift anyway'
+                  : 'Start workout'
           }
-          variant={coach && coach.sessionType !== 'strength' && !inProgress ? 'secondary' : 'primary'}
+          // Secondary when he has already trained or the coach called a rest
+          // day: still available, no longer the thing being urged.
+          variant={
+            !inProgress && (done || (coach && coach.sessionType !== 'strength'))
+              ? 'secondary'
+              : 'primary'
+          }
           onPress={() => router.push('/workout')}
           style={{ marginTop: space.sm }}
         />
@@ -178,6 +193,44 @@ export default function TodayScreen() {
   );
 }
 
+/** What he actually did today, in place of a plan he has already completed. */
+function DoneSummary({ sessions }: { sessions: Today['completedToday'] }) {
+  return (
+    <View style={{ gap: space.sm }}>
+      {sessions.map((session) => {
+        const heaviest = new Map<string, { weightKg: number; reps: number }>();
+        for (const set of session.sets) {
+          const best = heaviest.get(set.exerciseName);
+          if (!best || set.weightKg > best.weightKg) {
+            heaviest.set(set.exerciseName, { weightKg: set.weightKg, reps: set.reps });
+          }
+        }
+        return (
+          <View key={session.id} style={{ gap: space.xs }}>
+            <Text style={styles.doneHeadline}>
+              Day {session.template} · {session.sets.length} sets
+              {session.rpe ? ` · RPE ${session.rpe}` : ''}
+            </Text>
+            {[...heaviest.entries()].map(([name, top]) => (
+              <View key={name} style={styles.exerciseRow}>
+                <Text style={styles.exerciseName} numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text style={styles.exercisePrescription}>
+                  {kg(top.weightKg)}kg × {top.reps}
+                </Text>
+              </View>
+            ))}
+            {session.jointPain ? (
+              <Text style={styles.doneFlag}>Joint pain flagged</Text>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Losing is good, gaining is not — but neither is an alarm. */
 function changeTone(changeKg: number | null) {
   if (changeKg == null) return { color: colors.textDim };
@@ -224,6 +277,8 @@ const styles = StyleSheet.create({
 
   subtle: { ...typo.bodyDim, color: colors.textDim },
   footnote: { fontSize: 13, color: colors.textFaint },
+  doneHeadline: { ...typo.body, color: colors.accent, fontWeight: '700' },
+  doneFlag: { fontSize: 13, color: colors.danger },
   placeholder: { ...typo.body, color: colors.textDim, marginTop: space.xxl },
   stale: { fontSize: 13, color: colors.warn },
 });

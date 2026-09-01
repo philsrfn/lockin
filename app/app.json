@@ -23,6 +23,13 @@
     "plugins": [
       "expo-router",
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c01d9573-c065-4481-8923-87db6c41da4a"
+      }
+    },
+    "owner": "philserafin"
   }
 }

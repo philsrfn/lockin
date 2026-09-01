@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 5.0.0",
+    "version": ">= 23.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -25,10 +25,6 @@
     }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "appleTeamId": "REPLACE_WITH_TEAM_ID"
-      }
-    }
+    "production": {}
   }
 }

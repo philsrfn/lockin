@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# One-time server setup. Run once on a fresh Ubuntu 24.04 Hetzner box:
+# One-time server setup. Works on any fresh Ubuntu 22.04+/Debian 12+ VPS —
+# Hetzner, netcup, DigitalOcean, Vultr, Scaleway, IONOS. Nothing here is
+# provider-specific.
+#
 #
 #   scp deploy/provision.sh root@YOUR_IP:/tmp/
 #   ssh root@YOUR_IP 'bash /tmp/provision.sh'
@@ -29,7 +32,7 @@ ufw allow 443/tcp
 ufw --force enable
 
 echo "==> ssh hardening"
-# Key-only auth. The key is already installed by Hetzner at create time.
+# Key-only auth. Every provider installs your public key at create time.
 sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 systemctl reload ssh || systemctl reload sshd

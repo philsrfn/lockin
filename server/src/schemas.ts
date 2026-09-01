@@ -112,3 +112,20 @@ export const LogFoodSchema = z.object({
   foodId: z.number().int().positive(),
   slot: MealSlotSchema.optional(),
 });
+
+export const BarcodeQuerySchema = z.object({
+  barcode: z.string().regex(/^\d{6,14}$/, 'Not a barcode'),
+});
+
+export const SaveScannedSchema = z.object({
+  barcode: z.string().regex(/^\d{6,14}$/),
+  name: z.string().min(1).max(120),
+  kcal: z.number().int().min(0).max(5000),
+  proteinG: z.number().int().min(0).max(500),
+  fatG: z.number().int().min(0).max(500).nullish(),
+  carbsG: z.number().int().min(0).max(1000).nullish(),
+});
+
+export const EstimateFoodSchema = z.object({
+  text: z.string().min(2).max(400),
+});

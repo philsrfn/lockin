@@ -7,8 +7,11 @@ import {
   IdParamSchema,
   LogWeightSchema,
   RecordSetSchema,
+  BarcodeQuerySchema,
+  EstimateFoodSchema,
   LogFoodSchema,
   LogMealSchema,
+  SaveScannedSchema,
   SaveFoodSchema,
   SyncBatchSchema,
   TemplateIdSchema,
@@ -29,6 +32,8 @@ import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
 import { archiveFood, createFood, getFood, listFoods, updateFood } from '../services/foods';
+import { lookupBarcode, saveScanned } from '../services/barcode';
+import { estimateFood } from '../llm/food';
 import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
@@ -156,6 +161,30 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const { id } = IdParamSchema.parse(request.params);
     await archiveFood(id);
     return { foods: await listFoods() };
+  });
+
+  /**
+   * Barcode lookup. Returns a candidate to confirm — nothing is written until
+   * he agrees with the numbers.
+   */
+  app.get('/foods/barcode', async (request) => {
+    const query = BarcodeQuerySchema.parse(request.query);
+    return { candidate: await lookupBarcode(query.barcode) };
+  });
+
+  /** Keeps a scanned product, so the next scan of it needs no network. */
+  app.post('/foods/scanned', async (request, reply) => {
+    const body = SaveScannedSchema.parse(request.body);
+    return reply.code(201).send({ food: await saveScanned(body) });
+  });
+
+  /**
+   * Macros estimated from a plain-text description. A candidate, not a log
+   * entry: he confirms or corrects it first, per the §9 principle.
+   */
+  app.post('/foods/estimate', async (request) => {
+    const body = EstimateFoodSchema.parse(request.body);
+    return { estimate: await estimateFood(body.text) };
   });
 
   app.get('/meals', async () => ({ meals: await mealsToday() }));

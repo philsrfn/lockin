@@ -3,7 +3,7 @@ import { type Macros, type RemainingMacros, remaining } from '../domain/macros';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { type Context, activeContext } from './contexts';
 import { type Profile, getProfile, macroTargets } from './profile';
-import { type Session, openSession, recentSessions } from './sessions';
+import { type Session, openSession, recentSessions, sessionsToday } from './sessions';
 import { type WeightSummary, summary as weightSummary, today as todayDate } from './bodyweight';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
@@ -15,6 +15,8 @@ export type Today = {
   context: Context | null;
   /** The session in progress, if he is mid-workout. */
   openSession: Session | null;
+  /** Finished today. Added phase 4 so Today stops offering a workout he has done. */
+  completedToday: Session[];
   plan: WorkoutPlan;
   weight: WeightSummary;
   macros: {
@@ -40,7 +42,8 @@ export type Today = {
  * connection two requests are twice the chance of neither arriving.
  */
 export async function getToday(db: Queryable = pool): Promise<Today> {
-  const [profile, context, open, weight, consumed, lastWeek, coach, meals] = await Promise.all([
+  const [profile, context, open, weight, consumed, lastWeek, coach, meals, todaySessions] =
+    await Promise.all([
     getProfile(db),
     activeContext(db),
     openSession(db),
@@ -50,6 +53,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     // Read-only: whatever was generated earlier. Never generates here.
     cachedNote(todayDate(), db),
     mealsToday(db),
+    sessionsToday(db),
   ]);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
@@ -64,6 +68,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     profile,
     context,
     openSession: open,
+    completedToday: todaySessions.filter((session) => session.finished),
     plan,
     weight,
     macros: { targets, consumed, remaining: remaining(targets, consumed), meals },

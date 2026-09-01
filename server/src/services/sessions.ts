@@ -205,6 +205,18 @@ export async function recentSessions(days: number, db: Queryable = pool): Promis
   return attachSets(rows, db);
 }
 
+/**
+ * Sessions performed today, newest first. Today needs this to stop offering a
+ * workout he has already done — the plan card sitting there after a finished
+ * session reads as "you still owe me this".
+ */
+export async function sessionsToday(db: Queryable = pool): Promise<Session[]> {
+  const { rows } = await db.query<SessionRow>(
+    `${SELECT_SESSION} where s.performed_at::date = current_date order by s.performed_at desc`,
+  );
+  return attachSets(rows, db);
+}
+
 export async function firstSessionAt(db: Queryable = pool): Promise<Date | null> {
   const { rows } = await db.query<{ performed_at: Date }>(
     'select performed_at from sessions order by performed_at asc limit 1',

@@ -1,7 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
-import { ApiError, api } from '../api/client';
-import type { ExercisePrescription, Session, Today, WorkoutPlan } from '../api/types';
+import { api } from '../api/client';
+import type { ExercisePrescription, Today, WorkoutPlan } from '../api/types';
+import {
+  type LocalSession,
+  cacheRead,
+  cacheWrite,
+  deleteSet as deleteLocalSet,
+  findSessionByServerId,
+  insertSession,
+  insertSet,
+  markSessionFinished,
+  openLocalSession,
+  setsForSession,
+} from '../db/local';
+import { type QueueSnapshot, drain, enqueue, snapshot, subscribe } from '../sync/queue';
+
+export type SetSyncState = 'synced' | 'queued' | 'failed';
 
 export type LoggedSet = {
   clientId: string;
@@ -10,147 +25,204 @@ export type LoggedSet = {
   weightKg: number;
   reps: number;
   rir: number | null;
-  synced: boolean;
+  sync: SetSyncState;
 };
 
 export type Workout = {
   loading: boolean;
   error: string | null;
   plan: WorkoutPlan | null;
-  sessionId: number | null;
+  /** True when the plan came from cache because the network was unreachable. */
+  stale: boolean;
+  pending: number;
+  /** Writes the server permanently rejected. Still on the phone. */
+  failed: number;
   sets: LoggedSet[];
   setsFor: (exerciseId: number) => LoggedSet[];
-  logSet: (input: Omit<LoggedSet, 'clientId' | 'synced' | 'setIndex'>) => Promise<void>;
-  undoLastSet: (exerciseId: number) => Promise<void>;
+  logSet: (input: { exerciseId: number; weightKg: number; reps: number; rir: number | null }) => void;
+  undoLastSet: (exerciseId: number) => void;
   swap: (fromExerciseId: number, toExerciseId: number) => Promise<void>;
   finish: (input: { rpe: number; jointPain: boolean; notes?: string }) => Promise<void>;
 };
 
+// Same key useResource writes under, so Today and the logger share one cache.
+const PLAN_CACHE_KEY = '/today';
+
 /**
- * Everything the logger writes goes through here. Phase 1 slice 5 writes
- * straight to the API; slice 6 swaps the internals for local SQLite plus a sync
- * queue without the screen changing at all.
+ * Local-first. A set is written to SQLite and rendered before the network is
+ * touched at all; the queue carries it to the backend whenever it can.
+ *
+ * The screen above this hook does not know or care whether there is signal.
  */
 export function useWorkout(): Workout {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [stale, setStale] = useState(false);
+  const [session, setSession] = useState<LocalSession | null>(null);
   const [sets, setSets] = useState<LoggedSet[]>([]);
+  const [queue, setQueue] = useState<QueueSnapshot>(() => snapshot());
 
-  // Load the plan, and resume the session already in progress if there is one.
+  useEffect(() => subscribe(setQueue), []);
+
+  const reloadSets = useCallback((sessionClientId: string) => {
+    const current = snapshot();
+    setSets(
+      setsForSession(sessionClientId).map((set) => ({
+        clientId: set.clientId,
+        exerciseId: set.exerciseId,
+        setIndex: set.setIndex,
+        weightKg: set.weightKg,
+        reps: set.reps,
+        rir: set.rir,
+        sync: syncStateOf(set.clientId, current),
+      })),
+    );
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
+      let today: Today | null = null;
+
       try {
-        const today = await api<Today>('/today');
-        if (cancelled) return;
-
-        setPlan(today.plan);
-
-        if (today.openSession) {
-          setSessionId(today.openSession.id);
-          setSets(
-            today.openSession.sets.map((set) => ({
-              clientId: `server-${set.id}`,
-              exerciseId: set.exerciseId,
-              setIndex: set.setIndex,
-              weightKg: set.weightKg,
-              reps: set.reps,
-              rir: set.rir,
-              synced: true,
-            })),
-          );
-        } else {
-          const created = await api<{ session: Session }>('/sessions', {
-            method: 'POST',
-            body: { template: today.plan.template },
-          });
-          if (cancelled) return;
-          setSessionId(created.session.id);
-        }
-      } catch (caught) {
-        if (!cancelled) {
-          setError(caught instanceof ApiError ? caught.message : 'Could not start the workout');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+        today = await api<Today>('/today');
+        cacheWrite(PLAN_CACHE_KEY, today);
+      } catch {
+        // No signal. Fall back to the last plan we saw — a stale plan beats a
+        // blank screen when he is already standing at the rack.
+        today = cacheRead<Today>(PLAN_CACHE_KEY);
+        if (!cancelled) setStale(true);
       }
+
+      if (cancelled) return;
+
+      if (!today) {
+        setError('No plan cached yet — connect once and it will work offline after that.');
+        setLoading(false);
+        return;
+      }
+
+      setPlan(today.plan);
+
+      let current = openLocalSession();
+
+      // The server knows about a session this device has not seen: adopt it
+      // rather than starting a second one.
+      if (!current && today.openSession) {
+        const adopted = findSessionByServerId(today.openSession.id) ?? {
+          clientId: randomUUID(),
+          serverId: today.openSession.id,
+          template: today.openSession.template ?? today.plan.template,
+          performedAt: today.openSession.performedAt,
+          finished: false,
+        };
+        insertSession(adopted);
+        for (const set of today.openSession.sets) {
+          insertSet({
+            clientId: `server-${set.id}`,
+            sessionClientId: adopted.clientId,
+            exerciseId: set.exerciseId,
+            setIndex: set.setIndex,
+            weightKg: set.weightKg,
+            reps: set.reps,
+            rir: set.rir,
+          });
+        }
+        current = adopted;
+      }
+
+      if (!current) {
+        current = {
+          clientId: randomUUID(),
+          serverId: null,
+          template: today.plan.template,
+          performedAt: new Date().toISOString(),
+          finished: false,
+        };
+        insertSession(current);
+        // Queued, not posted. Starting a workout must work with no signal.
+        enqueue(current.clientId, {
+          op: 'create_session',
+          payload: { template: current.template, performedAt: current.performedAt },
+        });
+      }
+
+      setSession(current);
+      reloadSets(current.clientId);
+      setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadSets]);
 
   const setsFor = useCallback(
     (exerciseId: number) =>
-      sets.filter((set) => set.exerciseId === exerciseId).sort((a, b) => a.setIndex - b.setIndex),
-    [sets],
+      sets
+        .filter((set) => set.exerciseId === exerciseId)
+        .sort((a, b) => a.setIndex - b.setIndex)
+        .map((set) => ({ ...set, sync: syncStateOf(set.clientId, queue) })),
+    [sets, queue],
   );
 
   const logSet = useCallback(
-    async (input: Omit<LoggedSet, 'clientId' | 'synced' | 'setIndex'>) => {
-      if (sessionId == null) return;
+    (input: { exerciseId: number; weightKg: number; reps: number; rir: number | null }) => {
+      if (!session) return;
 
       const setIndex = sets.filter((set) => set.exerciseId === input.exerciseId).length + 1;
-      const optimistic: LoggedSet = {
-        ...input,
-        clientId: randomUUID(),
-        setIndex,
-        synced: false,
-      };
+      const clientId = randomUUID();
 
-      // On screen immediately. Never make him wait on the network mid-set.
-      setSets((current) => [...current, optimistic]);
+      // Disk first, screen second, network whenever. Nothing here can block on
+      // a request, so a set is never lost to a dead bar of signal.
+      insertSet({ clientId, sessionClientId: session.clientId, setIndex, ...input });
+      setSets((current) => [...current, { clientId, setIndex, sync: 'queued', ...input }]);
 
-      try {
-        await api('/sets', {
-          method: 'POST',
-          body: {
-            sessionId,
-            exerciseId: input.exerciseId,
-            setIndex,
-            weightKg: input.weightKg,
-            reps: input.reps,
-            rir: input.rir,
-          },
-        });
-        setSets((current) =>
-          current.map((set) => (set.clientId === optimistic.clientId ? { ...set, synced: true } : set)),
-        );
-      } catch {
-        // Stays on screen unsynced. Slice 6 gives it a queue to drain from.
-      }
+      enqueue(clientId, {
+        op: 'record_set',
+        payload: {
+          // A session adopted from the server has an id the backend already
+          // knows. Referencing it by client uuid would look up a create_session
+          // op that never existed, and the write would be rejected outright.
+          ...sessionReference(session),
+          exerciseId: input.exerciseId,
+          setIndex,
+          weightKg: input.weightKg,
+          reps: input.reps,
+          rir: input.rir,
+        },
+      });
     },
-    [sessionId, sets],
+    [session, sets],
   );
 
   const undoLastSet = useCallback(
-    async (exerciseId: number) => {
+    (exerciseId: number) => {
       const forExercise = sets
         .filter((set) => set.exerciseId === exerciseId)
         .sort((a, b) => a.setIndex - b.setIndex);
       const last = forExercise[forExercise.length - 1];
-      if (!last) return;
+      if (!last || !session) return;
 
+      deleteLocalSet(last.clientId);
       setSets((current) => current.filter((set) => set.clientId !== last.clientId));
 
-      if (last.clientId.startsWith('server-')) {
-        try {
-          await api(`/sets/${last.clientId.replace('server-', '')}`, { method: 'DELETE' });
-        } catch {
-          // Nothing to do — the next refresh reconciles.
-        }
+      // If it already reached the server it needs deleting there too. If it did
+      // not, it is still in the queue and will fail harmlessly as a duplicate.
+      if (last.sync === 'synced' && last.clientId.startsWith('server-')) {
+        void api(`/sets/${last.clientId.replace('server-', '')}`, { method: 'DELETE' }).catch(
+          () => undefined,
+        );
       }
     },
-    [sets],
+    [session, sets],
   );
 
   const swap = useCallback(
     async (fromExerciseId: number, toExerciseId: number) => {
-      const query = sessionId ? `?excludeSessionId=${sessionId}` : '';
+      const query = session?.serverId ? `?excludeSessionId=${session.serverId}` : '';
       const result = await api<{ prescription: ExercisePrescription }>(
         `/exercises/${toExerciseId}/prescription${query}`,
       );
@@ -166,22 +238,95 @@ export function useWorkout(): Workout {
           : current,
       );
     },
-    [sessionId],
+    [session],
   );
 
   const finish = useCallback(
     async (input: { rpe: number; jointPain: boolean; notes?: string }) => {
-      if (sessionId == null) return;
-      await api(`/sessions/${sessionId}`, {
-        method: 'PATCH',
-        body: { rpe: input.rpe, jointPain: input.jointPain, notes: input.notes ?? null },
+      if (!session) return;
+
+      markSessionFinished(session.clientId);
+      enqueue(randomUUID(), {
+        op: 'finish_session',
+        payload: {
+          ...sessionReference(session),
+          rpe: input.rpe,
+          jointPain: input.jointPain,
+          notes: input.notes ?? null,
+        },
       });
+
+      // Best effort: if there is signal, land it now so Today is right when he
+      // gets back to it.
+      await drain();
     },
-    [sessionId],
+    [session],
+  );
+
+  // The plan came from cache while the network was down. Once writes start
+  // landing again the connection is back, so refresh it and drop the banner —
+  // leaving "offline" on screen after the signal returns is its own small lie.
+  useEffect(() => {
+    if (!stale || queue.pending.size > 0) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const today = await api<Today>('/today');
+        if (cancelled) return;
+        cacheWrite(PLAN_CACHE_KEY, today);
+        setPlan(today.plan);
+        setStale(false);
+      } catch {
+        // Still offline. The banner is correct; try again on the next drain.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stale, queue.pending.size]);
+
+  // Each set's state is read from the queue itself. Deriving it from "the
+  // queue is empty" was wrong: a rejected write also empties the queue, and
+  // the screen then claimed a lost set had been saved.
+  const decorated = useMemo(
+    () => sets.map((set) => ({ ...set, sync: syncStateOf(set.clientId, queue) })),
+    [sets, queue],
   );
 
   return useMemo(
-    () => ({ loading, error, plan, sessionId, sets, setsFor, logSet, undoLastSet, swap, finish }),
-    [loading, error, plan, sessionId, sets, setsFor, logSet, undoLastSet, swap, finish],
+    () => ({
+      loading,
+      error,
+      plan,
+      stale,
+      pending: queue.pending.size,
+      failed: queue.dead.size,
+      sets: decorated,
+      setsFor,
+      logSet,
+      undoLastSet,
+      swap,
+      finish,
+    }),
+    [loading, error, plan, stale, queue, decorated, setsFor, logSet, undoLastSet, swap, finish],
   );
+}
+
+function syncStateOf(clientId: string, queue: QueueSnapshot): SetSyncState {
+  if (queue.dead.has(clientId)) return 'failed';
+  if (queue.pending.has(clientId)) return 'queued';
+  return 'synced';
+}
+
+/**
+ * How a queued op should point at its session: by server id once the backend
+ * knows about it, otherwise by the client uuid of the create_session op that is
+ * queued ahead of it.
+ */
+function sessionReference(session: LocalSession): { sessionId: number } | { sessionClientId: string } {
+  return session.serverId != null
+    ? { sessionId: session.serverId }
+    : { sessionClientId: session.clientId };
 }

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { randomUUID } from 'expo-crypto';
 import { api } from '../../src/api/client';
 import { useResource } from '../../src/api/hooks';
+import { enqueue } from '../../src/sync/queue';
 import type { WeightSummary } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
@@ -21,12 +23,14 @@ export default function WeightScreen() {
   const [entry, setEntry] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
 
   const value = Number(entry);
   const valid = entry.length > 0 && Number.isFinite(value) && value >= 30 && value <= 300;
 
   function press(key: (typeof KEYS)[number]) {
     setError(null);
+    setQueued(false);
     if (key === '⌫') {
       setEntry((current) => current.slice(0, -1));
       return;
@@ -52,8 +56,12 @@ export default function WeightScreen() {
       });
       summary.set(result.summary);
       setEntry('');
-    } catch (caught) {
-      setError((caught as Error).message);
+    } catch {
+      // Offline: queue it. The weigh-in still counts, the average catches up
+      // when the drain lands. Never make him weigh himself twice.
+      enqueue(randomUUID(), { op: 'log_weight', payload: { weightKg: value } });
+      setEntry('');
+      setQueued(true);
     } finally {
       setSaving(false);
     }
@@ -82,7 +90,13 @@ export default function WeightScreen() {
         ))}
       </View>
 
+      {summary.stale ? (
+        <Text style={styles.queued}>Offline — the averages below may be behind.</Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {queued ? (
+        <Text style={styles.queued}>Saved on the phone — it will sync when you have signal.</Text>
+      ) : null}
 
       <Button
         title={saving ? 'Saving…' : "Log today's weight"}
@@ -173,4 +187,5 @@ const styles = StyleSheet.create({
   subtle: { ...typo.bodyDim, color: colors.textDim },
   footnote: { fontSize: 13, color: colors.textFaint, lineHeight: 19 },
   error: { color: colors.danger, fontSize: 14 },
+  queued: { color: colors.warn, fontSize: 14 },
 });

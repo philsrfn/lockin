@@ -34,6 +34,9 @@ export default function TodayScreen() {
       <View style={styles.header}>
         <Text style={styles.date}>{longDate(date)}</Text>
         <ContextChip context={context} onChanged={today.reload} />
+        {today.stale ? (
+          <Text style={styles.stale}>Offline — showing the last plan this phone saw.</Text>
+        ) : null}
       </View>
 
       {plan.jointPain.recommendDoctor ? (
@@ -172,4 +175,5 @@ const styles = StyleSheet.create({
   subtle: { ...typo.bodyDim, color: colors.textDim },
   footnote: { fontSize: 13, color: colors.textFaint },
   placeholder: { ...typo.body, color: colors.textDim, marginTop: space.xxl },
+  stale: { fontSize: 13, color: colors.warn },
 });

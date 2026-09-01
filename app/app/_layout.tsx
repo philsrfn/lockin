@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { startAutoDrain } from '../src/sync/queue';
 import { colors } from '../src/theme';
 
 export default function RootLayout() {
+  // Drains on foreground, and on a slow heartbeat while anything is waiting.
+  useEffect(() => startAutoDrain(), []);
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />

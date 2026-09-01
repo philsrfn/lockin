@@ -70,11 +70,12 @@ export default function WorkoutScreen() {
   const logged = workout.setsFor(exercise.exerciseId);
   const setNumber = logged.length + 1;
   const complete = logged.length >= exercise.sets;
-  const unsynced = workout.sets.filter((set) => !set.synced).length;
 
-  async function confirmSet() {
+  function confirmSet() {
     if (!exercise) return;
-    await workout.logSet({
+    // Not awaited: the set is already on disk. Waiting on a request here is
+    // exactly the pause this screen exists to avoid.
+    workout.logSet({
       exerciseId: exercise.exerciseId,
       weightKg: draft.weightKg,
       reps: draft.reps,
@@ -129,6 +130,12 @@ export default function WorkoutScreen() {
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + space.xxl }]}
         keyboardShouldPersistTaps="handled"
       >
+        {workout.stale ? (
+          <Text style={styles.offline}>
+            Offline — working from the last plan this phone saw.
+          </Text>
+        ) : null}
+
         <View style={styles.titleBlock}>
           <Text style={styles.exerciseName}>{exercise.name}</Text>
           <Text style={styles.target}>
@@ -184,7 +191,8 @@ export default function WorkoutScreen() {
                   {kg(set.weightKg)} kg × {set.reps}
                   {set.rir != null ? `  ·  ${set.rir} RIR` : ''}
                 </Text>
-                {!set.synced ? <Text style={styles.pending}>queued</Text> : null}
+                {set.sync === 'queued' ? <Text style={styles.pending}>queued</Text> : null}
+                {set.sync === 'failed' ? <Text style={styles.failed}>not saved</Text> : null}
               </View>
             ))}
             <Pressable onPress={() => workout.undoLastSet(exercise.exerciseId)} hitSlop={8}>
@@ -208,10 +216,17 @@ export default function WorkoutScreen() {
           ) : null}
         </View>
 
-        {unsynced > 0 ? (
+        {workout.pending > 0 ? (
           <Text style={styles.offline}>
-            {unsynced} set{unsynced === 1 ? '' : 's'} waiting to reach the server. They are saved
-            here either way.
+            {workout.pending} write{workout.pending === 1 ? '' : 's'} waiting on the server. Saved
+            on the phone either way — keep going.
+          </Text>
+        ) : null}
+
+        {workout.failed > 0 ? (
+          <Text style={styles.failedNotice}>
+            {workout.failed} write{workout.failed === 1 ? '' : 's'} the server refused. Still on
+            this phone, but not in your history — worth a look after the session.
           </Text>
         ) : null}
       </ScrollView>
@@ -425,6 +440,8 @@ const styles = StyleSheet.create({
   },
   loggedText: { ...typo.body, ...typo.mono, color: colors.text, flex: 1 },
   pending: { fontSize: 12, fontWeight: '600', color: colors.warn },
+  failed: { fontSize: 12, fontWeight: '700', color: colors.danger },
+  failedNotice: { fontSize: 13, color: colors.danger, lineHeight: 19 },
   undo: { fontSize: 14, color: colors.textFaint, paddingTop: space.xs },
 
   footerActions: { flexDirection: 'row', gap: space.sm },

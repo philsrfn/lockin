@@ -9,8 +9,8 @@ import {
   nextPrescription,
   rampIn,
 } from '../domain/progression';
-import { TEMPLATES, type TemplateId, nextTemplate } from '../domain/templates';
-import { type Exercise, exercisesByName, listExercises } from './exercises';
+import { TEMPLATES, type TemplateId, defaultsForPattern, nextTemplate } from '../domain/templates';
+import { type Exercise, exercisesByName, getExercise, listExercises } from './exercises';
 import { firstSessionAt } from './sessions';
 
 export type ExercisePrescription = {
@@ -177,4 +177,66 @@ export async function planFor(
   });
 
   return { template, rampIn: ramp, jointPain: gate, exercises };
+}
+
+/**
+ * A prescription for any single exercise, template or not. This is what a swap
+ * needs: he trades Hack Squat for Leg Press mid-session and still gets the load
+ * his own Leg Press history says he should be using, not a blank field.
+ *
+ * Phase 2's swap_exercise tool calls this same function.
+ */
+export async function prescribeExercise(
+  exerciseId: number,
+  options: { excludeSessionId?: number; targetSets?: number; now?: Date } = {},
+  db: Queryable = pool,
+): Promise<ExercisePrescription> {
+  const now = options.now ?? new Date();
+
+  const [exercise, allExercises, firstAt, finished] = await Promise.all([
+    getExercise(exerciseId, db),
+    listExercises(db),
+    firstSessionAt(db),
+    finishedSessions(db),
+  ]);
+
+  const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
+  const defaults = defaultsForPattern(exercise.pattern);
+  const ramp = rampIn(firstAt, now);
+  const gate = jointPainGate(finished);
+
+  const history = await historyFor([exerciseId], options.excludeSessionId, db);
+  const sessions = history.get(exerciseId) ?? [];
+
+  const requested = options.targetSets ?? 3;
+  const targetSets = Math.min(requested, ramp.maxWorkingSets ?? requested);
+
+  const prescription = nextPrescription({
+    exerciseId,
+    history: sessions.map((session) => session.sets),
+    range: defaults.range,
+    incrementKg: defaults.incrementKg,
+    targetSets,
+    gate,
+  });
+
+  const last = sessions[0];
+
+  return {
+    exerciseId,
+    name: exercise.name,
+    pattern: exercise.pattern,
+    sets: prescription.sets,
+    targetReps: prescription.targetReps,
+    weightKg: prescription.weightKg,
+    reason: prescription.reason,
+    restSeconds: defaults.restSeconds,
+    incrementKg: defaults.incrementKg,
+    range: defaults.range,
+    last: last ? { performedAt: last.performedAt.toISOString(), sets: last.sets } : null,
+    substitutes: exercise.substitutes
+      .map((id) => byId.get(id))
+      .filter((sub): sub is Exercise => sub !== undefined)
+      .map((sub) => ({ id: sub.id, name: sub.name, pattern: sub.pattern })),
+  };
 }

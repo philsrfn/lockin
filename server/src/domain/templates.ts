@@ -73,6 +73,30 @@ export function templateExerciseNames(): string[] {
   return [...names];
 }
 
+/**
+ * Sensible defaults for an exercise the templates do not name — the substitute
+ * he reaches for when a machine is occupied or the gym in this city lacks it.
+ */
+export function defaultsForPattern(pattern: string): {
+  incrementKg: number;
+  restSeconds: number;
+  range: RepRange;
+} {
+  switch (pattern) {
+    case 'squat':
+    case 'hinge':
+      return { incrementKg: 2.5, restSeconds: 180, range: DEFAULT_REP_RANGE };
+    case 'h_push':
+    case 'v_push':
+    case 'h_pull':
+    case 'v_pull':
+      return { incrementKg: 2.5, restSeconds: 150, range: DEFAULT_REP_RANGE };
+    default:
+      // Isolation moves in half jumps and rests short.
+      return { incrementKg: 1.25, restSeconds: 60, range: DEFAULT_REP_RANGE };
+  }
+}
+
 /** §4: weekly targets, not fixed weekdays. */
 export const WEEKLY_TARGETS = {
   strengthSessions: 3,

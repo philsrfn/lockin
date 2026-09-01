@@ -24,7 +24,7 @@ import {
 import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
-import { planFor, upcomingTemplate } from '../services/workouts';
+import { planFor, prescribeExercise, upcomingTemplate } from '../services/workouts';
 
 /**
  * Routes are deliberately thin. Every write goes through a service, and the
@@ -58,6 +58,24 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const template = query.template ?? (await upcomingTemplate());
     const open = await openSession();
     return planFor(template, { excludeSessionId: open?.id });
+  });
+
+  // Used by the swap button: the substitute's own history decides its load.
+  app.get('/exercises/:id/prescription', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const query = z
+      .object({
+        excludeSessionId: z.coerce.number().int().positive().optional(),
+        sets: z.coerce.number().int().min(1).max(10).optional(),
+      })
+      .parse(request.query);
+
+    return {
+      prescription: await prescribeExercise(id, {
+        excludeSessionId: query.excludeSessionId,
+        targetSets: query.sets,
+      }),
+    };
   });
 
   app.get('/sessions', async (request) => {

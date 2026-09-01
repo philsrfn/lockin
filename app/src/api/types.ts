@@ -92,6 +92,31 @@ export type WeightSummary = {
   series: TrendPoint[];
 };
 
+export type CoachSwap = { from: string; to: string; reason: string };
+
+export type CoachNote = {
+  forDate: string;
+  sessionType: 'strength' | 'cardio' | 'rest';
+  template: TemplateId | null;
+  headline: string;
+  body: string;
+  swaps: CoachSwap[];
+};
+
+export type ChatMessage = {
+  id: number;
+  role: 'user' | 'model';
+  createdAt: string;
+  text: string;
+  toolCalls?: { name: string; ok: boolean }[];
+};
+
+export type ChatReply = {
+  text: string;
+  ranTools: { name: string; ok: boolean }[];
+  usage: { promptTokens: number; outputTokens: number; totalTokens: number };
+};
+
 export type Today = {
   date: string;
   profile: Profile;
@@ -111,4 +136,5 @@ export type Today = {
     };
   };
   week: { strengthSessions: { done: number; target: number } };
+  coach: CoachNote | null;
 };

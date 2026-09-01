@@ -1,10 +1,13 @@
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { api } from '../../src/api/client';
 import { useResource } from '../../src/api/hooks';
-import type { Today } from '../../src/api/types';
+import type { CoachNote, Today } from '../../src/api/types';
 import { Banner } from '../../src/components/Banner';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
+import { CoachCard } from '../../src/components/CoachCard';
 import { ContextChip } from '../../src/components/ContextChip';
 import { Screen } from '../../src/components/Screen';
 import { Sparkline } from '../../src/components/Sparkline';
@@ -14,6 +17,37 @@ import { colors, radius, space, type as typo } from '../../src/theme';
 export default function TodayScreen() {
   const router = useRouter();
   const today = useResource<Today>('/today');
+
+  const [coach, setCoach] = useState<CoachNote | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+
+  const cached = today.data?.coach ?? null;
+
+  // The plan renders from /today immediately. If no note exists for today yet,
+  // ask for one afterwards — a model call must never sit in front of the screen.
+  const askCoach = useCallback(async (force = false) => {
+    setCoachLoading(true);
+    try {
+      const result = await api<{ coach: CoachNote }>('/coach/today', {
+        method: 'POST',
+        body: { force },
+        timeoutMs: 60_000,
+      });
+      setCoach(result.coach);
+    } catch {
+      // Offline or the model is down. The deterministic plan below still stands.
+    } finally {
+      setCoachLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cached) {
+      setCoach(cached);
+      return;
+    }
+    if (today.data && !today.stale && !coach) void askCoach();
+  }, [cached, today.data, today.stale, coach, askCoach]);
 
   if (!today.data) {
     return (
@@ -39,6 +73,8 @@ export default function TodayScreen() {
         ) : null}
       </View>
 
+      <CoachCard note={coach} loading={coachLoading} />
+
       {plan.jointPain.recommendDoctor ? (
         <Banner
           tone="danger"
@@ -47,7 +83,9 @@ export default function TodayScreen() {
         />
       ) : null}
 
-      {plan.rampIn.active ? (
+      {/* The coach says this in his own words when he has spoken. Two versions
+          of the same sentence, one above the other, reads like a form. */}
+      {plan.rampIn.active && !coach ? (
         <Banner
           tone="warn"
           title="Ramp-in — first two weeks"
@@ -68,7 +106,14 @@ export default function TodayScreen() {
         ))}
 
         <Button
-          title={inProgress ? 'Resume workout' : 'Start workout'}
+          title={
+            inProgress
+              ? 'Resume workout'
+              : coach && coach.sessionType !== 'strength'
+                ? 'Lift anyway'
+                : 'Start workout'
+          }
+          variant={coach && coach.sessionType !== 'strength' && !inProgress ? 'secondary' : 'primary'}
           onPress={() => router.push('/workout')}
           style={{ marginTop: space.sm }}
         />

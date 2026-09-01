@@ -7,8 +7,12 @@ import {
   IdParamSchema,
   LogWeightSchema,
   RecordSetSchema,
+  LogFoodSchema,
+  LogMealSchema,
+  SaveFoodSchema,
   SyncBatchSchema,
   TemplateIdSchema,
+  UpdateFoodSchema,
 } from '../schemas';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
@@ -24,6 +28,8 @@ import {
 import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
+import { archiveFood, createFood, getFood, listFoods, updateFood } from '../services/foods';
+import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
 import { listRules } from '../services/rules';
@@ -128,6 +134,59 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/rules', async () => ({ rules: await listRules() }));
+
+  // --- food (phase 4). All new paths; nothing existing changed, so the build
+  // already on his phone keeps working untouched.
+
+  app.get('/foods', async () => ({ foods: await listFoods() }));
+
+  app.post('/foods', async (request, reply) => {
+    const body = SaveFoodSchema.parse(request.body);
+    return reply.code(201).send({ food: await createFood(body) });
+  });
+
+  app.patch('/foods/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const body = UpdateFoodSchema.parse(request.body);
+    return { food: await updateFood(id, body) };
+  });
+
+  // Archived, not deleted: meals already logged against it keep their history.
+  app.delete('/foods/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    await archiveFood(id);
+    return { foods: await listFoods() };
+  });
+
+  app.get('/meals', async () => ({ meals: await mealsToday() }));
+
+  app.post('/meals', async (request, reply) => {
+    const body = LogMealSchema.parse(request.body);
+    const result = await logMeal(body);
+    return reply.code(201).send({ meal: result.meal, consumed: result.today });
+  });
+
+  /** One tap on a quick-add tile. The library supplies the macros. */
+  app.post('/meals/from-food', async (request, reply) => {
+    const body = LogFoodSchema.parse(request.body);
+    const food = await getFood(body.foodId);
+    const result = await logMeal({
+      slot: body.slot ?? food.defaultSlot ?? 'snack',
+      description: food.name,
+      kcal: food.kcal,
+      proteinG: food.proteinG,
+      fatG: food.fatG,
+      carbsG: food.carbsG,
+      foodId: food.id,
+    });
+    return reply.code(201).send({ meal: result.meal, consumed: result.today });
+  });
+
+  app.delete('/meals/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const result = await deleteMeal(id);
+    return { consumed: result.today };
+  });
 
   /**
    * Generates today's coach note if it does not exist yet. The app calls this

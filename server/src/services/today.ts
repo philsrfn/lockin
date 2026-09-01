@@ -1,10 +1,11 @@
 import { type Queryable, pool } from '../db';
-import { type Macros, type RemainingMacros, remaining, sumMacros } from '../domain/macros';
+import { type Macros, type RemainingMacros, remaining } from '../domain/macros';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { type Context, activeContext } from './contexts';
 import { type Profile, getProfile, macroTargets } from './profile';
 import { type Session, openSession, recentSessions } from './sessions';
 import { type WeightSummary, summary as weightSummary, today as todayDate } from './bodyweight';
+import { type Meal, macrosToday, mealsToday } from './meals';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
 import { type CoachNote, cachedNote } from '../llm/coach';
 
@@ -20,6 +21,8 @@ export type Today = {
     targets: ReturnType<typeof macroTargets>;
     consumed: Macros;
     remaining: RemainingMacros;
+    /** What he has actually logged today. Added in phase 4. */
+    meals: Meal[];
   };
   week: {
     strengthSessions: { done: number; target: number };
@@ -32,22 +35,12 @@ export type Today = {
   coach: CoachNote | null;
 };
 
-/** Meals logged today. Phase 4 fills this table; the arithmetic is ready now. */
-async function macrosToday(db: Queryable): Promise<Macros> {
-  const { rows } = await db.query<{ kcal: number | null; protein_g: number | null }>(
-    `select kcal, protein_g from meals where eaten_at::date = current_date`,
-  );
-  return sumMacros(
-    rows.map((row) => ({ kcal: row.kcal ?? 0, proteinG: row.protein_g ?? 0 })),
-  );
-}
-
 /**
  * Everything the Today screen needs, in one round trip. On a bad gym wifi
  * connection two requests are twice the chance of neither arriving.
  */
 export async function getToday(db: Queryable = pool): Promise<Today> {
-  const [profile, context, open, weight, consumed, lastWeek, coach] = await Promise.all([
+  const [profile, context, open, weight, consumed, lastWeek, coach, meals] = await Promise.all([
     getProfile(db),
     activeContext(db),
     openSession(db),
@@ -56,6 +49,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     recentSessions(7, db),
     // Read-only: whatever was generated earlier. Never generates here.
     cachedNote(todayDate(), db),
+    mealsToday(db),
   ]);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
@@ -72,7 +66,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     openSession: open,
     plan,
     weight,
-    macros: { targets, consumed, remaining: remaining(targets, consumed) },
+    macros: { targets, consumed, remaining: remaining(targets, consumed), meals },
     week: {
       strengthSessions: {
         done: lastWeek.filter((session) => session.template !== null).length,

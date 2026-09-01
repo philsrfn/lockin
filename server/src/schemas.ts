@@ -80,3 +80,35 @@ export const SyncBatchSchema = z.object({
 });
 
 export type SyncOp = z.infer<typeof SyncOpSchema>;
+
+export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
+
+export const SaveFoodSchema = z.object({
+  name: z.string().min(1).max(120),
+  kcal: z.number().int().min(0).max(5000),
+  proteinG: z.number().int().min(0).max(500),
+  fatG: z.number().int().min(0).max(500).nullish(),
+  carbsG: z.number().int().min(0).max(1000).nullish(),
+  quickAdd: z.boolean().optional(),
+  defaultSlot: MealSlotSchema.nullish(),
+});
+
+export const UpdateFoodSchema = SaveFoodSchema.partial();
+
+export const LogMealSchema = z.object({
+  slot: MealSlotSchema,
+  description: z.string().min(1).max(300),
+  kcal: z.number().int().min(0).max(5000).nullish(),
+  proteinG: z.number().int().min(0).max(500).nullish(),
+  fatG: z.number().int().min(0).max(500).nullish(),
+  carbsG: z.number().int().min(0).max(1000).nullish(),
+  foodId: z.number().int().positive().nullish(),
+  source: z.enum(['moms_food', 'own', 'other']).nullish(),
+  eatenAt: z.string().datetime({ offset: true }).optional(),
+});
+
+/** Logging a quick-add tile: one id, everything else comes from the library. */
+export const LogFoodSchema = z.object({
+  foodId: z.number().int().positive(),
+  slot: MealSlotSchema.optional(),
+});

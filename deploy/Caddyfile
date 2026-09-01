@@ -1,0 +1,22 @@
+# TLS is automatic: Caddy provisions a Let's Encrypt certificate for
+# LOCKIN_DOMAIN on first boot and renews it without being asked.
+#
+# iOS blocks cleartext HTTP, and the API's auth is a single static bearer
+# token — over plain HTTP anyone on the path could lift it.
+
+{$LOCKIN_DOMAIN} {
+	encode zstd gzip
+
+	# The phone is the only client. Long enough for a chat turn that makes
+	# several tool calls before answering.
+	reverse_proxy api:3000 {
+		transport http {
+			response_header_timeout 180s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -24,6 +24,9 @@ import {
 import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
+import { history, sendMessage } from '../llm/chat';
+import { noteForToday } from '../llm/coach';
+import { listRules } from '../services/rules';
 import { planFor, prescribeExercise, upcomingTemplate } from '../services/workouts';
 
 /**
@@ -122,6 +125,29 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/bodyweight', async (request, reply) => {
     const body = LogWeightSchema.parse(request.body);
     return reply.code(201).send(await logWeight(body));
+  });
+
+  app.get('/rules', async () => ({ rules: await listRules() }));
+
+  /**
+   * Generates today's coach note if it does not exist yet. The app calls this
+   * after rendering Today, so the deterministic plan is never behind a model
+   * call.
+   */
+  app.post('/coach/today', async (request) => {
+    const body = z.object({ force: z.boolean().optional() }).parse(request.body ?? {});
+    return { coach: await noteForToday({ force: body.force }) };
+  });
+
+  app.get('/chat', async (request) => {
+    const query = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
+      .parse(request.query);
+    return { messages: await history(query.limit) };
+  });
+
+  app.post('/chat', async (request) => {
+    const body = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
+    return sendMessage(body.text);
   });
 
   app.post('/sync', async (request) => {

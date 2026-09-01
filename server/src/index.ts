@@ -4,6 +4,7 @@ import { registerAuth } from './auth';
 import { pool } from './db';
 import { env } from './env';
 import { HttpError } from './errors';
+import { LlmError } from './llm/provider';
 import { registerRoutes } from './routes/index';
 import { exercisesByName } from './services/exercises';
 
@@ -17,6 +18,13 @@ export async function buildServer(): Promise<FastifyInstance> {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {
       return reply.code(error.statusCode).send({ error: error.message });
+    }
+
+    if (error instanceof LlmError) {
+      // The trainer being unreachable is not a bug in the app. 503 so the
+      // phone knows to retry rather than showing a crash.
+      request.log.warn({ err: error }, 'llm call failed');
+      return reply.code(error.retryable ? 503 : 400).send({ error: error.message });
     }
 
     if (error instanceof ZodError) {

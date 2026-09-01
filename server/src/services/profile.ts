@@ -1,5 +1,6 @@
 import { type Queryable, pool } from '../db';
 import type { MacroTargets } from '../domain/macros';
+import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
 
 export type Profile = {
   heightCm: number;
@@ -41,3 +42,46 @@ export const macroTargets = (profile: Profile): MacroTargets => ({
   proteinG: profile.proteinTargetG,
   fatFloorG: profile.fatFloorG,
 });
+
+/**
+ * The only way targets change. Every field goes through a §7 floor first, and
+ * a rejected value comes back with the reason so the trainer has to relay it
+ * honestly rather than quietly obeying.
+ */
+export async function updateTargets(
+  input: { calorieTarget?: number; proteinTargetG?: number; goalWeightKg?: number },
+  db: Queryable = pool,
+): Promise<{ profile: Profile; refusals: string[] }> {
+  const current = await getProfile(db);
+  const refusals: string[] = [];
+
+  let calorieTarget = current.calorieTarget;
+  if (input.calorieTarget !== undefined) {
+    const verdict = checkCalorieTarget(input.calorieTarget);
+    if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
+    calorieTarget = verdict.value;
+  }
+
+  let proteinTargetG = current.proteinTargetG;
+  if (input.proteinTargetG !== undefined) {
+    const verdict = checkProteinTarget(input.proteinTargetG);
+    if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
+    proteinTargetG = verdict.value;
+  }
+
+  let goalWeightKg = current.goalWeightKg;
+  if (input.goalWeightKg !== undefined) {
+    const verdict = checkGoalWeight(input.goalWeightKg, current.heightCm);
+    if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
+    goalWeightKg = verdict.value;
+  }
+
+  await db.query(
+    `update profile
+     set calorie_target = $1, protein_target_g = $2, goal_weight_kg = $3, updated_at = now()
+     where id = 1`,
+    [calorieTarget, proteinTargetG, goalWeightKg],
+  );
+
+  return { profile: await getProfile(db), refusals };
+}

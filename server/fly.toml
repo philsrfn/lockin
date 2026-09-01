@@ -1,0 +1,36 @@
+# Fly.io deployment. Frankfurt, because he is in Germany and this handles
+# body-composition data — latency and data locality both point the same way.
+app = "lockin-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  TZ = "Europe/Berlin"
+
+[http_service]
+  internal_port = 3000
+  # TLS is not optional: iOS blocks cleartext HTTP by default, and the API's
+  # entire auth is one static bearer token.
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # One user, but the machine must be able to wake for a request and, from
+  # phase 3, for cron. Suspend rather than stop keeps wake-up near-instant.
+  min_machines_running = 1
+
+  [http_service.http_options]
+    h2_backend = false
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

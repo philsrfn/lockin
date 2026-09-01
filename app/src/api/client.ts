@@ -1,15 +1,8 @@
 /**
- * The only thing the app talks to. The Gemini key never leaves the backend (§2).
- *
- * Phase 1 reads the bearer token from EXPO_PUBLIC_API_TOKEN, which bakes it
- * into the bundle. The spec wants it in the iOS keychain — that moves to
- * expo-secure-store with a paste-once setup screen before this goes to
- * TestFlight. An env var is the honest choice while it only runs on a
- * simulator and a dev phone.
+ * The only thing the app talks to. The Gemini key never leaves the backend (§2),
+ * and the bearer token lives in the iOS keychain — see api/config.ts.
  */
-
-const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-const TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
+import { currentBaseUrl, currentToken } from './config';
 
 /** Gym wifi either answers quickly or is not going to. */
 const TIMEOUT_MS = 8000;
@@ -39,10 +32,10 @@ export async function api<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    response = await fetch(`${currentBaseUrl()}${path}`, {
       method: options.method ?? 'GET',
       headers: {
-        Authorization: `Bearer ${TOKEN}`,
+        Authorization: `Bearer ${currentToken()}`,
         ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
@@ -70,4 +63,4 @@ export async function api<T>(
   return payload as T;
 }
 
-export const apiBaseUrl = BASE_URL;
+export const apiBaseUrl = currentBaseUrl;

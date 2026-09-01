@@ -7,5 +7,6 @@ dist/
 
 # expo
 app/.expo/
+app/dist/
 app/ios/
 app/android/

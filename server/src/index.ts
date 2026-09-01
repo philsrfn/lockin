@@ -13,6 +13,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     logger: { level: process.env.LOG_LEVEL ?? 'info' },
     // A phone on gym wifi retries; a slow body should not hold a socket open.
     requestTimeout: 20_000,
+    // Deployed behind the host's TLS terminator, so the real client address
+    // arrives in X-Forwarded-For.
+    trustProxy: true,
   });
 
   app.setErrorHandler((error, request, reply) => {

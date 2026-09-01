@@ -117,6 +117,34 @@ export type ChatReply = {
   usage: { promptTokens: number; outputTokens: number; totalTokens: number };
 };
 
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export type Food = {
+  id: number;
+  name: string;
+  kcal: number;
+  proteinG: number;
+  fatG: number | null;
+  carbsG: number | null;
+  quickAdd: boolean;
+  defaultSlot: MealSlot | null;
+  timesUsed: number;
+  lastUsedAt: string | null;
+};
+
+export type Meal = {
+  id: number;
+  eatenAt: string;
+  slot: MealSlot;
+  description: string | null;
+  kcal: number | null;
+  proteinG: number | null;
+  fatG: number | null;
+  carbsG: number | null;
+  foodId: number | null;
+  source: string | null;
+};
+
 export type Today = {
   date: string;
   profile: Profile;
@@ -134,6 +162,7 @@ export type Today = {
       kcalPct: number;
       proteinPct: number;
     };
+    meals: Meal[];
   };
   week: { strengthSessions: { done: number; target: number } };
   coach: CoachNote | null;

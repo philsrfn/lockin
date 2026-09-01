@@ -133,7 +133,12 @@ export default function TodayScreen() {
           {macros.remaining.kcal} kcal left of {macros.targets.kcal} · fat floor{' '}
           {macros.remaining.fatToFloorG}g to go
         </Text>
-        <Text style={styles.footnote}>Food logging arrives in phase 4 — targets shown for now.</Text>
+        <Text style={styles.footnote}>
+          {macros.meals.length === 0
+            ? 'Nothing logged yet today.'
+            : `${macros.meals.length} ${macros.meals.length === 1 ? 'meal' : 'meals'} logged · ${macros.consumed.kcal} kcal so far`}
+        </Text>
+        <Button title="Log food" variant="secondary" onPress={() => router.push('/food')} />
       </Card>
 
       <Card label="WEIGHT">

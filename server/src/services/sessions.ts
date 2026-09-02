@@ -1,6 +1,6 @@
 import { type Ctx, transactionFor } from '../db';
 import { badRequest, notFound } from '../errors';
-import { type TemplateId, isTemplateId } from '../domain/templates';
+import type { DayCode } from '../domain/program';
 import { dayIn, dayRangeIn } from '../domain/time';
 import { athleteZone } from './clock';
 
@@ -19,7 +19,8 @@ export type Session = {
   performedAt: string;
   contextId: number | null;
   contextName: string | null;
-  template: TemplateId | null;
+  /** The programme day this was logged against: 'A', 'U1', 'Push'. */
+  template: DayCode | null;
   rpe: number | null;
   notes: string | null;
   jointPain: boolean;
@@ -77,7 +78,7 @@ function toSession(row: SessionRow, sets: SetRecord[]): Session {
     performedAt: row.performed_at.toISOString(),
     contextId: row.context_id,
     contextName: row.context_name,
-    template: isTemplateId(row.template) ? row.template : null,
+    template: row.template,
     rpe: row.rpe,
     notes: row.notes,
     jointPain: row.joint_pain,
@@ -150,7 +151,7 @@ export async function openSession(ctx: Ctx): Promise<Session | null> {
 export type CreateSessionInput = {
   performedAt?: string;
   contextId?: number;
-  template: TemplateId;
+  template: DayCode;
 };
 
 export async function createSession(ctx: Ctx, input: CreateSessionInput): Promise<Session> {

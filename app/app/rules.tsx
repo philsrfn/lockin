@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
-import type { Rule, RuleTier } from '../src/api/types';
+import type { Program, Rule, RuleTier } from '../src/api/types';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
@@ -29,11 +29,18 @@ export default function RulesScreen() {
   const [editing, setEditing] = useState<Rule | null>(null);
   const [adding, setAdding] = useState<RuleTier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [current, setCurrent] = useState<Program | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await api<{ rules: Rule[] }>('/rules');
-      setRules(result.rules);
+      const [ruleResult, programResult] = await Promise.all([
+        api<{ rules: Rule[] }>('/rules'),
+        api<{ programs: Program[]; current: Program }>('/programs'),
+      ]);
+      setRules(ruleResult.rules);
+      setPrograms(programResult.programs);
+      setCurrent(programResult.current);
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your rules');
@@ -41,6 +48,16 @@ export default function RulesScreen() {
       setLoading(false);
     }
   }, []);
+
+  async function chooseProgram(program: Program) {
+    if (program.id === current?.id) return;
+    setCurrent(program);
+    try {
+      await api('/programs/choose', { method: 'POST', body: { programId: program.id } });
+    } finally {
+      await load();
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -65,6 +82,39 @@ export default function RulesScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading ? <Text style={styles.dim}>Loading…</Text> : null}
+
+      {/*
+        Three programmes, not a builder (§14). Switching keeps every session
+        already logged; the rotation just starts at the top of the new one.
+      */}
+      {programs.length > 0 ? (
+        <Card label="PROGRAMME">
+          <Text style={styles.blurb}>
+            An ordered list of days that rotates. How often it rotates is how often you train.
+          </Text>
+          {programs.map((program) => {
+            const chosen = program.id === current?.id;
+            return (
+              <Pressable
+                key={program.id}
+                onPress={() => void chooseProgram(program)}
+                style={styles.program}
+              >
+                <View style={styles.programHead}>
+                  <Text style={[styles.programName, chosen && styles.programNameOn]}>
+                    {program.name}
+                  </Text>
+                  {chosen ? <Text style={styles.programCheck}>✓</Text> : null}
+                </View>
+                <Text style={styles.programDays}>
+                  {program.days.map((day) => day.name).join(' · ')}
+                </Text>
+                {chosen ? <Text style={styles.programBlurb}>{program.description}</Text> : null}
+              </Pressable>
+            );
+          })}
+        </Card>
+      ) : null}
 
       {TIERS.map(({ tier, title, blurb }) => {
         const mine = rules.filter((rule) => rule.tier === tier);
@@ -224,6 +274,23 @@ function RuleSheet({
 const styles = StyleSheet.create({
   header: { gap: space.xs },
   back: { ...typo.body, color: colors.textDim, marginBottom: space.sm },
+  program: {
+    paddingVertical: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  programHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  programName: { ...typo.body, color: colors.textDim },
+  programNameOn: { color: colors.text, fontWeight: '600' },
+  programDays: { ...typo.bodyDim, fontSize: 13, color: colors.textFaint, marginTop: space.xs },
+  programBlurb: {
+    ...typo.bodyDim,
+    fontSize: 13,
+    color: colors.textDim,
+    lineHeight: 19,
+    marginTop: space.sm,
+  },
+  programCheck: { ...typo.body, color: colors.accent },
   title: { fontSize: 30, fontWeight: '300', color: colors.text },
   subtitle: { ...typo.bodyDim, color: colors.textDim },
   blurb: { fontSize: 13, color: colors.textFaint, marginTop: -space.xs },

@@ -12,6 +12,9 @@ import { pool } from './db';
 import { env } from './env';
 
 const WEEKS = 9;
+// The day codes of the full-body programme, which is what the demo athlete
+// runs. Kept as a literal: this script fabricates history and has no business
+// asking the catalogue what it should have been.
 const TEMPLATES = ['A', 'B', 'C'] as const;
 
 /**

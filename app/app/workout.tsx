@@ -91,7 +91,10 @@ export default function WorkoutScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
           <Text style={styles.headerAction}>CLOSE</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>DAY {workout.plan?.template}</Text>
+        {/* The day's name, not its code: 'Push' reads, 'DAY Push' does not. */}
+        <Text style={styles.headerTitle}>
+          {(workout.plan?.dayName ?? '').toUpperCase()}
+        </Text>
         <Pressable onPress={() => setFinishing(true)} hitSlop={12} style={styles.headerButton}>
           <Text style={[styles.headerAction, styles.headerFinish]}>FINISH</Text>
         </Pressable>

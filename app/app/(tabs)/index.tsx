@@ -217,7 +217,7 @@ function DayDetail({ day, target }: { day: WeekDay; target: number }) {
       )}
       <View style={styles.facts}>
         <Fact
-          value={day.lifted ? `Day ${day.template ?? '?'}` : '—'}
+          value={day.lifted ? (day.template ?? '—') : '—'}
           label={day.lifted ? `${day.sets} SETS` : 'NO SESSION'}
         />
         <Fact value={day.weightKg ? kg(day.weightKg) : '—'} label="WEIGHED" />

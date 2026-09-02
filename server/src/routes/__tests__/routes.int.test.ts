@@ -159,7 +159,7 @@ describe('error mapping', () => {
       method: 'POST',
       url: '/sessions',
       headers: auth,
-      payload: { template: 'Z' },
+      payload: { template: '' },
     });
 
     expect(response.statusCode).toBe(400);

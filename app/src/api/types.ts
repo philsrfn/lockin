@@ -3,7 +3,26 @@
  * one user, a dozen endpoints, and a generator is one more thing to keep alive.
  */
 
-export type TemplateId = 'A' | 'B' | 'C';
+/**
+ * A programme day code — 'A', 'U1', 'Push'. Which codes exist depends on the
+ * programme the athlete is running, so this is a string rather than an enum.
+ */
+export type TemplateId = string;
+
+export type ProgramDay = {
+  position: number;
+  code: TemplateId;
+  name: string;
+};
+
+export type Program = {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  daysPerWeek: number;
+  days: ProgramDay[];
+};
 
 export type Profile = {
   name: string | null;
@@ -112,6 +131,9 @@ export type ExercisePrescription = {
 
 export type WorkoutPlan = {
   template: TemplateId;
+  /** What to call this day on screen: 'Full body A', 'Upper', 'Push'. */
+  dayName: string;
+  programName: string;
   rampIn: { active: boolean; maxWorkingSets: number | null; minRir: number };
   jointPain: {
     consecutiveFlags: number;

@@ -41,12 +41,20 @@ from the body, in code (§1).
 
 ## Training
 
+A **programme** is an ordered list of days that rotates — full body A/B/C,
+upper/lower U1/L1/U2/L2, push/pull/legs. A day's `code` is what
+`sessions.template` stores, so it is history as much as configuration; `dayName`
+is what to show. How often the rotation cycles is how often the athlete trains,
+which is a separate question and lives on the profile.
+
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | GET | `/today` | — | everything the Today screen needs, one round trip |
 | GET | `/week` | — | the seven-day strip the home screen is built on |
 | GET | `/exercises` | — | `{exercises}` with substitute ids |
-| GET | `/workouts/next` | `?template=A\|B\|C` | prescriptions; defaults to the next in rotation |
+| GET | `/programs` | — | `{programs, current}` — the catalogue and the one he is on |
+| POST | `/programs/choose` | `{programId}` | `{current}`. History keeps its day codes; the rotation restarts. |
+| GET | `/workouts/next` | `?template=<day code>` | prescriptions; defaults to the next in rotation |
 | GET | `/exercises/:id/prescription` | `?excludeSessionId&sets` | one movement's load, from its own history |
 | GET | `/progress` | `?days=90` | volume, set count, best set per exercise per day (Epley) |
 | GET | `/sessions` | `?limit=20` | `{sessions}` newest first, sets included |

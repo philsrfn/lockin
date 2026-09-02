@@ -9,7 +9,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../db';
-import { contextIdByName, resetData, resetProfile, phil } from '../../test/helpers';
+import { contextIdByName, exerciseIdByName, resetData, resetProfile, phil } from '../../test/helpers';
 import {
   activateContext,
   activeContext,
@@ -336,13 +336,14 @@ describe('exercises', () => {
     await expect(exercisesByName()).resolves.toBeInstanceOf(Map);
   });
 
-  it('fails loudly when a template name drifts out of the library', async () => {
-    await pool.query(`update exercises set name = 'Back Squat (old)' where name = 'Back Squat'`);
-    try {
-      await expect(exercisesByName()).rejects.toThrow('Back Squat');
-    } finally {
-      await pool.query(`update exercises set name = 'Back Squat' where name = 'Back Squat (old)'`);
-    }
+  it('cannot lose an exercise a programme points at', async () => {
+    // The programme used to reference exercises by name, and a startup check
+    // caught a drift. Programmes are rows now: program_slots.exercise_id is a
+    // foreign key, so the database refuses at migration time instead — which
+    // is earlier and stricter than anything the app could do.
+    const squat = await exerciseIdByName('Back Squat');
+
+    await expect(pool.query('delete from exercises where id = $1', [squat])).rejects.toThrow();
   });
 
   it('404s on an exercise id that does not exist', async () => {

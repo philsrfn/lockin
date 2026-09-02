@@ -1,6 +1,5 @@
 import { type Queryable, pool } from '../db';
 import { notFound } from '../errors';
-import { templateExerciseNames } from '../domain/templates';
 
 export type Exercise = {
   id: number;
@@ -41,21 +40,14 @@ export async function getExercise(id: number, db: Queryable = pool): Promise<Exe
 }
 
 /**
- * The templates reference exercises by name. Resolve the whole library once and
- * fail at boot if the program points at something the seed does not have —
- * better than discovering it mid-workout.
+ * The library keyed by name, for the places that resolve a movement the athlete
+ * or the model typed rather than one the programme names.
+ *
+ * The programme used to reference exercises by name and this function checked
+ * them at boot. Programmes are rows now, and `program_slots.exercise_id` is a
+ * foreign key — the database refuses a drifted name at migration time, which
+ * is earlier and stricter than a startup check.
  */
 export async function exercisesByName(db: Queryable = pool): Promise<Map<string, Exercise>> {
-  const byName = new Map(
-    (await listExercises(db)).map((exercise) => [exercise.name, exercise]),
-  );
-
-  const missing = templateExerciseNames().filter((name) => !byName.has(name));
-  if (missing.length > 0) {
-    throw new Error(
-      `Training templates reference exercises that are not in the database: ${missing.join(', ')}`,
-    );
-  }
-
-  return byName;
+  return new Map((await listExercises(db)).map((exercise) => [exercise.name, exercise]));
 }

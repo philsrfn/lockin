@@ -1,6 +1,6 @@
 import type { Ctx } from '../db';
 import { type Macros, type RemainingMacros, remaining } from '../domain/macros';
-import { WEEKLY_TARGETS } from '../domain/templates';
+import { WEEKLY_TARGETS } from '../domain/program';
 import { type Context, activeContext } from './contexts';
 import { type Profile, getProfile, macroTargets } from './profile';
 import { type Session, openSession, recentSessions, sessionsToday } from './sessions';

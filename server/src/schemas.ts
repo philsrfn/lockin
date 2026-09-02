@@ -4,7 +4,12 @@
  */
 import { z } from 'zod';
 
-export const TemplateIdSchema = z.enum(['A', 'B', 'C']);
+/**
+ * A programme day code — 'A', 'U1', 'Push'. Free text at this layer: which
+ * codes are valid depends on the programme the athlete is running, and only
+ * the service knows that.
+ */
+export const TemplateIdSchema = z.string().min(1).max(16);
 
 export const IdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -128,6 +133,10 @@ export const UpdateContextSchema = SaveContextSchema.partial().refine(
   (body) => Object.keys(body).length > 0,
   { message: 'Nothing to change' },
 );
+
+export const ChooseProgramSchema = z.object({
+  programId: z.number().int().positive(),
+});
 
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
 

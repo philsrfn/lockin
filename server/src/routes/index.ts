@@ -14,6 +14,7 @@ import {
   JobNameSchema,
   MealPlanSchema,
   OnboardingSchema,
+  ChooseProgramSchema,
   SaveContextSchema,
   UpdateContextSchema,
   LogFoodSchema,
@@ -61,6 +62,7 @@ import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
 import { addRule, listRules, updateRule } from '../services/rules';
+import { currentProgram, listPrograms, setProgram } from '../services/programs';
 import { planFor, prescribeExercise, progress, upcomingTemplate } from '../services/workouts';
 
 /**
@@ -127,6 +129,25 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/exercises', async () => ({ exercises: await listExercises() }));
+
+  /**
+   * The catalogue, and which one he is on. §14: a short list of programmes
+   * that work, not a builder.
+   */
+  app.get('/programs', async (request) => ({
+    programs: await listPrograms(request.ctx),
+    current: await currentProgram(request.ctx),
+  }));
+
+  /**
+   * Switching. History keeps the day codes it was logged against; the rotation
+   * starts at the top of the new programme, because "what follows C in
+   * upper/lower" has no honest answer.
+   */
+  app.post('/programs/choose', async (request) => {
+    const body = ChooseProgramSchema.parse(request.body);
+    return { current: await setProgram(request.ctx, body.programId) };
+  });
 
   app.get('/today', async (request) => getToday(request.ctx));
 

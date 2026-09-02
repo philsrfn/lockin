@@ -29,6 +29,7 @@ import { isValidTimeZone } from '../domain/time';
 import { badRequest } from '../errors';
 import { type Profile, getProfile } from './profile';
 import { logWeight } from './bodyweight';
+import { programBySlug, suggestProgramSlug } from './programs';
 
 export type OnboardingInput = {
   name?: string | null;
@@ -140,6 +141,11 @@ export async function completeOnboarding(
   }
 
   return transactionFor(ctx, async (inner) => {
+    // Training days is the only thing we know at signup, and it is the thing
+    // that decides: four a week is where full body stops being the best use of
+    // them. Changeable afterwards from the programme list.
+    const program = await programBySlug(inner.db, suggestProgramSlug(days.value));
+
     await inner.db.query(
       `update profile
        set name = coalesce($2, name),
@@ -156,6 +162,7 @@ export async function completeOnboarding(
            fat_floor_g = $13,
            timezone = coalesce($14, timezone),
            locale = coalesce($15, locale),
+           program_id = coalesce($16, program_id),
            onboarded_at = now(),
            updated_at = now()
        where user_id = $1`,
@@ -175,6 +182,7 @@ export async function completeOnboarding(
         computed.fatFloorG,
         input.timezone ?? null,
         input.locale ?? null,
+        program?.id ?? null,
       ],
     );
 

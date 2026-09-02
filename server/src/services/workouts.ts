@@ -1,4 +1,5 @@
 import type { Ctx } from '../db';
+import { notFound } from '../errors';
 import {
   type JointPainGate,
   type PerformedSet,
@@ -9,10 +10,11 @@ import {
   nextPrescription,
   rampIn,
 } from '../domain/progression';
-import { TEMPLATES, type TemplateId, defaultsForPattern, nextTemplate } from '../domain/templates';
+import { type DayCode, defaultsForPattern, nextInRotation } from '../domain/program';
 import { addDays, dayIn, daySpanIn } from '../domain/time';
 import { athleteZone } from './clock';
-import { type Exercise, exercisesByName, getExercise, listExercises } from './exercises';
+import { type Exercise, getExercise, listExercises } from './exercises';
+import { type Program, currentProgram, slotsFor } from './programs';
 import { firstSessionAt } from './sessions';
 
 export type ExercisePrescription = {
@@ -32,7 +34,11 @@ export type ExercisePrescription = {
 };
 
 export type WorkoutPlan = {
-  template: TemplateId;
+  /** The day code, stored on the session: 'A', 'U1', 'Push'. */
+  template: DayCode;
+  /** What to call it on screen. 'Full body A', 'Upper', 'Push'. */
+  dayName: string;
+  programName: string;
   rampIn: RampInGate;
   jointPain: JointPainGate;
   exercises: ExercisePrescription[];
@@ -109,7 +115,8 @@ async function finishedSessions(ctx: Ctx) {
 }
 
 /** Which day comes next: A → B → C → A, off the last session he logged. */
-export async function upcomingTemplate(ctx: Ctx): Promise<TemplateId> {
+export async function upcomingTemplate(ctx: Ctx, program?: Program): Promise<DayCode> {
+  const chosen = program ?? (await currentProgram(ctx));
   const { rows } = await ctx.db.query<{ template: string | null }>(
     `select template from sessions
      where user_id = $1 and template is not null
@@ -117,37 +124,45 @@ export async function upcomingTemplate(ctx: Ctx): Promise<TemplateId> {
      limit 1`,
     [ctx.userId],
   );
-  const last = rows[0]?.template;
-  return nextTemplate(last === 'A' || last === 'B' || last === 'C' ? last : null);
+
+  const next = nextInRotation(
+    chosen.days.map((day) => day.code),
+    rows[0]?.template ?? null,
+  );
+  if (!next) throw new Error(`Programme ${chosen.slug} has no days`);
+  return next;
 }
 
 export async function planFor(
   ctx: Ctx,
-  template: TemplateId,
+  template: DayCode,
   options: { excludeSessionId?: number; now?: Date } = {},
 ): Promise<WorkoutPlan> {
   const now = options.now ?? new Date();
-  const slots = TEMPLATES[template];
 
-  const [byName, allExercises, firstAt, finished] = await Promise.all([
-    exercisesByName(ctx.db),
+  const program = await currentProgram(ctx);
+  const day = program.days.find((entry) => entry.code === template);
+  if (!day) throw notFound(`${program.name} has no day called ${template}`);
+
+  const [slots, allExercises, firstAt, finished] = await Promise.all([
+    slotsFor(ctx, program.id, day.code),
     listExercises(ctx.db),
     firstSessionAt(ctx),
     finishedSessions(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
-  const resolved = slots.map((slot) => ({ slot, exercise: byName.get(slot.exerciseName)! }));
 
   const ramp = rampIn(firstAt, now);
   const gate = jointPainGate(finished);
   const history = await historyFor(
     ctx,
-    resolved.map(({ exercise }) => exercise.id),
+    slots.map((slot) => slot.exerciseId),
     options.excludeSessionId,
   );
 
-  const exercises = resolved.map(({ slot, exercise }) => {
+  const exercises = slots.map((slot) => {
+    const exercise = byId.get(slot.exerciseId)!;
     const sessions = history.get(exercise.id) ?? [];
     const targetSets = Math.min(slot.sets, ramp.maxWorkingSets ?? slot.sets);
 
@@ -181,7 +196,14 @@ export async function planFor(
     } satisfies ExercisePrescription;
   });
 
-  return { template, rampIn: ramp, jointPain: gate, exercises };
+  return {
+    template,
+    dayName: day.name,
+    programName: program.name,
+    rampIn: ramp,
+    jointPain: gate,
+    exercises,
+  };
 }
 
 /**

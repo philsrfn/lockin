@@ -14,12 +14,13 @@
  */
 import type { Ctx } from '../db';
 import { checkTrainingDays } from '../domain/safety';
-import { WEEKLY_TARGETS } from '../domain/templates';
+import { WEEKLY_TARGETS } from '../domain/program';
 import { athleteToday } from '../services/clock';
 import { activeContext } from '../services/contexts';
 import { getWeek } from '../services/week';
 import { listExercises } from '../services/exercises';
 import { recentSessions } from '../services/sessions';
+import { type Program, currentProgram } from '../services/programs';
 import { upcomingTemplate } from '../services/workouts';
 import { assembleContext } from './context';
 import { geminiProvider } from './gemini';
@@ -30,13 +31,19 @@ export type CoachSwap = { from: string; to: string; reason: string };
 export type CoachNote = {
   forDate: string;
   sessionType: 'strength' | 'cardio' | 'rest';
-  template: 'A' | 'B' | 'C' | null;
+  /** A day code from his programme, or null on a cardio or rest day. */
+  template: string | null;
   headline: string;
   body: string;
   swaps: CoachSwap[];
 };
 
-const RESPONSE_SCHEMA = {
+/**
+ * Built per request, because the days it may choose from are the days of the
+ * programme he is running. Handing it a fixed A/B/C would let it name a day
+ * that does not exist for anyone on upper/lower.
+ */
+const responseSchema = (dayCodes: string[]) => ({
   type: 'object',
   properties: {
     sessionType: {
@@ -47,7 +54,7 @@ const RESPONSE_SCHEMA = {
     },
     template: {
       type: 'string',
-      enum: ['A', 'B', 'C'],
+      enum: dayCodes,
       description: 'Only when sessionType is strength. Normally the next in rotation.',
     },
     headline: {
@@ -76,9 +83,9 @@ const RESPONSE_SCHEMA = {
     },
   },
   required: ['sessionType', 'headline', 'body'],
-};
+});
 
-const INSTRUCTION = `You are Phil's personal trainer, deciding what today should be.
+const INSTRUCTION = `You are the athlete's personal trainer, deciding what today should be.
 
 His weekly targets are 3 strength sessions, 2 zone-2 treadmill sessions of 35
 minutes, and a 9-10k daily step average. Not fixed weekdays — he travels, and
@@ -135,6 +142,7 @@ export async function cachedNote(ctx: Ctx, date: string): Promise<CoachNote | nu
  */
 async function sanitise(
   ctx: Ctx,
+  program: Program,
   raw: {
     sessionType?: string;
     template?: string;
@@ -155,9 +163,11 @@ async function sanitise(
 
   let template: CoachNote['template'] = null;
   if (sessionType === 'strength') {
-    template = ['A', 'B', 'C'].includes(String(raw.template))
-      ? (raw.template as CoachNote['template'])
-      : await upcomingTemplate(ctx);
+    // The model may name a day; it may only name one that exists in the
+    // programme he is actually running. Anything else falls back to the
+    // rotation, which is the answer it should have given.
+    const named = program.days.find((day) => day.code === String(raw.template));
+    template = named ? named.code : await upcomingTemplate(ctx, program);
   }
 
   // A swap must stay inside the movement pattern, and both names must exist.
@@ -181,10 +191,11 @@ async function sanitise(
 /** Generates the note, validates it, stores it. */
 export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNote> {
   const date = forDate ?? (await athleteToday(ctx));
-  const [context, sessions, week] = await Promise.all([
+  const [context, sessions, week, program] = await Promise.all([
     activeContext(ctx),
     recentSessions(ctx, 7),
     getWeek(ctx),
+    currentProgram(ctx),
   ]);
   // Calendar days, matching the strip on the home screen. A rolling window made
   // the coach claim three sessions while the screen beside it showed two.
@@ -207,10 +218,12 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
           // breaking §1 for exactly the reason §1 exists.
           `Strength sessions finished so far this week: ${strengthThisWeek} of ` +
           `${WEEKLY_TARGETS.strengthSessions}. Use this number; do not count them yourself.\n\n` +
+          `He is running ${program.name}: ` +
+          `${program.days.map((day) => `${day.code} (${day.name})`).join(', ')}.\n\n` +
           'Decide what today is.',
       },
     ],
-    responseSchema: RESPONSE_SCHEMA,
+    responseSchema: responseSchema(program.days.map((day) => day.code)),
     model: 'fast',
     maxOutputTokens: 3000,
   });
@@ -222,7 +235,7 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
     throw new LlmError('The coach returned something that was not JSON', true);
   }
 
-  const note = await sanitise(ctx, parsed as never, strengthThisWeek);
+  const note = await sanitise(ctx, program, parsed as never, strengthThisWeek);
 
   await ctx.db.query(
     `insert into coach_notes

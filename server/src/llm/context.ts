@@ -7,7 +7,7 @@
  */
 import { remaining } from '../domain/macros';
 import { movingAverage, weeklyChangeKg } from '../domain/trend';
-import { WEEKLY_TARGETS } from '../domain/templates';
+import { WEEKLY_TARGETS } from '../domain/program';
 import { jointPainGate, rampIn } from '../domain/progression';
 import { listEntries } from '../services/bodyweight';
 import { activeContext } from '../services/contexts';

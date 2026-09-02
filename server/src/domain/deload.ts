@@ -39,6 +39,12 @@ export function deloadStatus(input: {
   trainingWeeks: number;
   everyWeeks: number;
   activeThisWeek: boolean;
+  /**
+   * The block that earned the light week. Recorded when the deload starts,
+   * because `trainingWeeks` resets to zero at that moment — reading the live
+   * counter produced "you have trained 0 weeks straight".
+   */
+  earnedAfterWeeks?: number | null;
 }): DeloadStatus {
   const everyWeeks = Math.max(0, Math.round(input.everyWeeks));
   const off = everyWeeks === 0;
@@ -51,8 +57,8 @@ export function deloadStatus(input: {
     due,
     reason: input.activeThisWeek
       ? `Light week. ${Math.round((1 - DELOAD_LOAD_FACTOR) * 100)}% off the bar and a set ` +
-        'fewer everywhere — you have trained ' +
-        `${input.trainingWeeks} weeks straight and this is what keeps that going.`
+        `fewer everywhere — you have trained ${input.earnedAfterWeeks ?? everyWeeks} weeks ` +
+        'straight and this is what keeps that going.'
       : null,
   };
 }

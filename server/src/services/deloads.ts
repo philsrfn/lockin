@@ -30,9 +30,12 @@ export async function currentDeload(ctx: Ctx, zone?: string): Promise<DeloadStat
   );
   const everyWeeks = profileRows[0]?.deload_every_weeks ?? 0;
 
-  const { rows: last } = await ctx.db.query<{ week_starting: string }>(
-    `select to_char(week_starting, 'YYYY-MM-DD') as week_starting from deloads
-     where user_id = $1 order by week_starting desc limit 1`,
+  const { rows: last } = await ctx.db.query<{
+    week_starting: string;
+    training_weeks: number | null;
+  }>(
+    `select to_char(week_starting, 'YYYY-MM-DD') as week_starting, training_weeks
+     from deloads where user_id = $1 order by week_starting desc limit 1`,
     [ctx.userId],
   );
   const lastDeload = last[0]?.week_starting ?? null;
@@ -57,6 +60,7 @@ export async function currentDeload(ctx: Ctx, zone?: string): Promise<DeloadStat
     trainingWeeks: weeks[0]?.n ?? 0,
     everyWeeks,
     activeThisWeek,
+    earnedAfterWeeks: last[0]?.training_weeks ?? null,
   });
 }
 
@@ -71,9 +75,9 @@ export async function ensureDeload(ctx: Ctx, zone?: string): Promise<DeloadStatu
   if (!status.due) return status;
 
   await ctx.db.query(
-    `insert into deloads (user_id, week_starting) values ($1, $2::date)
+    `insert into deloads (user_id, week_starting, training_weeks) values ($1, $2::date, $3)
      on conflict (user_id, week_starting) do nothing`,
-    [ctx.userId, weekStarting(dayIn(timezone))],
+    [ctx.userId, weekStarting(dayIn(timezone)), status.trainingWeeks],
   );
 
   return currentDeload(ctx, timezone);

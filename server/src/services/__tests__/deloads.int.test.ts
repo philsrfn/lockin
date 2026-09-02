@@ -107,8 +107,13 @@ describe('running one', () => {
     expect(status.due).toBe(false);
   });
 
-  it('says why, once', async () => {
-    expect((await currentDeload(phil)).reason).toContain('Light week');
+  it('says why, quoting the block that earned it', async () => {
+    const reason = (await currentDeload(phil)).reason ?? '';
+
+    expect(reason).toContain('Light week');
+    // Not the live counter, which reset to zero the moment it was recorded.
+    expect(reason).not.toContain('0 weeks');
+    expect(reason).toMatch(/[1-9]\d* weeks/);
   });
 
   it('takes a tenth off the bar and a set off everywhere', async () => {

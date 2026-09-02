@@ -32,10 +32,26 @@ describe('deloadStatus', () => {
   });
 
   it('says why, once, in a voice a person would use', () => {
-    const status = deloadStatus({ trainingWeeks: 8, everyWeeks: 8, activeThisWeek: true });
+    const status = deloadStatus({
+      trainingWeeks: 0,
+      everyWeeks: 8,
+      activeThisWeek: true,
+      earnedAfterWeeks: 9,
+    });
 
     expect(status.reason).toContain('Light week');
     expect(status.reason).toContain('10%');
+    // The counter resets the moment the deload is recorded, so the message
+    // must quote the block that earned it. Reading the live counter produced
+    // "you have trained 0 weeks straight".
+    expect(status.reason).toContain('9 weeks');
+  });
+
+  it('falls back to the schedule when the block was never recorded', () => {
+    const status = deloadStatus({ trainingWeeks: 0, everyWeeks: 8, activeThisWeek: true });
+
+    expect(status.reason).toContain('8 weeks');
+    expect(status.reason).not.toContain('0 weeks');
   });
 
   it('can be turned off', () => {

@@ -181,6 +181,29 @@ export type Progress = {
   exercises: ExerciseProgress[];
 };
 
+export type WeekDay = {
+  date: string;
+  weekday: string;
+  isToday: boolean;
+  isFuture: boolean;
+  lifted: boolean;
+  template: string | null;
+  sets: number;
+  weightKg: number | null;
+  proteinG: number;
+  kcal: number;
+  proteinPct: number | null;
+};
+
+export type Week = {
+  days: WeekDay[];
+  strength: { done: number; target: number };
+  weighIns: { done: number; target: number };
+  proteinTargetG: number;
+  avgProteinG: number | null;
+  loggedDays: number;
+};
+
 export type FridgeItem = {
   name: string;
   estimatedQty: string;

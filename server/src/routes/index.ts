@@ -37,6 +37,7 @@ import {
 import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
+import { getWeek } from '../services/week';
 import { archiveFood, createFood, getFood, listFoods, updateFood } from '../services/foods';
 import { lookupBarcode, saveScanned } from '../services/barcode';
 import { estimateFood } from '../llm/food';
@@ -77,6 +78,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/exercises', async () => ({ exercises: await listExercises() }));
 
   app.get('/today', async () => getToday());
+
+  /** The seven-day shape the home screen is built on. */
+  app.get('/week', async () => getWeek());
 
   app.get('/workouts/next', async (request) => {
     const query = z.object({ template: TemplateIdSchema.optional() }).parse(request.query);

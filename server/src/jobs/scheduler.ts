@@ -9,6 +9,8 @@
  * refuses the second.
  */
 import { pool } from '../db';
+import { dayIn, minutesOfDayIn, weekdayOf } from '../domain/time';
+import { athleteZone } from '../services/clock';
 
 export type JobResult = {
   status: string;
@@ -32,18 +34,21 @@ type ScheduleRow = {
   enabled: boolean;
 };
 
-/** Local wall-clock parts. TZ is Europe/Berlin in the container (§13). */
-function nowParts(): { date: string; minutes: number; dow: number } {
-  const now = new Date();
-  return {
-    date: now.toLocaleDateString('sv-SE'),
-    minutes: now.getHours() * 60 + now.getMinutes(),
-    dow: now.getDay(),
-  };
+type NowParts = { date: string; minutes: number; dow: number };
+
+/**
+ * The wall clock where the athlete is, not where the server is. A schedule row
+ * saying 07:30 means 07:30 to him; on a box in another zone the old version
+ * would have fired the morning check-in in the middle of his night.
+ */
+async function nowParts(now: Date = new Date()): Promise<NowParts> {
+  const zone = await athleteZone();
+  const date = dayIn(zone, now);
+  return { date, minutes: minutesOfDayIn(zone, now), dow: weekdayOf(date) };
 }
 
-async function due(handlers: Record<string, JobHandler>): Promise<string[]> {
-  const { date, minutes, dow } = nowParts();
+async function due(handlers: Record<string, JobHandler>, parts: NowParts): Promise<string[]> {
+  const { date, minutes, dow } = parts;
 
   const { rows } = await pool.query<ScheduleRow>(
     'select job, hour, minute, day_of_week, enabled from job_schedule where enabled',
@@ -64,8 +69,8 @@ async function due(handlers: Record<string, JobHandler>): Promise<string[]> {
   return ready;
 }
 
-async function run(job: string, handler: JobHandler): Promise<void> {
-  const { date } = nowParts();
+async function run(job: string, handler: JobHandler, parts: NowParts): Promise<void> {
+  const { date } = parts;
 
   // Claim the slot first. If another process got here in the same minute its
   // insert wins and ours does nothing, so the work happens exactly once.
@@ -104,8 +109,11 @@ export function startScheduler(handlers: Record<string, JobHandler>): () => void
   const tick = async () => {
     if (stopped) return;
     try {
-      for (const job of await due(handlers)) {
-        await run(job, handlers[job]!);
+      // Read once per tick and reused: resolving the date twice could straddle
+      // midnight and claim the slot for a different day than the one checked.
+      const parts = await nowParts();
+      for (const job of await due(handlers, parts)) {
+        await run(job, handlers[job]!, parts);
       }
     } catch (error) {
       // A scheduler that dies on one bad tick stops every future job.
@@ -124,9 +132,10 @@ export function startScheduler(handlers: Record<string, JobHandler>): () => void
 
 /** Used by the manual trigger so a job can be re-run for testing. */
 export async function forceRun(job: string, handler: JobHandler): Promise<JobResult> {
-  const { date } = nowParts();
+  const parts = await nowParts();
+  const { date } = parts;
   await pool.query('delete from job_runs where job = $1 and ran_for = $2', [job, date]);
-  await run(job, handler);
+  await run(job, handler, parts);
   const { rows } = await pool.query<{ status: string; detail: Record<string, unknown> }>(
     'select status, detail from job_runs where job = $1 and ran_for = $2',
     [job, date],

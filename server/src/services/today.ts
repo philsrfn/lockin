@@ -4,7 +4,8 @@ import { WEEKLY_TARGETS } from '../domain/templates';
 import { type Context, activeContext } from './contexts';
 import { type Profile, getProfile, macroTargets } from './profile';
 import { type Session, openSession, recentSessions, sessionsToday } from './sessions';
-import { type WeightSummary, summary as weightSummary, today as todayDate } from './bodyweight';
+import { type WeightSummary, summary as weightSummary } from './bodyweight';
+import { dayIn } from '../domain/time';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
@@ -43,18 +44,23 @@ export type Today = {
  * connection two requests are twice the chance of neither arriving.
  */
 export async function getToday(db: Queryable = pool): Promise<Today> {
-  const [profile, context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week] =
+  // Resolved once and handed down, so every part of this payload agrees about
+  // which day it is — and so the ten reads below do not each look it up again.
+  const profile = await getProfile(db);
+  const zone = profile.timezone;
+  const today = dayIn(zone);
+
+  const [context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week] =
     await Promise.all([
-    getProfile(db),
     activeContext(db),
     openSession(db),
-    weightSummary(30, db),
-    macrosToday(db),
+    weightSummary(30, db, zone),
+    macrosToday(db, zone),
     recentSessions(7, db),
     // Read-only: whatever was generated earlier. Never generates here.
-    cachedNote(todayDate(), db),
-    mealsToday(db),
-    sessionsToday(db),
+    cachedNote(today, db),
+    mealsToday(db, zone),
+    sessionsToday(db, zone),
     getWeek(db),
   ]);
 
@@ -66,7 +72,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
   const targets = macroTargets(profile);
 
   return {
-    date: todayDate(),
+    date: today,
     profile,
     context,
     openSession: open,

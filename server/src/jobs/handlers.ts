@@ -15,7 +15,6 @@ import { activeContext } from '../services/contexts';
 import { openSession } from '../services/sessions';
 import { macrosToday } from '../services/meals';
 import { getProfile } from '../services/profile';
-import { today as todayDate } from '../services/bodyweight';
 
 /**
  * 07:30 — the day's plan, the city to confirm, and the Skyr. Generating the
@@ -26,7 +25,7 @@ async function morningCheckin(): Promise<JobResult> {
   let headline = 'Morning. Open up and let me know how you slept.';
 
   try {
-    const note = await generateNote(todayDate());
+    const note = await generateNote();
     if (note) headline = note.headline;
   } catch {
     // A model outage must not cost him the check-in.

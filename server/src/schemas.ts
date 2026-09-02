@@ -81,6 +81,15 @@ export const SyncBatchSchema = z.object({
 
 export type SyncOp = z.infer<typeof SyncOpSchema>;
 
+/**
+ * Settings. Only the timezone for now — the targets are deliberately not
+ * editable from a form, because §7's floors have to sit between any change and
+ * the database.
+ */
+export const UpdateProfileSchema = z.object({
+  timezone: z.string().min(1).max(64),
+});
+
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
 
 export const SaveFoodSchema = z.object({

@@ -10,6 +10,8 @@ import {
   rampIn,
 } from '../domain/progression';
 import { TEMPLATES, type TemplateId, defaultsForPattern, nextTemplate } from '../domain/templates';
+import { addDays, dayIn, daySpanIn } from '../domain/time';
+import { athleteZone } from './clock';
 import { type Exercise, exercisesByName, getExercise, listExercises } from './exercises';
 import { firstSessionAt } from './sessions';
 
@@ -264,7 +266,17 @@ export type Progress = {
  *
  * Arithmetic, in code, per §1.
  */
-export async function progress(days = 90, db: Queryable = pool): Promise<Progress> {
+export async function progress(
+  days = 90,
+  db: Queryable = pool,
+  zone?: string,
+): Promise<Progress> {
+  // Calendar days in his zone, so a session logged at 22:00 is charted on the
+  // day he trained rather than the next one.
+  const timezone = zone ?? (await athleteZone(db));
+  const lastDay = dayIn(timezone);
+  const span = daySpanIn(timezone, addDays(lastDay, -(days - 1)), lastDay);
+
   const { rows } = await db.query<{
     exercise_id: number;
     name: string;
@@ -274,15 +286,15 @@ export async function progress(days = 90, db: Queryable = pool): Promise<Progres
     reps: number;
   }>(
     `select st.exercise_id, e.name, e.pattern,
-            to_char(se.performed_at, 'YYYY-MM-DD') as performed_on,
+            to_char(se.performed_at at time zone $3, 'YYYY-MM-DD') as performed_on,
             st.weight_kg, st.reps
      from sets st
      join sessions se on se.id = st.session_id
      join exercises e on e.id = st.exercise_id
-     where se.performed_at >= now() - ($1 || ' days')::interval
+     where se.performed_at >= $1 and se.performed_at < $2
        and st.reps > 0
      order by e.name, se.performed_at`,
-    [days],
+    [span.from, span.until, timezone],
   );
 
   const byExercise = new Map<number, ExerciseProgress>();

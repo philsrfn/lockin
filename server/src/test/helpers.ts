@@ -37,7 +37,8 @@ export async function resetProfile(): Promise<void> {
   await pool.query(
     `update profile
      set calorie_target = 2300, protein_target_g = 190, fat_floor_g = 70,
-         goal_weight_kg = 80, height_cm = 191, name = 'Phil'
+         goal_weight_kg = 80, height_cm = 191, name = 'Phil',
+         timezone = 'Europe/Berlin'
      where id = 1`,
   );
 }

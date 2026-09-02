@@ -10,9 +10,8 @@
  * "0 of 2 zone-2" he has no way to satisfy would be inventing a failure.
  */
 import { type Queryable, pool } from '../db';
-import { addDays } from '../domain/trend';
+import { addDays, dayIn, daySpanIn, weekdayOf } from '../domain/time';
 import { getProfile } from './profile';
-import { today as todayDate } from './bodyweight';
 
 export type WeekDay = {
   date: string;
@@ -43,33 +42,37 @@ export type Week = {
 const WEEKDAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
 export async function getWeek(db: Queryable = pool): Promise<Week> {
-  const asOf = todayDate();
-  const from = addDays(asOf, -6);
   const profile = await getProfile(db);
+  const asOf = dayIn(profile.timezone);
+  const firstDay = addDays(asOf, -6);
+  const span = daySpanIn(profile.timezone, firstDay, asOf);
 
+  // Timestamps are bucketed into days in his zone. `performed_at::date` would
+  // read the database session's timezone instead, and a late session would slide
+  // into the wrong column of the strip.
   const [sessions, weights, meals] = await Promise.all([
     db.query<{ day: string; template: string | null; sets: number }>(
-      `select to_char(s.performed_at::date, 'YYYY-MM-DD') as day,
+      `select to_char(s.performed_at at time zone $3, 'YYYY-MM-DD') as day,
               max(s.template) as template,
               count(st.id)::int as sets
        from sessions s
        left join sets st on st.session_id = s.id
-       where s.performed_at::date >= $1::date and s.rpe is not null
+       where s.performed_at >= $1 and s.performed_at < $2 and s.rpe is not null
        group by 1`,
-      [from],
+      [span.from, span.until, profile.timezone],
     ),
     db.query<{ day: string; weight_kg: number }>(
       `select to_char(measured_on, 'YYYY-MM-DD') as day, weight_kg
        from bodyweight where measured_on >= $1::date`,
-      [from],
+      [firstDay],
     ),
     db.query<{ day: string; protein: number; kcal: number }>(
-      `select to_char(eaten_at::date, 'YYYY-MM-DD') as day,
+      `select to_char(eaten_at at time zone $3, 'YYYY-MM-DD') as day,
               coalesce(sum(protein_g), 0)::int as protein,
               coalesce(sum(kcal), 0)::int as kcal
-       from meals where eaten_at::date >= $1::date
+       from meals where eaten_at >= $1 and eaten_at < $2
        group by 1`,
-      [from],
+      [span.from, span.until, profile.timezone],
     ),
   ]);
 
@@ -86,7 +89,7 @@ export async function getWeek(db: Queryable = pool): Promise<Week> {
 
     days.push({
       date,
-      weekday: WEEKDAYS_DE[new Date(`${date}T12:00:00Z`).getUTCDay()] ?? '',
+      weekday: WEEKDAYS_DE[weekdayOf(date)] ?? '',
       isToday: date === asOf,
       isFuture: false,
       lifted: !!session,

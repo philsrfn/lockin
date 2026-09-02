@@ -7,6 +7,8 @@ export type TemplateId = 'A' | 'B' | 'C';
 
 export type Profile = {
   name: string | null;
+  /** IANA zone. The server measures every "today" against this, not the device. */
+  timezone: string;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;

@@ -10,6 +10,10 @@
  * backwards into yesterday by a timezone.
  */
 
+// Calendar arithmetic lives in ./time, which is also where "today" is decided.
+// Re-exported below so the trend's callers do not need to know that.
+import { addDays } from './time';
+
 export type WeightEntry = {
   measuredOn: string;
   weightKg: number;
@@ -17,12 +21,7 @@ export type WeightEntry = {
 
 export const DEFAULT_WINDOW_DAYS = 7;
 
-/** Calendar arithmetic in UTC, so the local clock can never move a date. */
-export function addDays(date: string, days: number): string {
-  const parts = date.split('-');
-  const shifted = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]) + days);
-  return new Date(shifted).toISOString().slice(0, 10);
-}
+export { addDays };
 
 /**
  * The window is a span of calendar days, not a count of entries. A missed

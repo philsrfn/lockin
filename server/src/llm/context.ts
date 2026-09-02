@@ -9,7 +9,7 @@ import { remaining } from '../domain/macros';
 import { movingAverage, weeklyChangeKg } from '../domain/trend';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { jointPainGate, rampIn } from '../domain/progression';
-import { listEntries, today as todayDate } from '../services/bodyweight';
+import { listEntries } from '../services/bodyweight';
 import { activeContext } from '../services/contexts';
 import { macrosToday, mealsToday } from '../services/meals';
 import { getProfile, macroTargets } from '../services/profile';
@@ -18,23 +18,27 @@ import { firstSessionAt, recentSessions } from '../services/sessions';
 import { planFor, upcomingTemplate } from '../services/workouts';
 import { openSession } from '../services/sessions';
 import { activeRulesFor } from '../rules/schema';
+import { dayIn } from '../domain/time';
 
 const kg = (value: number | null | undefined, dp = 1) =>
   value == null ? 'unknown' : value.toFixed(dp).replace(/\.0$/, '');
 
 /** Assembles the ATHLETE / CONTEXT / RULES / RECENT / TODAY blocks of §10. */
 export async function assembleContext(): Promise<string> {
-  const asOf = todayDate();
+  // His zone decides what "today" and "the last 14 days" mean in every line
+  // below, so it is resolved before anything is read.
+  const profile = await getProfile();
+  const zone = profile.timezone;
+  const asOf = dayIn(zone);
 
-  const [profile, context, rules, sessions, entries, meals, consumed, firstAt, open] =
+  const [context, rules, sessions, entries, meals, consumed, firstAt, open] =
     await Promise.all([
-      getProfile(),
       activeContext(),
       listRules(),
       recentSessions(14),
-      listEntries(28),
-      mealsToday(),
-      macrosToday(),
+      listEntries(28, undefined, zone),
+      mealsToday(undefined, zone),
+      macrosToday(undefined, zone),
       firstSessionAt(),
       openSession(),
     ]);
@@ -63,7 +67,8 @@ export async function assembleContext(): Promise<string> {
       : sessions
           .slice(0, 8)
           .map((session) => {
-            const date = session.performedAt.slice(0, 10);
+            // His date, not the UTC one an ISO string would slice to.
+            const date = dayIn(zone, new Date(session.performedAt));
             const top = session.sets
               .reduce<Record<string, { weightKg: number; reps: number }>>((best, set) => {
                 const current = best[set.exerciseName];

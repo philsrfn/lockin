@@ -1,5 +1,7 @@
 import { type Queryable, pool } from '../db';
 import { badRequest } from '../errors';
+import { addDays, dayIn } from '../domain/time';
+import { athleteZone } from './clock';
 import {
   type MovingAverage,
   type TrendPoint,
@@ -24,27 +26,34 @@ export type WeightSummary = {
   series: TrendPoint[];
 };
 
-export function today(): string {
-  // The server runs in Europe/Berlin (TZ in compose), which is his timezone.
-  return new Date().toLocaleDateString('sv-SE');
-}
-
-export async function listEntries(days: number, db: Queryable = pool): Promise<WeightEntry[]> {
+export async function listEntries(
+  days: number,
+  db: Queryable = pool,
+  zone?: string,
+): Promise<WeightEntry[]> {
+  // Counted from his today, not the database server's. `measured_on` is a bare
+  // date, so the window is calendar arithmetic rather than an interval.
+  const asOf = dayIn(zone ?? (await athleteZone(db)));
   const { rows } = await db.query<{ measured_on: string; weight_kg: number }>(
     `select measured_on, weight_kg
      from bodyweight
-     where measured_on >= (current_date - ($1::int || ' days')::interval)
+     where measured_on >= $1::date
      order by measured_on`,
-    [days],
+    [addDays(asOf, -days)],
   );
   return rows.map((row) => ({ measuredOn: row.measured_on, weightKg: row.weight_kg }));
 }
 
-export async function summary(days = 30, db: Queryable = pool): Promise<WeightSummary> {
+export async function summary(
+  days = 30,
+  db: Queryable = pool,
+  zone?: string,
+): Promise<WeightSummary> {
+  const timezone = zone ?? (await athleteZone(db));
   // Reach back an extra fortnight so the oldest points in the series still have
   // a full window behind them, and so week-over-week has a prior week to use.
-  const entries = await listEntries(days + 14, db);
-  const asOf = today();
+  const entries = await listEntries(days + 14, db, timezone);
+  const asOf = dayIn(timezone);
 
   const { rows } = await db.query<{ goal_weight_kg: number | null }>(
     'select goal_weight_kg from profile where id = 1',
@@ -73,8 +82,10 @@ export type LogWeightInput = {
 export async function logWeight(
   input: LogWeightInput,
   db: Queryable = pool,
+  zone?: string,
 ): Promise<{ entry: WeightEntry; summary: WeightSummary }> {
-  const measuredOn = input.measuredOn ?? today();
+  const timezone = zone ?? (await athleteZone(db));
+  const measuredOn = input.measuredOn ?? dayIn(timezone);
 
   if (!ISO_DATE.test(measuredOn)) {
     throw badRequest('measuredOn must be YYYY-MM-DD');
@@ -97,6 +108,6 @@ export async function logWeight(
   const row = rows[0]!;
   return {
     entry: { measuredOn: row.measured_on, weightKg: row.weight_kg },
-    summary: await summary(30, db),
+    summary: await summary(30, db, timezone),
   };
 }

@@ -1,9 +1,13 @@
 import { type Queryable, pool } from '../db';
 import type { MacroTargets } from '../domain/macros';
 import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
+import { isValidTimeZone } from '../domain/time';
+import { badRequest } from '../errors';
 
 export type Profile = {
   name: string | null;
+  /** IANA zone. Decides when his day starts, which is most of what "today" means. */
+  timezone: string;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;
@@ -15,6 +19,7 @@ export type Profile = {
 export async function getProfile(db: Queryable = pool): Promise<Profile> {
   const { rows } = await db.query<{
     name: string | null;
+    timezone: string;
     height_cm: number;
     birth_year: number | null;
     goal_weight_kg: number | null;
@@ -22,7 +27,8 @@ export async function getProfile(db: Queryable = pool): Promise<Profile> {
     protein_target_g: number;
     fat_floor_g: number;
   }>(
-    `select name, height_cm, birth_year, goal_weight_kg, calorie_target, protein_target_g, fat_floor_g
+    `select name, timezone, height_cm, birth_year, goal_weight_kg,
+            calorie_target, protein_target_g, fat_floor_g
      from profile where id = 1`,
   );
 
@@ -31,6 +37,7 @@ export async function getProfile(db: Queryable = pool): Promise<Profile> {
 
   return {
     name: row.name,
+    timezone: row.timezone,
     heightCm: row.height_cm,
     birthYear: row.birth_year,
     goalWeightKg: row.goal_weight_kg,
@@ -87,4 +94,17 @@ export async function updateTargets(
   );
 
   return { profile: await getProfile(db), refusals };
+}
+
+/**
+ * Moving him to another timezone. Validated here rather than trusted, because
+ * a zone the runtime does not know would make every date in the app throw at
+ * the moment it is read rather than at the moment it is set.
+ */
+export async function setTimezone(zone: string, db: Queryable = pool): Promise<Profile> {
+  if (!isValidTimeZone(zone)) {
+    throw badRequest(`${zone} is not a timezone this server knows`);
+  }
+  await db.query('update profile set timezone = $1, updated_at = now() where id = 1', [zone]);
+  return getProfile(db);
 }

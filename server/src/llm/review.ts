@@ -14,7 +14,8 @@ import { geminiProvider } from './gemini';
 import { type Queryable, pool } from '../db';
 import { MAX_WEEKLY_LOSS_KG, checkCalorieTarget } from '../domain/safety';
 import { addDays, movingAverage, weeklyChangeKg } from '../domain/trend';
-import { listEntries, today as todayDate } from '../services/bodyweight';
+import { dayIn, daySpanIn } from '../domain/time';
+import { listEntries } from '../services/bodyweight';
 import { getProfile } from '../services/profile';
 import { recentSessions } from '../services/sessions';
 
@@ -85,10 +86,13 @@ type Brief = {
 
 /** Assembles the facts. All arithmetic happens here, never in the model. */
 async function buildBrief(db: Queryable): Promise<Brief> {
-  const asOf = todayDate();
-  const [profile, entries, sessions] = await Promise.all([
-    getProfile(db),
-    listEntries(35, db),
+  const profile = await getProfile(db);
+  const zone = profile.timezone;
+  // The week the review is filed under is his week, not the server's.
+  const asOf = dayIn(zone);
+
+  const [entries, sessions] = await Promise.all([
+    listEntries(35, db, zone),
     recentSessions(14, db),
   ]);
 
@@ -97,13 +101,15 @@ async function buildBrief(db: Queryable): Promise<Brief> {
   const change = weeklyChangeKg(entries, asOf, 7);
   const priorChange = weeklyChangeKg(entries, addDays(asOf, -7), 7);
 
+  const fortnight = daySpanIn(zone, addDays(asOf, -13), asOf);
   const { rows: mealRows } = await db.query<{ day: string; kcal: number; protein: number }>(
-    `select to_char(eaten_at::date, 'YYYY-MM-DD') as day,
+    `select to_char(eaten_at at time zone $3, 'YYYY-MM-DD') as day,
             coalesce(sum(kcal), 0)::int as kcal,
             coalesce(sum(protein_g), 0)::int as protein
      from meals
-     where eaten_at >= now() - interval '14 days'
+     where eaten_at >= $1 and eaten_at < $2
      group by 1 order by 1`,
+    [fortnight.from, fortnight.until, zone],
   );
 
   const loggedDays = mealRows.length;
@@ -116,8 +122,10 @@ async function buildBrief(db: Queryable): Promise<Brief> {
   const proteinHitDays = mealRows.filter((row) => row.protein >= profile.proteinTargetG).length;
 
   const finished = sessions.filter((session) => session.finished);
+  // performedAt is an ISO instant; slicing it would give the UTC date, which
+  // is not the day he trained.
   const lastSeven = finished.filter(
-    (session) => session.performedAt.slice(0, 10) >= addDays(asOf, -6),
+    (session) => dayIn(zone, new Date(session.performedAt)) >= addDays(asOf, -6),
   );
   const jointPainDays = finished.filter((session) => session.jointPain).length;
   const rpes = finished.map((session) => session.rpe).filter((rpe): rpe is number => rpe != null);

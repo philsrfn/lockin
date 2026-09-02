@@ -25,5 +25,9 @@ export const env = {
   geminiModelSmart: optional('GEMINI_MODEL_SMART', 'gemini-3.6-flash'),
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
+  /**
+   * The container's own clock, for log timestamps. It is NOT what "today"
+   * means — that comes from profile.timezone via services/clock.ts.
+   */
   timezone: process.env.TZ ?? 'Europe/Berlin',
 };

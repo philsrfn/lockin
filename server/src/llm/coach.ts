@@ -15,7 +15,7 @@
 import { type Queryable, pool, queryOne } from '../db';
 import { checkTrainingDays } from '../domain/safety';
 import { WEEKLY_TARGETS } from '../domain/templates';
-import { today as todayDate } from '../services/bodyweight';
+import { athleteToday } from '../services/clock';
 import { activeContext } from '../services/contexts';
 import { getWeek } from '../services/week';
 import { listExercises } from '../services/exercises';
@@ -178,7 +178,8 @@ async function sanitise(
 }
 
 /** Generates the note, validates it, stores it. */
-export async function generateNote(date: string = todayDate()): Promise<CoachNote> {
+export async function generateNote(forDate?: string): Promise<CoachNote> {
+  const date = forDate ?? (await athleteToday());
   const [context, sessions, week] = await Promise.all([
     activeContext(),
     recentSessions(7),
@@ -251,7 +252,7 @@ export async function generateNote(date: string = todayDate()): Promise<CoachNot
  * moved city since it was written, which changes the gym and the food rules.
  */
 export async function noteForToday(options: { force?: boolean } = {}): Promise<CoachNote | null> {
-  const date = todayDate();
+  const date = await athleteToday();
 
   if (!options.force) {
     const cached = await cachedNote(date);

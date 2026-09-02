@@ -22,11 +22,12 @@ import {
   SyncBatchSchema,
   TemplateIdSchema,
   UpdateFoodSchema,
+  UpdateProfileSchema,
 } from '../schemas';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
-import { getProfile } from '../services/profile';
+import { getProfile, setTimezone } from '../services/profile';
 import {
   createSession,
   finishSession,
@@ -67,6 +68,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/profile', async () => ({ profile: await getProfile() }));
+
+  /**
+   * Where he is. Everything that says "today" — the week strip, the macros, the
+   * 07:30 check-in — is measured against this.
+   */
+  app.patch('/profile', async (request) => {
+    const body = UpdateProfileSchema.parse(request.body);
+    return { profile: await setTimezone(body.timezone) };
+  });
 
   app.get('/contexts', async () => ({ contexts: await listContexts() }));
 

@@ -2,6 +2,8 @@ import type { PoolClient } from 'pg';
 import { type Queryable, pool, transaction } from '../db';
 import { badRequest, notFound } from '../errors';
 import { type TemplateId, isTemplateId } from '../domain/templates';
+import { dayIn, dayRangeIn } from '../domain/time';
+import { athleteZone } from './clock';
 
 export type SetRecord = {
   id: number;
@@ -210,9 +212,18 @@ export async function recentSessions(days: number, db: Queryable = pool): Promis
  * workout he has already done — the plan card sitting there after a finished
  * session reads as "you still owe me this".
  */
-export async function sessionsToday(db: Queryable = pool): Promise<Session[]> {
+export async function sessionsToday(db: Queryable = pool, zone?: string): Promise<Session[]> {
+  // Explicit bounds rather than `performed_at::date = current_date`: that cast
+  // reads the database session's timezone, which has nothing to do with where
+  // he is.
+  const timezone = zone ?? (await athleteZone(db));
+  const { from, until } = dayRangeIn(timezone, dayIn(timezone));
+
   const { rows } = await db.query<SessionRow>(
-    `${SELECT_SESSION} where s.performed_at::date = current_date order by s.performed_at desc`,
+    `${SELECT_SESSION}
+     where s.performed_at >= $1 and s.performed_at < $2
+     order by s.performed_at desc`,
+    [from, until],
   );
   return attachSets(rows, db);
 }

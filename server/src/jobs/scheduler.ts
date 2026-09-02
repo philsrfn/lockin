@@ -128,27 +128,37 @@ async function run(
   }
 }
 
+/**
+ * One pass over every athlete. Exported so the sweep can be tested without
+ * waiting on a timer.
+ */
+export async function sweep(
+  handlers: Record<string, JobHandler>,
+  now: Date = new Date(),
+): Promise<void> {
+  for (const userId of await listUserIds()) {
+    const ctx = ctxFor(userId);
+    try {
+      // Read once per user per tick and reused: resolving the date twice could
+      // straddle midnight and claim a slot for a day it had not checked.
+      const parts = await nowParts(ctx, now);
+      for (const job of await due(ctx, handlers, parts)) {
+        await run(ctx, job, handlers[job]!, parts);
+      }
+    } catch (error) {
+      // One athlete's bad tick must not stop everyone else's.
+      log.error({ userId, err: error }, 'scheduler tick failed for user');
+    }
+  }
+}
+
 export function startScheduler(handlers: Record<string, JobHandler>): () => void {
   let stopped = false;
 
   const tick = async () => {
     if (stopped) return;
     try {
-      for (const userId of await listUserIds()) {
-        const ctx = ctxFor(userId);
-        try {
-          // Read once per user per tick and reused: resolving the date twice
-          // could straddle midnight and claim a slot for a day it had not
-          // checked.
-          const parts = await nowParts(ctx);
-          for (const job of await due(ctx, handlers, parts)) {
-            await run(ctx, job, handlers[job]!, parts);
-          }
-        } catch (error) {
-          // One athlete's bad tick must not stop everyone else's.
-          log.error({ userId, err: error }, 'scheduler tick failed for user');
-        }
-      }
+      await sweep(handlers);
     } catch (error) {
       // A scheduler that dies on one bad tick stops every future job.
       log.error({ err: error }, 'scheduler tick failed');

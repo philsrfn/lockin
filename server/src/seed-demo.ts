@@ -83,6 +83,10 @@ async function main() {
     );
   }
 
+  // The demo athlete is user 1 — this script only ever runs against a local
+  // database, and it exists to make one person's history look lived-in.
+  const ATHLETE = 1;
+
   const client = await pool.connect();
   try {
     await client.query('begin');
@@ -91,7 +95,10 @@ async function main() {
     await client.query(
       'truncate sessions, sets, bodyweight, meals, coach_notes, weekly_reviews, job_runs, sync_log restart identity cascade',
     );
-    await client.query("delete from foods where name not in (select name from foods where quick_add)");
+    await client.query(
+      'delete from foods where user_id = $1 and not quick_add',
+      [ATHLETE],
+    );
 
     const { rows: exerciseRows } = await client.query<{ id: number; name: string }>(
       'select id, name from exercises',
@@ -125,9 +132,10 @@ async function main() {
       const jointPain = day === 26;
 
       const { rows } = await client.query<{ id: number }>(
-        `insert into sessions (performed_at, context_id, template, rpe, notes, joint_pain)
-         values ($1, $2, $3, $4, $5, $6) returning id`,
+        `insert into sessions (user_id, performed_at, context_id, template, rpe, notes, joint_pain)
+         values ($1, $2, $3, $4, $5, $6, $7) returning id`,
         [
+          ATHLETE,
           iso(day),
           context,
           template,
@@ -151,9 +159,10 @@ async function main() {
 
         for (let setIndex = 1; setIndex <= sets; setIndex += 1) {
           await client.query(
-            `insert into sets (session_id, exercise_id, set_index, weight_kg, reps, rir)
-             values ($1, $2, $3, $4, $5, $6)`,
+            `insert into sets (user_id, session_id, exercise_id, set_index, weight_kg, reps, rir)
+             values ($1, $2, $3, $4, $5, $6, $7)`,
             [
+              ATHLETE,
               sessionId,
               id,
               setIndex,
@@ -175,9 +184,9 @@ async function main() {
       const trend = 100.4 - (totalDays - day) * (4.4 / totalDays);
       const weight = Math.round((trend + wobble(day, 0.45)) * 10) / 10;
       await client.query(
-        `insert into bodyweight (measured_on, weight_kg) values ($1, $2)
-         on conflict (measured_on) do update set weight_kg = excluded.weight_kg`,
-        [dateOnly(day), weight],
+        `insert into bodyweight (user_id, measured_on, weight_kg) values ($1, $2, $3)
+         on conflict (user_id, measured_on) do update set weight_kg = excluded.weight_kg`,
+        [ATHLETE, dateOnly(day), weight],
       );
     }
 
@@ -191,9 +200,11 @@ async function main() {
       if (day % 5 === 0) picks.push(MEALS[6]!);
       for (const meal of picks) {
         await client.query(
-          `insert into meals (eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, source)
-           values ($1, $2, $3, $4, $5, $6, $7, 'own')`,
+          `insert into meals
+             (user_id, eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, source)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, 'own')`,
           [
+            ATHLETE,
             iso(day, meal.slot === 'breakfast' ? 8 : meal.slot === 'lunch' ? 13 : meal.slot === 'dinner' ? 19 : 16),
             meal.slot,
             meal.description,
@@ -208,9 +219,10 @@ async function main() {
 
     // Today, partly logged: breakfast in, the rest still to do.
     await client.query(
-      `insert into meals (eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, source)
-       values (now() - interval '4 hours', 'breakfast', $1, 520, 55, 6, 62, 'own')`,
-      [MEALS[0]!.description],
+      `insert into meals
+         (user_id, eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, source)
+       values ($1, now() - interval '4 hours', 'breakfast', $2, 520, 55, 6, 62, 'own')`,
+      [ATHLETE, MEALS[0]!.description],
     );
 
     // --- a few more foods in his library, as it grows by use
@@ -221,14 +233,18 @@ async function main() {
       ['Haferflocken 80g', 300, 11, 6, 50],
     ] as [string, number, number, number, number][]) {
       await client.query(
-        `insert into foods (name, kcal, protein_g, fat_g, carbs_g, times_used, last_used_at)
-         values ($1, $2, $3, $4, $5, $6, now() - ($7 || ' days')::interval)
-         on conflict (lower(name)) where not archived do nothing`,
-        [name, kcal, protein, fat, carbs, 4 + (kcal % 7), (kcal % 5) + 1],
+        `insert into foods
+           (user_id, name, kcal, protein_g, fat_g, carbs_g, times_used, last_used_at)
+         values ($1, $2, $3, $4, $5, $6, $7, now() - ($8 || ' days')::interval)
+         on conflict (user_id, lower(name)) where not archived do nothing`,
+        [ATHLETE, name, kcal, protein, fat, carbs, 4 + (kcal % 7), (kcal % 5) + 1],
       );
     }
 
-    await client.query('update contexts set is_active = (id = $1)', [homeId]);
+    await client.query('update contexts set is_active = (id = $1) where user_id = $2', [
+      homeId,
+      ATHLETE,
+    ]);
 
     await client.query('commit');
 

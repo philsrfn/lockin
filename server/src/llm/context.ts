@@ -25,6 +25,18 @@ import type { Ctx } from '../db';
 const kg = (value: number | null | undefined, dp = 1) =>
   value == null ? 'unknown' : value.toFixed(dp).replace(/\.0$/, '');
 
+/**
+ * What equipment this place has, in the athlete's own words. It used to read
+ * "Hansefit BEST — unlimited nationwide check-ins" for anybody with a gym,
+ * which is Phil's membership and nobody else's.
+ */
+function gymLine(context: { equipment?: Record<string, unknown> } | null): string {
+  const equipment = context?.equipment ?? {};
+  if (!equipment.gym) return 'none';
+  const notes = typeof equipment.notes === 'string' ? equipment.notes.trim() : '';
+  return notes ? `yes — ${notes}` : 'yes';
+}
+
 /** Assembles the ATHLETE / CONTEXT / RULES / RECENT / TODAY blocks of §10. */
 export async function assembleContext(ctx: Ctx): Promise<string> {
   // His zone decides what "today" and "the last 14 days" mean in every line
@@ -118,7 +130,7 @@ ATHLETE
 
 CURRENT CONTEXT
 - city: ${context?.name ?? 'unset'}
-- gym: ${context?.equipment?.gym ? 'yes, Hansefit BEST — unlimited nationwide check-ins' : 'none'}
+- gym: ${gymLine(context)}
 - dinner profile: ${(context?.foodProfile as { dinner?: string })?.dinner ?? 'own'}
 
 RULES (filtered to this city)

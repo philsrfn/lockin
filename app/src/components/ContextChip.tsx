@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../api/client';
 import type { Context } from '../api/types';
+import { t } from '../lib/locale';
 import { colors, radius, space, type as typo } from '../theme';
 
 /**
@@ -18,14 +19,42 @@ export function ContextChip({
   const [open, setOpen] = useState(false);
   const [contexts, setContexts] = useState<Context[]>([]);
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   async function openPicker() {
     setOpen(true);
+    setAdding('');
+    setError(null);
     try {
       const result = await api<{ contexts: Context[] }>('/contexts');
       setContexts(result.contexts);
     } catch {
       setContexts([]);
+    }
+  }
+
+  /**
+   * Phil's four German cities were seeded. Everybody else starts with one
+   * place and needs somewhere to put the gym near work, or the hotel they are
+   * in this week — so the list is editable from where it is read.
+   */
+  async function add() {
+    const name = adding.trim();
+    if (!name) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api<{ contexts: Context[] }>('/contexts', {
+        method: 'POST',
+        body: { name, equipment: { gym: true } },
+      });
+      setContexts(result.contexts);
+      setAdding('');
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -51,7 +80,7 @@ export function ContextChip({
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.sheetLabel}>WHERE ARE YOU</Text>
+            <Text style={styles.sheetLabel}>{t('whereAreYou')}</Text>
             {contexts.map((option) => (
               <Pressable
                 key={option.id}
@@ -65,6 +94,28 @@ export function ContextChip({
                 {option.isActive ? <Text style={styles.check}>✓</Text> : null}
               </Pressable>
             ))}
+
+            <View style={styles.addRow}>
+              <TextInput
+                value={adding}
+                onChangeText={setAdding}
+                placeholder={t('addPlace')}
+                placeholderTextColor={colors.textFaint}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={add}
+                style={styles.addInput}
+              />
+              {adding.trim() ? (
+                <Pressable onPress={add} disabled={busy} hitSlop={16}>
+                  {/* A glyph rather than a word: the placeholder beside it
+                      already says what this does, in whatever language. */}
+                  <Text style={styles.addAction}>+</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
           </Pressable>
         </Pressable>
       </Modal>
@@ -86,6 +137,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     minHeight: 40,
   },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginTop: space.sm,
+    paddingTop: space.md,
+  },
+  addInput: { flex: 1, ...typo.body, color: colors.text, paddingVertical: space.sm },
+  addAction: { fontSize: 28, fontWeight: '300', lineHeight: 30, color: colors.accent },
+  error: { ...typo.bodyDim, fontSize: 13, color: colors.danger, marginTop: space.sm },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
   chipText: { ...typo.body, color: colors.text },
   caret: { color: colors.textFaint, fontSize: 16, marginTop: -4 },

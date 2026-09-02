@@ -10,7 +10,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../db';
 import { contextIdByName, resetData, resetProfile, phil } from '../../test/helpers';
-import { activateContext, activeContext, listContexts } from '../contexts';
+import {
+  activateContext,
+  activeContext,
+  archiveContext,
+  createContext,
+  listContexts,
+  updateContext,
+} from '../contexts';
 import { exercisesByName, getExercise, listExercises } from '../exercises';
 import { getProfile, macroTargets, updateTargets } from '../profile';
 import { addRule, deactivateRule, listRules, updateRule } from '../rules';
@@ -18,7 +25,15 @@ import { addRule, deactivateRule, listRules, updateRule } from '../rules';
 beforeEach(async () => {
   await resetData();
   await resetProfile();
-  await pool.query(`update contexts set is_active = (name = 'Home')`);
+  await pool.query('delete from contexts where user_id = 1 and id > 4');
+  await pool.query(
+    `update contexts set archived = false, is_active = (name = 'Home') where user_id = 1`,
+  );
+  await pool.query(
+    `update contexts set name = 'Home', food_profile = '{"dinner": "moms_food_half_plus_protein"}',
+       equipment = '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}'
+     where user_id = 1 and id = 1`,
+  );
   await pool.query('delete from rules where code is null');
   await pool.query('update rules set active = true');
 });
@@ -121,6 +136,101 @@ describe('contexts', () => {
   it('404s on a city that does not exist, leaving the active one alone', async () => {
     await expect(activateContext(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
     expect((await activeContext(phil))?.name).toBe('Home');
+  });
+});
+
+describe('places he trains', () => {
+  it('adds one, inactive until he switches to it', async () => {
+    const contexts = await createContext(phil, {
+      name: 'Gym near work',
+      equipment: { gym: true, notes: 'dumbbells to 40kg, no rack' },
+    });
+
+    const added = contexts.find((context) => context.name === 'Gym near work');
+    expect(added?.isActive).toBe(false);
+    expect(added?.equipment).toEqual({ gym: true, notes: 'dumbbells to 40kg, no rack' });
+    expect((await activeContext(phil))?.name).toBe('Home');
+  });
+
+  it.each([
+    ['a blank name', { name: '   ' }, 'A place needs a name'],
+    ['a name nobody could read', { name: 'x'.repeat(61) }, 'at most 60'],
+  ])('refuses %s', async (_label, input, message) => {
+    await expect(createContext(phil, input)).rejects.toThrow(message);
+  });
+
+  it('refuses a name he already uses', async () => {
+    await expect(createContext(phil, { name: 'Leipzig' })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+  });
+
+  it('renames without dropping the keys it has never heard of', async () => {
+    // The trainer reads foodProfile.dinner. A rename must not lose it.
+    const before = (await listContexts(phil)).find((context) => context.name === 'Home')!;
+
+    const after = await updateContext(phil, before.id, { name: 'Münster (Mama)' });
+
+    const renamed = after.find((context) => context.id === before.id);
+    expect(renamed?.name).toBe('Münster (Mama)');
+    expect(renamed?.foodProfile).toEqual({ dinner: 'moms_food_half_plus_protein' });
+  });
+
+  it('merges equipment rather than replacing it', async () => {
+    const home = (await listContexts(phil)).find((context) => context.name === 'Home')!;
+
+    const after = await updateContext(phil, home.id, { equipment: { notes: 'squat rack now' } });
+
+    expect(after.find((context) => context.id === home.id)?.equipment).toMatchObject({
+      gym: true,
+      notes: 'squat rack now',
+    });
+  });
+
+  it('404s editing a place that is not there', async () => {
+    await expect(updateContext(phil, 9999, { name: 'x' })).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  it('archives rather than deletes, so old sessions keep their city', async () => {
+    const leipzig = await contextIdByName('Leipzig');
+
+    const after = await archiveContext(phil, leipzig);
+
+    expect(after.some((context) => context.id === leipzig)).toBe(false);
+    const { rows } = await pool.query('select archived from contexts where id = $1', [leipzig]);
+    expect(rows[0].archived).toBe(true);
+  });
+
+  it('frees the name once a place is archived', async () => {
+    await archiveContext(phil, await contextIdByName('Leipzig'));
+
+    const after = await createContext(phil, { name: 'Leipzig' });
+    expect(after.filter((context) => context.name === 'Leipzig')).toHaveLength(1);
+  });
+
+  it('hands the active flag on rather than leaving nowhere to train', async () => {
+    const home = await contextIdByName('Home');
+
+    const after = await archiveContext(phil, home);
+
+    expect(after.filter((context) => context.isActive)).toHaveLength(1);
+    expect((await activeContext(phil))?.name).not.toBe('Home');
+  });
+
+  it('will not archive the only place he has', async () => {
+    for (const name of ['Münster', 'Mannheim', 'Leipzig']) {
+      await archiveContext(phil, await contextIdByName(name));
+    }
+
+    await expect(archiveContext(phil, await contextIdByName('Home'))).rejects.toThrow(
+      'only place',
+    );
+  });
+
+  it('404s archiving one that is not there', async () => {
+    await expect(archiveContext(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 

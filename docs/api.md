@@ -17,15 +17,27 @@ code path to a table.
 |---|---|---|---|
 | GET | `/health` | — | `{ok, db}`. Unauthenticated. 503 if Postgres is unreachable. |
 | GET | `/profile` | — | `{profile}` including `timezone` |
-| PATCH | `/profile` | `{timezone}` | `{profile}`. Rejects a zone the runtime does not know. |
+| PATCH | `/profile` | `{timezone?, locale?}` | `{profile}`. Rejects a zone the runtime does not know; `locale: null` follows the device. |
+| POST | `/onboarding` | see below | `{profile, explanation}`. Computes the targets; idempotent. |
 | GET | `/contexts` | — | `{contexts}` |
 | POST | `/contexts/:id/activate` | — | `{contexts}` — exclusive, in one statement |
+| POST | `/contexts` | `{name, equipment?, foodProfile?}` | `{contexts}` — 201. Inactive until switched to. |
+| PATCH | `/contexts/:id` | any of the above | `{contexts}`. The jsonb blobs merge rather than replace. |
+| DELETE | `/contexts/:id` | — | `{contexts}`. Archives — sessions keep the place they were performed in. |
 | GET | `/rules` | — | `{rules}` |
 | POST | `/rules` | `{tier, text, scope?}` | `{rule, enforceable, rules}` — 201 |
 | PATCH | `/rules/:id` | `{tier?, text?, scope?, active?}` | `{rules}`. A code-enforced rule's tier cannot change. |
 
 The timezone decides what "today" means everywhere: the week strip, the macros,
-which day a session is filed under, and when the 07:30 check-in fires.
+which day a session is filed under, and when the 07:30 check-in fires. The
+locale decides what language the interface *and the trainer* speak.
+
+`POST /onboarding` takes `{sex, birthYear, heightCm, weightKg, goal,
+goalWeightKg?, trainingDaysPerWeek, activity?, weeklyRateKg?, timezone?,
+locale?, name?}` and returns the computed profile plus an `explanation`
+carrying maintenance, the rate actually used, and anything the §7 floors moved
+— in words the athlete can read. Targets are never sent in: they are computed
+from the body, in code (§1).
 
 ## Training
 

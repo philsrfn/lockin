@@ -14,6 +14,8 @@ import {
   JobNameSchema,
   MealPlanSchema,
   OnboardingSchema,
+  SaveContextSchema,
+  UpdateContextSchema,
   LogFoodSchema,
   LogMealSchema,
   RegisterPushSchema,
@@ -26,7 +28,13 @@ import {
   UpdateProfileSchema,
 } from '../schemas';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
-import { activateContext, listContexts } from '../services/contexts';
+import {
+  activateContext,
+  archiveContext,
+  createContext,
+  listContexts,
+  updateContext,
+} from '../services/contexts';
 import { listExercises } from '../services/exercises';
 import { getProfile, setLocale, setTimezone } from '../services/profile';
 import { completeOnboarding } from '../services/onboarding';
@@ -99,6 +107,23 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/contexts/:id/activate', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     return { contexts: await activateContext(request.ctx, id) };
+  });
+
+  app.post('/contexts', async (request, reply) => {
+    const body = SaveContextSchema.parse(request.body);
+    return reply.code(201).send({ contexts: await createContext(request.ctx, body) });
+  });
+
+  app.patch('/contexts/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const body = UpdateContextSchema.parse(request.body);
+    return { contexts: await updateContext(request.ctx, id, body) };
+  });
+
+  /** Archived, not deleted: sessions carry the place they were performed in. */
+  app.delete('/contexts/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    return { contexts: await archiveContext(request.ctx, id) };
   });
 
   app.get('/exercises', async () => ({ exercises: await listExercises() }));

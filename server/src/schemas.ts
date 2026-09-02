@@ -115,6 +115,20 @@ export const OnboardingSchema = z.object({
   locale: z.string().min(2).max(35).optional(),
 });
 
+/** A place he trains. The jsonb blobs are free-form — the trainer reads them. */
+const jsonObject = z.record(z.string(), z.unknown());
+
+export const SaveContextSchema = z.object({
+  name: z.string().min(1).max(60),
+  equipment: jsonObject.optional(),
+  foodProfile: jsonObject.optional(),
+});
+
+export const UpdateContextSchema = SaveContextSchema.partial().refine(
+  (body) => Object.keys(body).length > 0,
+  { message: 'Nothing to change' },
+);
+
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
 
 export const SaveFoodSchema = z.object({

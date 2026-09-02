@@ -77,6 +77,9 @@ const PHRASES = {
   resume: { de: 'Weiter', en: 'Resume' },
   trainAgain: { de: 'Nochmal', en: 'Train again' },
   liftAnyway: { de: 'Trotzdem', en: 'Lift anyway' },
+
+  whereAreYou: { de: 'WO BIST DU', en: 'WHERE ARE YOU' },
+  addPlace: { de: 'Ort hinzufügen', en: 'Add a place' },
 } satisfies Record<string, Phrase>;
 
 export function t(key: keyof typeof PHRASES): string {

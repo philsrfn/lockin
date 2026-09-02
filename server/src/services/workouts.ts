@@ -240,3 +240,98 @@ export async function prescribeExercise(
       .map((sub) => ({ id: sub.id, name: sub.name, pattern: sub.pattern })),
   };
 }
+
+export type ExerciseProgress = {
+  exerciseId: number;
+  name: string;
+  pattern: string;
+  /** Best working set per session, oldest first — the line he wants to see. */
+  points: { date: string; weightKg: number; reps: number; estimated1rm: number }[];
+};
+
+export type Progress = {
+  sessionCount: number;
+  setCount: number;
+  totalVolumeKg: number;
+  exercises: ExerciseProgress[];
+};
+
+/**
+ * Strength over time. Epley (w × (1 + reps/30)) collapses weight and reps into
+ * one comparable number, so 3×8 at 80kg and 3×5 at 90kg can be told apart —
+ * without it a chart of raw weight calls a heavier triple "progress" over a
+ * much harder set of eight.
+ *
+ * Arithmetic, in code, per §1.
+ */
+export async function progress(days = 90, db: Queryable = pool): Promise<Progress> {
+  const { rows } = await db.query<{
+    exercise_id: number;
+    name: string;
+    pattern: string;
+    performed_on: string;
+    weight_kg: number;
+    reps: number;
+  }>(
+    `select st.exercise_id, e.name, e.pattern,
+            to_char(se.performed_at, 'YYYY-MM-DD') as performed_on,
+            st.weight_kg, st.reps
+     from sets st
+     join sessions se on se.id = st.session_id
+     join exercises e on e.id = st.exercise_id
+     where se.performed_at >= now() - ($1 || ' days')::interval
+       and st.reps > 0
+     order by e.name, se.performed_at`,
+    [days],
+  );
+
+  const byExercise = new Map<number, ExerciseProgress>();
+  // Best set per exercise per day, so one session contributes one point.
+  const best = new Map<string, { date: string; weightKg: number; reps: number; estimated1rm: number }>();
+
+  let setCount = 0;
+  let totalVolumeKg = 0;
+  const sessions = new Set<string>();
+
+  for (const row of rows) {
+    setCount += 1;
+    totalVolumeKg += row.weight_kg * row.reps;
+    sessions.add(row.performed_on);
+
+    if (!byExercise.has(row.exercise_id)) {
+      byExercise.set(row.exercise_id, {
+        exerciseId: row.exercise_id,
+        name: row.name,
+        pattern: row.pattern,
+        points: [],
+      });
+    }
+
+    const key = `${row.exercise_id}:${row.performed_on}`;
+    const estimated1rm = Math.round(row.weight_kg * (1 + row.reps / 30) * 10) / 10;
+    const current = best.get(key);
+    if (!current || estimated1rm > current.estimated1rm) {
+      best.set(key, { date: row.performed_on, weightKg: row.weight_kg, reps: row.reps, estimated1rm });
+    }
+  }
+
+  for (const [key, point] of best) {
+    const exerciseId = Number(key.split(':')[0]);
+    byExercise.get(exerciseId)?.points.push(point);
+  }
+
+  const exercises = [...byExercise.values()]
+    .map((entry) => ({
+      ...entry,
+      points: entry.points.sort((a, b) => a.date.localeCompare(b.date)),
+    }))
+    // Most-trained first: what he actually cares about is at the top.
+    .sort((a, b) => b.points.length - a.points.length || a.name.localeCompare(b.name));
+
+  return {
+    sessionCount: sessions.size,
+    setCount,
+    totalVolumeKg: Math.round(totalVolumeKg),
+    exercises,
+  };
+}

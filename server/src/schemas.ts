@@ -129,3 +129,18 @@ export const SaveScannedSchema = z.object({
 export const EstimateFoodSchema = z.object({
   text: z.string().min(2).max(400),
 });
+
+export const RuleTierSchema = z.enum(['hard', 'soft', 'never']);
+
+export const AddRuleSchema = z.object({
+  tier: RuleTierSchema,
+  text: z.string().min(3).max(300),
+  scope: z.string().max(60).nullish(),
+});
+
+export const UpdateRuleSchema = z.object({
+  tier: RuleTierSchema.optional(),
+  text: z.string().min(3).max(300).optional(),
+  scope: z.string().max(60).nullish(),
+  active: z.boolean().optional(),
+});

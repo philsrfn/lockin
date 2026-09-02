@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../../src/api/client';
 import { useResource } from '../../src/api/hooks';
 import type { CoachNote, Today } from '../../src/api/types';
@@ -70,7 +70,17 @@ export default function TodayScreen() {
     <Screen onRefresh={today.reload} refreshing={today.refreshing}>
       <View style={styles.header}>
         <Text style={styles.date}>{longDate(date)}</Text>
-        <ContextChip context={context} onChanged={today.reload} />
+        <View style={styles.headerRow}>
+          <ContextChip context={context} onChanged={today.reload} />
+          <View style={styles.headerLinks}>
+            <Pressable onPress={() => router.push('/progress')} hitSlop={12}>
+              <Text style={styles.headerLink}>Progress</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/rules')} hitSlop={12}>
+              <Text style={styles.headerLink}>Rules</Text>
+            </Pressable>
+          </View>
+        </View>
         {today.stale ? (
           <Text style={styles.stale}>Offline — showing the last plan this phone saw.</Text>
         ) : null}
@@ -247,6 +257,9 @@ function ProgressBar({ percent }: { percent: number }) {
 
 const styles = StyleSheet.create({
   header: { gap: space.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLinks: { flexDirection: 'row', gap: space.lg },
+  headerLink: { fontSize: 14, fontWeight: '600', color: colors.textDim },
   date: { ...typo.title, color: colors.text },
 
   exerciseRow: {

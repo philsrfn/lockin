@@ -7,11 +7,13 @@ import {
   IdParamSchema,
   LogWeightSchema,
   RecordSetSchema,
+  AddRuleSchema,
   BarcodeQuerySchema,
   EstimateFoodSchema,
   LogFoodSchema,
   LogMealSchema,
   SaveScannedSchema,
+  UpdateRuleSchema,
   SaveFoodSchema,
   SyncBatchSchema,
   TemplateIdSchema,
@@ -37,8 +39,8 @@ import { estimateFood } from '../llm/food';
 import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
-import { listRules } from '../services/rules';
-import { planFor, prescribeExercise, upcomingTemplate } from '../services/workouts';
+import { addRule, listRules, updateRule } from '../services/rules';
+import { planFor, prescribeExercise, progress, upcomingTemplate } from '../services/workouts';
 
 /**
  * Routes are deliberately thin. Every write goes through a service, and the
@@ -92,6 +94,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get('/progress', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(7).max(365).default(90) })
+      .parse(request.query);
+    return progress(query.days);
+  });
+
   app.get('/sessions', async (request) => {
     const query = z.object({ limit: z.coerce.number().int().min(1).max(200).default(20) })
       .parse(request.query);
@@ -139,6 +147,19 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/rules', async () => ({ rules: await listRules() }));
+
+  app.post('/rules', async (request, reply) => {
+    const body = AddRuleSchema.parse(request.body);
+    const result = await addRule(body);
+    return reply.code(201).send({ ...result, rules: await listRules() });
+  });
+
+  app.patch('/rules/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const body = UpdateRuleSchema.parse(request.body);
+    await updateRule(id, body);
+    return { rules: await listRules() };
+  });
 
   // --- food (phase 4). All new paths; nothing existing changed, so the build
   // already on his phone keeps working untouched.

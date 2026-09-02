@@ -167,6 +167,32 @@ export type FoodEstimate = {
   assumptions: string;
 };
 
+export type ExerciseProgress = {
+  exerciseId: number;
+  name: string;
+  pattern: string;
+  points: { date: string; weightKg: number; reps: number; estimated1rm: number }[];
+};
+
+export type Progress = {
+  sessionCount: number;
+  setCount: number;
+  totalVolumeKg: number;
+  exercises: ExerciseProgress[];
+};
+
+export type RuleTier = 'hard' | 'soft' | 'never';
+
+export type Rule = {
+  id: number;
+  tier: RuleTier;
+  text: string;
+  scope: string | null;
+  /** Non-null when a validator enforces this in code, not just in the prompt. */
+  code: string | null;
+  active: boolean;
+};
+
 export type Today = {
   date: string;
   profile: Profile;

@@ -17,6 +17,7 @@ import { checkTrainingDays } from '../domain/safety';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { today as todayDate } from '../services/bodyweight';
 import { activeContext } from '../services/contexts';
+import { getWeek } from '../services/week';
 import { listExercises } from '../services/exercises';
 import { recentSessions } from '../services/sessions';
 import { upcomingTemplate } from '../services/workouts';
@@ -178,8 +179,14 @@ async function sanitise(
 
 /** Generates the note, validates it, stores it. */
 export async function generateNote(date: string = todayDate()): Promise<CoachNote> {
-  const [context, sessions] = await Promise.all([activeContext(), recentSessions(7)]);
-  const strengthThisWeek = sessions.filter((session) => session.template !== null).length;
+  const [context, sessions, week] = await Promise.all([
+    activeContext(),
+    recentSessions(7),
+    getWeek(),
+  ]);
+  // Calendar days, matching the strip on the home screen. A rolling window made
+  // the coach claim three sessions while the screen beside it showed two.
+  const strengthThisWeek = week.strength.done;
 
   const output = await geminiProvider.generate({
     systemInstruction: INSTRUCTION,
@@ -191,6 +198,12 @@ export async function generateNote(date: string = todayDate()): Promise<CoachNot
           `Weekly targets: ${WEEKLY_TARGETS.strengthSessions} strength, ` +
           `${WEEKLY_TARGETS.zone2Sessions} × ${WEEKLY_TARGETS.zone2Minutes}min zone-2, ` +
           `${WEEKLY_TARGETS.stepsPerDay} steps/day.\n\n` +
+          // Given as a fact rather than left to be counted off the session
+          // list. Asked to work it out itself, it said "all three" on a week
+          // with two — contradicting the strip directly beside it, and
+          // breaking §1 for exactly the reason §1 exists.
+          `Strength sessions finished so far this week: ${strengthThisWeek} of ` +
+          `${WEEKLY_TARGETS.strengthSessions}. Use this number; do not count them yourself.\n\n` +
           'Decide what today is.',
       },
     ],

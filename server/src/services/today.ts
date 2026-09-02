@@ -6,6 +6,7 @@ import { type Profile, getProfile, macroTargets } from './profile';
 import { type Session, openSession, recentSessions, sessionsToday } from './sessions';
 import { type WeightSummary, summary as weightSummary, today as todayDate } from './bodyweight';
 import { type Meal, macrosToday, mealsToday } from './meals';
+import { getWeek } from './week';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
 import { type CoachNote, cachedNote } from '../llm/coach';
 
@@ -42,7 +43,7 @@ export type Today = {
  * connection two requests are twice the chance of neither arriving.
  */
 export async function getToday(db: Queryable = pool): Promise<Today> {
-  const [profile, context, open, weight, consumed, lastWeek, coach, meals, todaySessions] =
+  const [profile, context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week] =
     await Promise.all([
     getProfile(db),
     activeContext(db),
@@ -54,6 +55,7 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     cachedNote(todayDate(), db),
     mealsToday(db),
     sessionsToday(db),
+    getWeek(db),
   ]);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
@@ -73,8 +75,9 @@ export async function getToday(db: Queryable = pool): Promise<Today> {
     weight,
     macros: { targets, consumed, remaining: remaining(targets, consumed), meals },
     week: {
+      // Same source as the week strip, so the two can never disagree.
       strengthSessions: {
-        done: lastWeek.filter((session) => session.template !== null).length,
+        done: week.strength.done,
         target: WEEKLY_TARGETS.strengthSessions,
       },
     },

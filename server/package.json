@@ -10,7 +10,8 @@
     "migrate:dev": "tsx --env-file=../.env src/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:demo": "tsx --env-file=../.env src/seed-demo.ts"
   },
   "dependencies": {
     "@google/genai": "^2.20.0",

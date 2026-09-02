@@ -6,7 +6,9 @@ import {
   type Goal,
   type Sex,
   ageFromBirthYear,
+  maintenanceKcal,
 } from '../domain/targets';
+import { SUPPORT_NOTE, UNDERWEIGHT_BMI, bmi } from '../domain/screening';
 import type { AthleteFacts } from '../domain/safety';
 import { isValidTimeZone } from '../domain/time';
 import { badRequest } from '../errors';
@@ -93,7 +95,12 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
  * Reads the latest weigh-in, because a floor derived from a weight recorded at
  * signup would drift wrong over a year of training.
  */
-export async function athleteFacts(ctx: Ctx, profile?: Profile): Promise<AthleteFacts> {
+export type FullAthleteFacts = AthleteFacts & {
+  activityLevel: ActivityLevel | null;
+  trainingDaysPerWeek: number | null;
+};
+
+export async function athleteFacts(ctx: Ctx, profile?: Profile): Promise<FullAthleteFacts> {
   const current = profile ?? (await getProfile(ctx));
   const { rows } = await ctx.db.query<{ weight_kg: number }>(
     'select weight_kg from bodyweight where user_id = $1 order by measured_on desc limit 1',
@@ -105,7 +112,33 @@ export async function athleteFacts(ctx: Ctx, profile?: Profile): Promise<Athlete
     heightCm: current.heightCm,
     weightKg: rows[0]?.weight_kg ?? null,
     ageYears: current.birthYear ? ageFromBirthYear(current.birthYear) : null,
+    activityLevel: current.activityLevel,
+    trainingDaysPerWeek: current.trainingDaysPerWeek,
   };
+}
+
+/**
+ * A deficit is the wrong answer for somebody already under a healthy weight,
+ * whatever the model was persuaded of. Their floor is maintenance, not their
+ * resting rate — so the trainer cannot walk them down, and it has to say why.
+ *
+ * Returns null when the app does not know enough to judge, which is the same
+ * position it was in before onboarding existed.
+ */
+function noDeficitFloor(facts: FullAthleteFacts): number | null {
+  if (!facts.sex || !facts.heightCm || !facts.weightKg || !facts.ageYears) return null;
+  if (bmi(facts.heightCm, facts.weightKg) >= UNDERWEIGHT_BMI) return null;
+
+  return maintenanceKcal(
+    {
+      sex: facts.sex,
+      heightCm: facts.heightCm,
+      weightKg: facts.weightKg,
+      ageYears: facts.ageYears,
+    },
+    facts.activityLevel ?? 'light',
+    facts.trainingDaysPerWeek ?? 3,
+  );
 }
 
 export const macroTargets = (profile: Profile): MacroTargets => ({
@@ -132,6 +165,15 @@ export async function updateTargets(
     const verdict = checkCalorieTarget(input.calorieTarget, facts);
     if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
     calorieTarget = verdict.value;
+
+    const holdAtMaintenance = noDeficitFloor(facts);
+    if (holdAtMaintenance !== null && calorieTarget < holdAtMaintenance) {
+      refusals.push(
+        `${calorieTarget} kcal is below maintenance, and you are already under a ` +
+          `healthy weight. Held at ${holdAtMaintenance}. ${SUPPORT_NOTE}`,
+      );
+      calorieTarget = holdAtMaintenance;
+    }
   }
 
   let proteinTargetG = current.proteinTargetG;

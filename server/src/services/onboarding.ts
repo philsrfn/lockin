@@ -25,6 +25,7 @@ import {
   checkTrainingDays,
   proteinFloorFor,
 } from '../domain/safety';
+import { screen } from '../domain/screening';
 import { isValidTimeZone } from '../domain/time';
 import { badRequest } from '../errors';
 import { type Profile, getProfile } from './profile';
@@ -99,6 +100,18 @@ export async function completeOnboarding(
   const ageYears = ageFromBirthYear(input.birthYear);
   const notes: string[] = [];
 
+  // Before any arithmetic: there are situations where a deficit is the wrong
+  // answer whatever the numbers say, and this is where the app declines to
+  // give one. See domain/screening.ts.
+  const screening = screen({
+    sex: input.sex,
+    heightCm: input.heightCm,
+    weightKg: input.weightKg,
+    ageYears,
+    goal: input.goal,
+  });
+  notes.push(...screening.notes);
+
   // §7's rest-day floor applies to the answer, not just to what the model
   // later proposes: six training days a week is refused here too.
   const days = checkTrainingDays(input.trainingDaysPerWeek);
@@ -112,7 +125,7 @@ export async function completeOnboarding(
     weightKg: input.weightKg,
     ageYears,
     activity,
-    goal: input.goal,
+    goal: screening.goal,
     trainingDaysPerWeek: days.value,
     weeklyRateKg: input.weeklyRateKg,
   });
@@ -172,7 +185,7 @@ export async function completeOnboarding(
         input.sex,
         input.birthYear,
         Math.round(input.heightCm),
-        input.goal,
+        screening.goal,
         goalWeightKg,
         activity,
         days.value,

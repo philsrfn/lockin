@@ -106,7 +106,10 @@ progressive overload is. If something in the last two weeks is worth naming —
 a stall, a jump, three sessions in four days, a week of no weigh-ins — name it.
 
 Do not state working weights. He can see them on screen and they are computed
-for you, not by you.`;
+for you, not by you.
+
+Never comment on how they look, and never describe a day of eating as good or
+bad. If the numbers are short, say what to do next, not what went wrong.`;
 
 type NoteRow = {
   for_date: string;

@@ -11,7 +11,7 @@ import type { Ctx } from '../../db';
 import { anotherAthlete, phil, resetData, resetProfile } from '../../test/helpers';
 import { summary } from '../bodyweight';
 import { completeOnboarding } from '../onboarding';
-import { getProfile } from '../profile';
+import { getProfile, updateTargets } from '../profile';
 import { listRules } from '../rules';
 
 let sam: Ctx;
@@ -209,6 +209,79 @@ describe('what it refuses', () => {
     await expect(completeOnboarding(sam, { ...SMALL, heightCm: 17 })).rejects.toThrow();
 
     expect((await getProfile(sam)).onboarded).toBe(false);
+  });
+});
+
+describe('when a deficit is the wrong answer', () => {
+  const UNDERWEIGHT = {
+    sex: 'female',
+    birthYear: 1996,
+    heightCm: 165,
+    weightKg: 47,
+    goal: 'lose',
+    trainingDaysPerWeek: 3,
+  } as const;
+
+  it('sets an underweight athlete to maintain rather than to lose', async () => {
+    const result = await completeOnboarding(sam, UNDERWEIGHT);
+
+    expect(result.profile.goal).toBe('maintain');
+    expect(result.profile.calorieTarget).toBe(result.explanation.maintenanceKcal);
+  });
+
+  it('says why, and points at somebody qualified', async () => {
+    const result = await completeOnboarding(sam, UNDERWEIGHT);
+    const said = result.explanation.notes.join(' ');
+
+    expect(said).toContain('below the healthy weight range');
+    expect(said).toContain('dietitian');
+    // No diagnosis and no scare words.
+    expect(said).not.toMatch(/disorder|anorexi|suffer/i);
+  });
+
+  it('leaves them something they can still do', async () => {
+    const result = await completeOnboarding(sam, UNDERWEIGHT);
+
+    expect(result.explanation.notes.join(' ')).toContain('Training and protein');
+    expect(result.profile.proteinTargetG).toBeGreaterThan(0);
+  });
+
+  it('does not stand in the way of them gaining', async () => {
+    const result = await completeOnboarding(sam, { ...UNDERWEIGHT, goal: 'gain' });
+
+    expect(result.profile.goal).toBe('gain');
+    expect(result.profile.calorieTarget).toBeGreaterThan(result.explanation.maintenanceKcal);
+  });
+
+  it('will not put somebody still growing in a deficit', async () => {
+    const result = await completeOnboarding(sam, {
+      ...UNDERWEIGHT,
+      weightKg: 68,
+      birthYear: new Date().getFullYear() - 16,
+    });
+
+    expect(result.profile.goal).toBe('maintain');
+    expect(result.explanation.notes.join(' ')).toContain('doctor');
+  });
+
+  it('refuses to be talked below maintenance afterwards', async () => {
+    await completeOnboarding(sam, UNDERWEIGHT);
+
+    // This is the path the trainer's adjust_calorie_target tool takes.
+    const result = await updateTargets(sam, { calorieTarget: 1200 });
+
+    expect(result.profile.calorieTarget).toBeGreaterThan(1200);
+    expect(result.refusals.join(' ')).toContain('below maintenance');
+    expect(result.refusals.join(' ')).toContain('dietitian');
+  });
+
+  it('lets an athlete in the healthy range cut normally', async () => {
+    await completeOnboarding(sam, { ...UNDERWEIGHT, weightKg: 62 });
+
+    const result = await updateTargets(sam, { calorieTarget: 1600 });
+
+    expect(result.profile.calorieTarget).toBe(1600);
+    expect(result.refusals).toEqual([]);
   });
 });
 

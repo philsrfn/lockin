@@ -181,6 +181,17 @@ export type Progress = {
   exercises: ExerciseProgress[];
 };
 
+export type WeeklyReview = {
+  weekEnding: string;
+  trend: string;
+  wentWell: string;
+  oneChange: string;
+  targetsNote: string | null;
+  calorieTarget: number;
+  calorieChanged: boolean;
+  model: string;
+};
+
 export type RuleTier = 'hard' | 'soft' | 'never';
 
 export type Rule = {

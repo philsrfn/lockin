@@ -11,6 +11,9 @@
       "bundleIdentifier": "de.dotspiro.lockin",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -30,6 +33,12 @@
         "expo-camera",
         {
           "cameraPermission": "lockin scans food barcodes to log what you eat."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4ADE80"
         }
       ]
     ],

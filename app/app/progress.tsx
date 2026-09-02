@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
-import type { ExerciseProgress, Progress, WeightSummary } from '../src/api/types';
+import type { ExerciseProgress, Progress, WeeklyReview, WeightSummary } from '../src/api/types';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
 import { Sparkline } from '../src/components/Sparkline';
@@ -16,18 +16,23 @@ export default function ProgressScreen() {
   const [days, setDays] = useState<number>(90);
   const [data, setData] = useState<Progress | null>(null);
   const [weight, setWeight] = useState<WeightSummary | null>(null);
+  const [review, setReview] = useState<WeeklyReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [p, w] = await Promise.all([
+      const [p, w, r] = await Promise.all([
         api<Progress>(`/progress?days=${days}`),
         api<WeightSummary>(`/bodyweight?days=${Math.min(days, 365)}`),
+        // The Sunday review is the most considered thing the trainer produces.
+        // It has been landing in a database column nobody reads.
+        api<{ review: WeeklyReview | null }>('/review').catch(() => ({ review: null })),
       ]);
       setData(p);
       setWeight(w);
+      setReview(r.review);
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your history');
@@ -64,6 +69,24 @@ export default function ProgressScreen() {
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {review ? (
+        <Card label={`REVIEW · WEEK ENDING ${shortDate(review.weekEnding).toUpperCase()}`}>
+          <Text style={styles.reviewBody}>{review.trend}</Text>
+          <View style={styles.reviewBlock}>
+            <Text style={styles.reviewLabel}>WENT WELL</Text>
+            <Text style={styles.reviewBody}>{review.wentWell}</Text>
+          </View>
+          <View style={styles.reviewBlock}>
+            <Text style={[styles.reviewLabel, { color: colors.accent }]}>THIS WEEK, CHANGE ONE THING</Text>
+            <Text style={[styles.reviewBody, styles.reviewChange]}>{review.oneChange}</Text>
+          </View>
+          {review.targetsNote ? <Text style={styles.footnote}>{review.targetsNote}</Text> : null}
+          <Text style={styles.footnote}>
+            {review.calorieTarget} kcal/day{review.calorieChanged ? ' · changed this week' : ''}
+          </Text>
+        </Card>
+      ) : null}
 
       <Card label="WEIGHT">
         {weight?.average7 ? (
@@ -230,5 +253,9 @@ const styles = StyleSheet.create({
 
   dim: { ...typo.bodyDim, color: colors.textDim },
   footnote: { fontSize: 13, color: colors.textFaint },
+  reviewBlock: { gap: space.xs },
+  reviewLabel: { ...typo.label, color: colors.textFaint },
+  reviewBody: { ...typo.body, color: colors.text, lineHeight: 22 },
+  reviewChange: { fontWeight: '700' },
   error: { color: colors.danger, fontSize: 14 },
 });

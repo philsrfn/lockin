@@ -16,6 +16,18 @@ import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'lockin.apiToken';
 const URL_KEY = 'lockin.apiUrl';
+/**
+ * Remembered so the questionnaire is asked once and then never checked again.
+ * Without it every cold start would wait on /profile before drawing anything,
+ * which on gym wifi is several seconds of nothing.
+ *
+ * Cleared whenever a token is saved: the flag says "this athlete has answered
+ * it", and a different token is a different athlete. Suffixed because the
+ * first version of this key was not cleared that way, and a value written
+ * under the old meaning would skip the questionnaire for somebody who has
+ * never seen it.
+ */
+const ONBOARDED_KEY = 'lockin.onboarded.v2';
 
 const BUILT_IN_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 const BUILT_IN_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
@@ -46,6 +58,9 @@ export async function loadConfig(): Promise<boolean> {
 
 export async function saveConfig(url: string, apiToken: string): Promise<void> {
   baseUrl = normalise(url);
+  // A new token is a new athlete: whatever this device remembered about
+  // onboarding belonged to the last one.
+  await SecureStore.deleteItemAsync(ONBOARDED_KEY);
   token = apiToken.trim();
   await SecureStore.setItemAsync(URL_KEY, baseUrl);
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -56,6 +71,14 @@ export async function clearConfig(): Promise<void> {
   baseUrl = '';
   await SecureStore.deleteItemAsync(TOKEN_KEY);
   await SecureStore.deleteItemAsync(URL_KEY);
+}
+
+export async function isOnboardedLocally(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(ONBOARDED_KEY)) === 'yes';
+}
+
+export async function markOnboardedLocally(): Promise<void> {
+  await SecureStore.setItemAsync(ONBOARDED_KEY, 'yes');
 }
 
 export const currentToken = () => token ?? '';

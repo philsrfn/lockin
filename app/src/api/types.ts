@@ -15,6 +15,40 @@ export type Profile = {
   calorieTarget: number;
   proteinTargetG: number;
   fatFloorG: number;
+  sex: Sex | null;
+  activityLevel: ActivityLevel | null;
+  goal: Goal | null;
+  trainingDaysPerWeek: number | null;
+  /** The rate the targets were sized from, after clamping. Negative is loss. */
+  weeklyRateKg: number | null;
+  /** False until the questionnaire is answered. */
+  onboarded: boolean;
+};
+
+export type Sex = 'male' | 'female';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active';
+export type Goal = 'lose' | 'maintain' | 'gain';
+
+export type OnboardingAnswers = {
+  name?: string | null;
+  sex: Sex;
+  birthYear: number;
+  heightCm: number;
+  weightKg: number;
+  goal: Goal;
+  goalWeightKg?: number | null;
+  trainingDaysPerWeek: number;
+  timezone?: string;
+};
+
+export type OnboardingResult = {
+  profile: Profile;
+  explanation: {
+    maintenanceKcal: number;
+    weeklyRateKg: number;
+    /** Anything that was clamped, in the trainer's words. */
+    notes: string[];
+  };
 };
 
 export type Context = {

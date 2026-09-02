@@ -4,7 +4,10 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { loadConfig } from '../src/api/config';
+import { api } from '../src/api/client';
+import type { Profile } from '../src/api/types';
+import { isOnboardedLocally, loadConfig, markOnboardedLocally } from '../src/api/config';
+import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { SetupScreen } from '../src/components/SetupScreen';
 import { startAutoDrain } from '../src/sync/queue';
 import { registerForPush, screenFromNotification } from '../src/push';
@@ -12,6 +15,7 @@ import { colors } from '../src/theme';
 
 export default function RootLayout() {
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const router = useRouter();
   const registered = useRef(false);
 
@@ -20,6 +24,26 @@ export default function RootLayout() {
   useEffect(() => {
     void loadConfig().then(setConfigured);
   }, []);
+
+  /**
+   * Asked once, then remembered locally. An install that has already been
+   * through the questionnaire never waits on this again — and if the check
+   * itself fails, the app opens anyway rather than trapping somebody offline
+   * in a form they may already have filled in.
+   */
+  useEffect(() => {
+    if (!configured) return;
+    void (async () => {
+      if (await isOnboardedLocally()) return setOnboarded(true);
+      try {
+        const { profile } = await api<{ profile: Profile }>('/profile');
+        if (profile.onboarded) await markOnboardedLocally();
+        setOnboarded(profile.onboarded);
+      } catch {
+        setOnboarded(true);
+      }
+    })();
+  }, [configured]);
 
   // Drains on foreground, and on a slow heartbeat while anything is waiting.
   useEffect(() => {
@@ -45,7 +69,7 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [router]);
 
-  if (configured === null) {
+  if (configured === null || (configured && onboarded === null)) {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
@@ -61,6 +85,20 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <SetupScreen onDone={() => setConfigured(true)} />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (!onboarded) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <OnboardingScreen
+          onDone={() => {
+            void markOnboardedLocally();
+            setOnboarded(true);
+          }}
+        />
       </SafeAreaProvider>
     );
   }

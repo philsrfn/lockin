@@ -1,297 +1,366 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { api } from '../../src/api/client';
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResource } from '../../src/api/hooks';
-import type { CoachNote, Today } from '../../src/api/types';
-import { Banner } from '../../src/components/Banner';
+import type { Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
-import { Card } from '../../src/components/Card';
-import { CoachCard } from '../../src/components/CoachCard';
 import { ContextChip } from '../../src/components/ContextChip';
-import { Screen } from '../../src/components/Screen';
+import { Rail } from '../../src/components/Numeral';
 import { Sparkline } from '../../src/components/Sparkline';
-import { kg, longDate, prescriptionLine, signedKg } from '../../src/lib/format';
-import { colors, radius, space, type as typo } from '../../src/theme';
+import { kg, longDate, signedKg } from '../../src/lib/format';
+import { colors, space, type as typo } from '../../src/theme';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+type Panel = 'coach' | 'day' | 'food' | 'weight';
+
+/**
+ * The home screen does not scroll.
+ *
+ * Everything he needs at a glance fits on one screen, and each line opens if he
+ * wants the detail behind it. In particular the movement list stays shut: he
+ * does not need to read six exercise names over breakfast — that is a thing to
+ * look at once he is standing in the gym, which is what Start is for.
+ *
+ * One panel open at a time, so opening one cannot push the rest off the screen.
+ */
 export default function TodayScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const today = useResource<Today>('/today');
+  const [open, setOpen] = useState<Panel | null>(null);
 
-  const [coach, setCoach] = useState<CoachNote | null>(null);
-  const [coachLoading, setCoachLoading] = useState(false);
-
-  const cached = today.data?.coach ?? null;
-
-  // The plan renders from /today immediately. If no note exists for today yet,
-  // ask for one afterwards — a model call must never sit in front of the screen.
-  const askCoach = useCallback(async (force = false) => {
-    setCoachLoading(true);
-    try {
-      const result = await api<{ coach: CoachNote }>('/coach/today', {
-        method: 'POST',
-        body: { force },
-        timeoutMs: 60_000,
-      });
-      setCoach(result.coach);
-    } catch {
-      // Offline or the model is down. The deterministic plan below still stands.
-    } finally {
-      setCoachLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (cached) {
-      setCoach(cached);
-      return;
-    }
-    if (today.data && !today.stale && !coach) void askCoach();
-  }, [cached, today.data, today.stale, coach, askCoach]);
+  function toggle(panel: Panel) {
+    LayoutAnimation.configureNext(LayoutAnimation.create(160, 'easeInEaseOut', 'opacity'));
+    setOpen((current) => (current === panel ? null : panel));
+  }
 
   if (!today.data) {
     return (
-      <Screen onRefresh={today.reload} refreshing={today.refreshing}>
+      <View style={[styles.root, styles.centre, { paddingTop: insets.top }]}>
         <Text style={styles.placeholder}>
-          {today.loading ? 'Loading…' : (today.error ?? 'No data')}
+          {today.loading ? 'Loading' : (today.error ?? 'No data')}
         </Text>
         {today.error ? <Button title="Try again" variant="secondary" onPress={today.reload} /> : null}
-      </Screen>
+      </View>
     );
   }
 
-  const { plan, weight, macros, week, openSession, context, date, completedToday } = today.data;
+  const { plan, weight, macros, week, openSession, context, date, completedToday, coach } =
+    today.data;
   const inProgress = openSession !== null;
-  // Once he has finished a session, offering the same plan again reads as
-  // "you still owe me this". Show what he did instead.
   const done = !inProgress && (completedToday?.length ?? 0) > 0;
+  const resting = !!coach && coach.sessionType !== 'strength' && !done && !inProgress;
 
   return (
-    <Screen onRefresh={today.reload} refreshing={today.refreshing}>
-      <View style={styles.header}>
+    <View style={styles.root}>
+    <ScrollView
+      style={styles.scroll}
+      // Sized to fit, so in practice it never moves. The ScrollView is only a
+      // safety net for a smaller screen or larger type — clipping content
+      // would be worse than a few points of give.
+      contentContainerStyle={[
+        styles.page,
+        { paddingTop: insets.top + space.md, paddingBottom: space.md },
+      ]}
+      bounces={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={today.refreshing}
+          onRefresh={today.reload}
+          tintColor={colors.textFaint}
+        />
+      }
+    >
+      <View style={styles.masthead}>
         <Text style={styles.date}>{longDate(date)}</Text>
-        <View style={styles.headerRow}>
+        <View style={styles.mastheadRow}>
           <ContextChip context={context} onChanged={today.reload} />
-          <View style={styles.headerLinks}>
+          <View style={styles.links}>
             <Pressable onPress={() => router.push('/progress')} hitSlop={12}>
-              <Text style={styles.headerLink}>Progress</Text>
+              <Text style={styles.link}>PROGRESS</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/rules')} hitSlop={12}>
-              <Text style={styles.headerLink}>Rules</Text>
+              <Text style={styles.link}>RULES</Text>
             </Pressable>
           </View>
         </View>
-        {today.stale ? (
-          <Text style={styles.stale}>Offline — showing the last plan this phone saw.</Text>
-        ) : null}
+        {today.stale ? <Text style={styles.stale}>Offline · last plan this phone saw</Text> : null}
       </View>
 
-      <CoachCard note={coach} loading={coachLoading} />
-
       {plan.jointPain.recommendDoctor ? (
-        <Banner
-          tone="danger"
-          title="Joint pain two sessions running"
-          body={`Load is cut ${plan.jointPain.reduceLoadPct}% today. Get it looked at by a doctor before you push again.`}
-        />
+        <View style={styles.alertRow}>
+          <Text style={styles.alert}>
+            Joint pain twice running · load cut {plan.jointPain.reduceLoadPct}% · see someone
+          </Text>
+        </View>
       ) : null}
 
-      {/* The coach says this in his own words when he has spoken. Two versions
-          of the same sentence, one above the other, reads like a form. */}
-      {plan.rampIn.active && !coach ? (
-        <Banner
-          tone="warn"
-          title="Ramp-in — first two weeks"
-          body={`Capped at ${plan.rampIn.maxWorkingSets} working sets, ${plan.rampIn.minRir}+ reps in reserve. Connective tissue lags muscle.`}
-        />
+      {/* The coach's read. Headline always; the reasoning on tap. */}
+      {coach ? (
+        <Panel
+          label={resting ? 'NO LIFT TODAY' : 'LIFT TODAY'}
+          labelTone="signal"
+          open={open === 'coach'}
+          onPress={() => toggle('coach')}
+        >
+          <Text style={styles.headline}>{coach.headline}</Text>
+          {open === 'coach' ? <Text style={styles.prose}>{coach.body}</Text> : null}
+        </Panel>
       ) : null}
 
-      <Card label={done ? 'DONE TODAY' : `DAY ${plan.template}`}>
-        {done ? (
-          <DoneSummary sessions={completedToday} />
-        ) : (
-          plan.exercises.map((exercise) => (
-            <View key={exercise.exerciseId} style={styles.exerciseRow}>
-              <Text style={styles.exerciseName} numberOfLines={1}>
-                {exercise.name}
-              </Text>
-              <Text style={styles.exercisePrescription}>
-                {prescriptionLine(exercise.sets, exercise.targetReps, exercise.weightKg)}
-              </Text>
-            </View>
-          ))
-        )}
+      {/* The session. Movements stay shut until he asks or hits Start. */}
+      <Panel
+        label={done ? 'DONE TODAY' : 'SESSION'}
+        open={open === 'day'}
+        onPress={() => toggle('day')}
+      >
+        <View style={styles.dayRow}>
+          <Text style={[styles.dayLetter, done && { color: colors.accent }]}>
+            {done ? (completedToday[0]?.template ?? plan.template) : plan.template}
+          </Text>
+          <View style={styles.dayMeta}>
+            <Text style={styles.dayCount}>
+              {done
+                ? `${completedToday.reduce((sum, s) => sum + s.sets.length, 0)} sets logged`
+                : `${plan.exercises.length} movements`}
+            </Text>
+            <Text style={styles.dayNote}>
+              {done
+                ? `${week.strengthSessions.done} of ${week.strengthSessions.target} this week`
+                : plan.rampIn.active
+                  ? `Ramp-in · ${plan.rampIn.maxWorkingSets} sets · ${plan.rampIn.minRir} RIR`
+                  : `${week.strengthSessions.done} of ${week.strengthSessions.target} this week`}
+            </Text>
+          </View>
+        </View>
 
-        <Button
-          title={
-            inProgress
-              ? 'Resume workout'
-              : done
-                ? 'Train again'
-                : coach && coach.sessionType !== 'strength'
-                  ? 'Lift anyway'
-                  : 'Start workout'
-          }
-          // Secondary when he has already trained or the coach called a rest
-          // day: still available, no longer the thing being urged.
-          variant={
-            !inProgress && (done || (coach && coach.sessionType !== 'strength'))
-              ? 'secondary'
-              : 'primary'
-          }
-          onPress={() => router.push('/workout')}
-          style={{ marginTop: space.sm }}
-        />
+        {open === 'day' ? (
+          <View style={styles.ledger}>
+            {(done
+              ? [...new Map(
+                  completedToday
+                    .flatMap((s) => s.sets)
+                    .map((set) => [set.exerciseName, `${kg(set.weightKg)} × ${set.reps}`]),
+                ).entries()]
+              : plan.exercises.map(
+                  (e) =>
+                    [
+                      e.name,
+                      `${e.sets}×${e.targetReps}${e.weightKg != null ? `  ${kg(e.weightKg)}` : '  —'}`,
+                    ] as [string, string],
+                )
+            ).map(([name, detail], index) => (
+              <View key={name} style={[styles.ledgerRow, index > 0 && styles.ledgerDivider]}>
+                <Text style={styles.movement} numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text style={styles.prescription}>{detail}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </Panel>
 
-        <Text style={styles.footnote}>
-          {week.strengthSessions.done} of {week.strengthSessions.target} strength sessions this week
-        </Text>
-      </Card>
-
-      <Card label="PROTEIN REMAINING">
+      {/* Protein is the number he manages all day. It keeps the hero. */}
+      <Panel label="PROTEIN LEFT" open={open === 'food'} onPress={() => toggle('food')}>
         <View style={styles.heroRow}>
           <Text style={styles.hero}>{macros.remaining.proteinG}</Text>
           <Text style={styles.heroUnit}>g</Text>
+          <View style={styles.heroAside}>
+            <Text style={styles.asideValue}>{macros.remaining.kcal}</Text>
+            <Text style={styles.asideLabel}>KCAL LEFT</Text>
+          </View>
         </View>
-        <ProgressBar percent={macros.remaining.proteinPct} />
-        <Text style={styles.subtle}>
-          {macros.remaining.kcal} kcal left of {macros.targets.kcal} · fat floor{' '}
-          {macros.remaining.fatToFloorG}g to go
-        </Text>
-        <Text style={styles.footnote}>
-          {macros.meals.length === 0
-            ? 'Nothing logged yet today.'
-            : `${macros.meals.length} ${macros.meals.length === 1 ? 'meal' : 'meals'} logged · ${macros.consumed.kcal} kcal so far`}
-        </Text>
-        <Button title="Log food" variant="secondary" onPress={() => router.push('/food')} />
-      </Card>
+        <Rail percent={macros.remaining.proteinPct} />
+        {open === 'food' ? (
+          <>
+            <View style={styles.stats}>
+              <Stat value={`${macros.consumed.proteinG}`} label="G EATEN" />
+              <Stat value={`${macros.remaining.fatToFloorG}`} label="G TO FAT FLOOR" />
+              <Stat value={`${macros.meals.length}`} label="MEALS" />
+            </View>
+            <Button title="Log food" variant="secondary" onPress={() => router.push('/food')} />
+          </>
+        ) : null}
+      </Panel>
 
-      <Card label="WEIGHT">
+      <Panel label="WEIGHT" open={open === 'weight'} onPress={() => toggle('weight')}>
         {weight.latest ? (
           <>
             <View style={styles.weightRow}>
-              <View>
-                <Text style={styles.numeral}>{kg(weight.average7?.avgKg)} kg</Text>
-                <Text style={styles.subtle}>
-                  7-day average{weight.average7 ? ` · ${weight.average7.sampleCount}/7 days` : ''}
-                </Text>
-              </View>
-              <View style={styles.alignEnd}>
-                <Text style={[styles.change, changeTone(weight.changeKg)]}>
-                  {signedKg(weight.changeKg)} kg
-                </Text>
-                <Text style={styles.subtle}>this week</Text>
-              </View>
+              <Text style={styles.weightValue}>{kg(weight.average7?.avgKg)}</Text>
+              <Text style={styles.weightUnit}>kg</Text>
+              <Text
+                style={[
+                  styles.weightChange,
+                  { color: (weight.changeKg ?? 0) <= 0 ? colors.accent : colors.danger },
+                ]}
+              >
+                {signedKg(weight.changeKg)}
+              </Text>
             </View>
-            <Sparkline series={weight.series} />
-            <Text style={styles.footnote}>
-              Last: {kg(weight.latest.weightKg)} kg · goal {kg(weight.goalWeightKg, 0)} kg
-            </Text>
+            {open === 'weight' ? (
+              <>
+                <Sparkline series={weight.series} height={52} />
+                <View style={styles.stats}>
+                  <Stat value={kg(weight.latest.weightKg)} label="LAST" />
+                  <Stat value={kg(weight.goalWeightKg, 0)} label="GOAL" />
+                  <Stat value={`${weight.average7?.sampleCount ?? 0}/7`} label="WEIGH-INS" />
+                </View>
+                <Button
+                  title="Log weight"
+                  variant="secondary"
+                  onPress={() => router.push('/weight')}
+                />
+              </>
+            ) : null}
           </>
         ) : (
-          <>
-            <Text style={styles.subtle}>No weigh-ins yet. It takes three seconds.</Text>
-            <Button
-              title="Log weight"
-              variant="secondary"
-              onPress={() => router.push('/weight')}
-            />
-          </>
+          <Text style={styles.subtle}>No weigh-ins yet. Three seconds.</Text>
         )}
-      </Card>
-    </Screen>
-  );
-}
+      </Panel>
 
-/** What he actually did today, in place of a plan he has already completed. */
-function DoneSummary({ sessions }: { sessions: Today['completedToday'] }) {
-  return (
-    <View style={{ gap: space.sm }}>
-      {sessions.map((session) => {
-        const heaviest = new Map<string, { weightKg: number; reps: number }>();
-        for (const set of session.sets) {
-          const best = heaviest.get(set.exerciseName);
-          if (!best || set.weightKg > best.weightKg) {
-            heaviest.set(set.exerciseName, { weightKg: set.weightKg, reps: set.reps });
-          }
-        }
-        return (
-          <View key={session.id} style={{ gap: space.xs }}>
-            <Text style={styles.doneHeadline}>
-              Day {session.template} · {session.sets.length} sets
-              {session.rpe ? ` · RPE ${session.rpe}` : ''}
-            </Text>
-            {[...heaviest.entries()].map(([name, top]) => (
-              <View key={name} style={styles.exerciseRow}>
-                <Text style={styles.exerciseName} numberOfLines={1}>
-                  {name}
-                </Text>
-                <Text style={styles.exercisePrescription}>
-                  {kg(top.weightKg)}kg × {top.reps}
-                </Text>
-              </View>
-            ))}
-            {session.jointPain ? (
-              <Text style={styles.doneFlag}>Joint pain flagged</Text>
-            ) : null}
-          </View>
-        );
-      })}
+    </ScrollView>
+
+    {/* Pinned. Expanding a panel must never push the one action off-screen. */}
+    <View style={styles.footer}>
+      <Button
+        title={inProgress ? 'Resume' : done ? 'Train again' : resting ? 'Lift anyway' : 'Start'}
+        variant={!inProgress && (done || resting) ? 'secondary' : 'primary'}
+        onPress={() => router.push('/workout')}
+      />
+    </View>
     </View>
   );
 }
 
-/** Losing is good, gaining is not — but neither is an alarm. */
-function changeTone(changeKg: number | null) {
-  if (changeKg == null) return { color: colors.textDim };
-  return { color: changeKg <= 0 ? colors.accent : colors.warn };
+/** A line of the page that opens when tapped. */
+function Panel({
+  label,
+  labelTone = 'faint',
+  open,
+  onPress,
+  children,
+}: {
+  label: string;
+  labelTone?: 'faint' | 'signal';
+  open: boolean;
+  onPress: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.panel, pressed && styles.pressed]}>
+      <View style={styles.panelHead}>
+        <Text
+          style={[styles.label, labelTone === 'signal' && { color: colors.accent }]}
+        >
+          {label}
+        </Text>
+        <Text style={styles.chevron}>{open ? '−' : '+'}</Text>
+      </View>
+      {children}
+    </Pressable>
+  );
 }
 
-function ProgressBar({ percent }: { percent: number }) {
+function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <View style={styles.track}>
-      <View style={[styles.fill, { width: `${Math.min(100, Math.max(0, percent))}%` }]} />
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { gap: space.md },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerLinks: { flexDirection: 'row', gap: space.lg },
-  headerLink: { fontSize: 14, fontWeight: '600', color: colors.textDim },
-  date: { ...typo.title, color: colors.text },
+  root: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
+  page: { paddingHorizontal: space.lg, gap: space.md },
+  footer: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  centre: { alignItems: 'center', justifyContent: 'center', gap: space.lg, padding: space.lg },
 
-  exerciseRow: {
+  masthead: { gap: space.md },
+  date: { fontSize: 15, color: colors.textDim, letterSpacing: 0.3 },
+  mastheadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  links: { flexDirection: 'row', gap: space.lg },
+  link: { ...typo.label, color: colors.textFaint },
+  stale: { fontSize: 13, color: colors.accent },
+
+  panel: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: space.md,
+    gap: space.sm,
+  },
+  panelHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  label: { ...typo.label, color: colors.textFaint },
+  chevron: { fontSize: 15, color: colors.textFaint, lineHeight: 15 },
+  pressed: { opacity: 0.7 },
+
+  headline: { fontSize: 20, fontWeight: '400', color: colors.text, lineHeight: 26, letterSpacing: -0.3 },
+  prose: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
+
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  dayLetter: { fontSize: 52, fontWeight: '300', color: colors.text, letterSpacing: -2, lineHeight: 56 },
+  dayMeta: { gap: 1 },
+  dayCount: { ...typo.body, color: colors.text },
+  dayNote: { fontSize: 13, color: colors.textDim },
+
+  ledger: { paddingTop: space.xs },
+  ledgerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: space.sm,
     gap: space.md,
   },
-  exerciseName: { ...typo.body, color: colors.text, flexShrink: 1 },
-  exercisePrescription: { ...typo.bodyDim, ...typo.mono, color: colors.textDim },
-
-  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
-  hero: { ...typo.hero, ...typo.mono, color: colors.accent },
-  heroUnit: { fontSize: 22, fontWeight: '700', color: colors.textDim },
-
-  track: {
-    height: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceHigh,
-    overflow: 'hidden',
+  ledgerDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
-  fill: { height: '100%', backgroundColor: colors.accent, borderRadius: radius.pill },
+  movement: { fontSize: 15, color: colors.text, flexShrink: 1 },
+  prescription: { fontSize: 14, color: colors.textDim, ...typo.mono },
 
-  weightRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  alignEnd: { alignItems: 'flex-end' },
-  numeral: { ...typo.numeral, ...typo.mono, color: colors.text },
-  change: { fontSize: 20, fontWeight: '700', ...typo.mono },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  hero: { fontSize: 60, fontWeight: '300', color: colors.text, letterSpacing: -3, ...typo.mono },
+  heroUnit: { fontSize: 16, color: colors.textDim },
+  heroAside: { flex: 1, alignItems: 'flex-end' },
+  asideValue: { fontSize: 20, color: colors.textDim, ...typo.mono },
+  asideLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: colors.textFaint },
+
+  weightRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  weightValue: { fontSize: 34, fontWeight: '300', color: colors.text, letterSpacing: -1, ...typo.mono },
+  weightUnit: { fontSize: 15, color: colors.textDim, flex: 1 },
+  weightChange: { fontSize: 19, ...typo.mono },
+
+  stats: { flexDirection: 'row', gap: space.lg, paddingTop: space.xs },
+  stat: { flex: 1, gap: 2 },
+  statValue: { fontSize: 17, color: colors.text, ...typo.mono },
+  statLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: colors.textFaint },
 
   subtle: { ...typo.bodyDim, color: colors.textDim },
-  footnote: { fontSize: 13, color: colors.textFaint },
-  doneHeadline: { ...typo.body, color: colors.accent, fontWeight: '700' },
-  doneFlag: { fontSize: 13, color: colors.danger },
-  placeholder: { ...typo.body, color: colors.textDim, marginTop: space.xxl },
-  stale: { fontSize: 13, color: colors.warn },
+  alertRow: { paddingVertical: space.xs },
+  alert: { fontSize: 13, color: colors.danger, lineHeight: 19 },
+  placeholder: { ...typo.body, color: colors.textDim },
 });

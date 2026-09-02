@@ -1,8 +1,13 @@
 import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
-import { colors, radius, space } from '../theme';
+import { colors, space } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 
+/**
+ * Square, wide-tracked, quiet. The primary action is bone-on-black rather than
+ * a coloured slab: on a page this restrained, inverting the block is louder
+ * than any fill, and it keeps amber meaning "on target" rather than "tap here".
+ */
 export function Button({
   title,
   onPress,
@@ -29,7 +34,9 @@ export function Button({
         style,
       ]}
     >
-      <Text style={[styles.text, variant === 'primary' && styles.textPrimary]}>{title}</Text>
+      <Text style={[styles.text, variant === 'primary' && styles.textPrimary]}>
+        {title.toUpperCase()}
+      </Text>
     </Pressable>
   );
 }
@@ -37,16 +44,18 @@ export function Button({
 const styles = StyleSheet.create({
   base: {
     minHeight: 56,
-    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.lg,
   },
-  primary: { backgroundColor: colors.accent },
-  secondary: { backgroundColor: colors.surfaceHigh, borderWidth: 1, borderColor: colors.border },
-  ghost: { backgroundColor: 'transparent', minHeight: 44 },
-  pressed: { opacity: 0.75 },
-  disabled: { opacity: 0.4 },
-  text: { fontSize: 17, fontWeight: '700', color: colors.text },
-  textPrimary: { color: '#08130C' },
+  primary: { backgroundColor: colors.text },
+  secondary: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.textFaint,
+  },
+  ghost: { minHeight: 44 },
+  pressed: { opacity: 0.6 },
+  disabled: { opacity: 0.28 },
+  text: { fontSize: 13, fontWeight: '600', letterSpacing: 1.6, color: colors.text },
+  textPrimary: { color: colors.bg },
 });

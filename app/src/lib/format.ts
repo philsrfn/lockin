@@ -12,13 +12,17 @@ export function signedKg(value: number | null | undefined, decimals = 1): string
   return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded).toFixed(decimals)}`;
 }
 
+/**
+ * The masthead date, in German. His app, his language — and it is the one
+ * moment of the interface that should feel like it belongs to a person rather
+ * than to a product.
+ */
 export function longDate(iso: string): string {
   const date = new Date(`${iso}T12:00:00`);
-  return date.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
+  const day = date.getDate();
+  const month = date.toLocaleDateString('de-DE', { month: 'long' });
+  return `${weekday} · ${day}. ${month}`;
 }
 
 export function shortDate(iso: string): string {

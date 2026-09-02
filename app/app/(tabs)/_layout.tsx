@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 import { colors } from '../../src/theme';
 
 export default function TabsLayout() {
@@ -8,20 +9,23 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textFaint,
+        // Flat: the bar sits on the page rather than on a raised slab, and a
+        // hairline is enough to separate it.
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.bg,
           borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 0,
         },
-        // No icon set is bundled, and a label at this size reads fine.
-        tabBarLabelStyle: { fontSize: 13, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', letterSpacing: 1.4 },
         tabBarIconStyle: { display: 'none' },
         tabBarItemStyle: { paddingTop: 10 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Today' }} />
-      <Tabs.Screen name="chat" options={{ title: 'Trainer' }} />
-      <Tabs.Screen name="food" options={{ title: 'Food' }} />
-      <Tabs.Screen name="weight" options={{ title: 'Weight' }} />
+      <Tabs.Screen name="index" options={{ title: 'TODAY' }} />
+      <Tabs.Screen name="chat" options={{ title: 'TRAINER' }} />
+      <Tabs.Screen name="food" options={{ title: 'FOOD' }} />
+      <Tabs.Screen name="weight" options={{ title: 'WEIGHT' }} />
     </Tabs>
   );
 }

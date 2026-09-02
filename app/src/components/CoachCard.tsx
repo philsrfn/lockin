@@ -21,7 +21,7 @@ const TONE: Record<CoachNote['sessionType'], string> = {
 export function CoachCard({ note, loading }: { note: CoachNote | null; loading: boolean }) {
   if (!note) {
     return (
-      <View style={styles.card}>
+      <View style={styles.block}>
         <View style={styles.pendingRow}>
           {loading ? <ActivityIndicator size="small" color={colors.textFaint} /> : null}
           <Text style={styles.pending}>
@@ -35,7 +35,7 @@ export function CoachCard({ note, loading }: { note: CoachNote | null; loading: 
   const tone = TONE[note.sessionType];
 
   return (
-    <View style={[styles.card, { borderLeftColor: tone, borderLeftWidth: 3 }]}>
+    <View style={styles.block}>
       <Text style={[styles.label, { color: tone }]}>{LABEL[note.sessionType]}</Text>
       <Text style={styles.headline}>{note.headline}</Text>
       <Text style={styles.body}>{note.body}</Text>
@@ -54,16 +54,19 @@ export function CoachCard({ note, loading }: { note: CoachNote | null; loading: 
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space.lg,
+  /**
+   * The coach speaks in the page's own voice — a rule above, the read
+   * underneath. It was a bordered slab with a coloured bar, which made the one
+   * paragraph of prose shout louder than every number on the screen.
+   */
+  block: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: space.md,
     gap: space.sm,
   },
   label: { ...typo.label, color: colors.accent },
-  headline: { fontSize: 19, fontWeight: '700', color: colors.text, lineHeight: 25 },
+  headline: { fontSize: 21, fontWeight: '400', color: colors.text, lineHeight: 28, letterSpacing: -0.3 },
   body: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
   swaps: { gap: space.xs, marginTop: space.xs },
   swap: { fontSize: 13, color: colors.warn, lineHeight: 19 },

@@ -25,20 +25,20 @@ const toContext = (row: ContextRow): Context => ({
   isActive: row.is_active,
 });
 
-const SELECT = 'select id, name, equipment, food_profile, is_active from contexts';
+// Carries the tenant predicate, like the session and food selects: callers
+// append `and ...`, and a fragment that could be used unscoped does not exist.
+const SELECT = `
+  select id, name, equipment, food_profile, is_active from contexts
+  where user_id = $1
+`;
 
 export async function listContexts(ctx: Ctx): Promise<Context[]> {
-  const { rows } = await ctx.db.query<ContextRow>(`${SELECT} where user_id = $1 order by id`, [
-    ctx.userId,
-  ]);
+  const { rows } = await ctx.db.query<ContextRow>(`${SELECT} order by id`, [ctx.userId]);
   return rows.map(toContext);
 }
 
 export async function activeContext(ctx: Ctx): Promise<Context | null> {
-  const { rows } = await ctx.db.query<ContextRow>(
-    `${SELECT} where user_id = $1 and is_active limit 1`,
-    [ctx.userId],
-  );
+  const { rows } = await ctx.db.query<ContextRow>(`${SELECT} and is_active limit 1`, [ctx.userId]);
   const row = rows[0];
   return row ? toContext(row) : null;
 }

@@ -146,6 +146,30 @@ export const LogCardioSchema = z.object({
   performedAt: z.string().datetime({ offset: true }).optional(),
 });
 
+const cm = z.number().min(10).max(300);
+
+export const LogMeasurementSchema = z
+  .object({
+    measuredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    waistCm: cm.nullish(),
+    hipCm: cm.nullish(),
+    chestCm: cm.nullish(),
+    armCm: cm.nullish(),
+    thighCm: cm.nullish(),
+    notes: z.string().max(500).nullish(),
+  })
+  .refine(
+    (body) =>
+      [body.waistCm, body.hipCm, body.chestCm, body.armCm, body.thighCm].some(
+        (value) => value != null,
+      ) || Boolean(body.notes?.trim()),
+    { message: 'Nothing to record' },
+  );
+
+export const SetDeloadSchema = z.object({
+  everyWeeks: z.number().int().min(0).max(52),
+});
+
 export const ChooseProgramSchema = z.object({
   programId: z.number().int().positive(),
 });

@@ -121,6 +121,28 @@ describe('every query names its tenant', () => {
   });
 });
 
+describe('no query decides the date for itself', () => {
+  // The timezone work replaced every `current_date` with an explicit range
+  // computed in the athlete's zone. This is the check that stops one coming
+  // back — which it did, in the first query written after that work landed.
+  const SERVER_CLOCK = /\bcurrent_date\b|\bcurrent_timestamp\b|\blocaltimestamp\b/i;
+
+  it('uses no server-clock date function', () => {
+    const offenders: string[] = [];
+
+    for (const file of sourceFiles(root).map((path) => relative(root, path))) {
+      if (EXEMPT.has(file)) continue;
+      for (const sql of sqlLiterals(readFileSync(join(root, file), 'utf8'))) {
+        if (SERVER_CLOCK.test(sql)) {
+          offenders.push(`${file}: ${sql.replace(/\s+/g, ' ').trim().slice(0, 100)}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('the owned-table list', () => {
   it('matches the migration that added the columns', () => {
     const migration = readFileSync(join(root, '..', 'migrations', '011_users.sql'), 'utf8');

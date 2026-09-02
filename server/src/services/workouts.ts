@@ -9,12 +9,15 @@ import {
   jointPainGate,
   nextPrescription,
   rampIn,
+  roundToIncrement,
 } from '../domain/progression';
 import { type DayCode, defaultsForPattern, nextInRotation } from '../domain/program';
+import { DELOAD_LOAD_FACTOR, type DeloadStatus, deloadSets } from '../domain/deload';
 import { addDays, dayIn, daySpanIn } from '../domain/time';
 import { athleteZone } from './clock';
 import { type Exercise, availableAt, equipmentAt, getExercise, listExercises } from './exercises';
 import { activeContext } from './contexts';
+import { currentDeload } from './deloads';
 import { type Program, currentProgram, slotsFor } from './programs';
 import { firstSessionAt } from './sessions';
 
@@ -37,6 +40,8 @@ export type ExercisePrescription = {
 export type WorkoutPlan = {
   /** The day code, stored on the session: 'A', 'U1', 'Push'. */
   template: DayCode;
+  /** A scheduled light week, if this is one. */
+  deload: DeloadStatus;
   /** What to call it on screen. 'Full body A', 'Upper', 'Push'. */
   dayName: string;
   programName: string;
@@ -145,12 +150,13 @@ export async function planFor(
   const day = program.days.find((entry) => entry.code === template);
   if (!day) throw notFound(`${program.name} has no day called ${template}`);
 
-  const [slots, allExercises, firstAt, finished, context] = await Promise.all([
+  const [slots, allExercises, firstAt, finished, context, deload] = await Promise.all([
     slotsFor(ctx, program.id, day.code),
     listExercises(ctx.db),
     firstSessionAt(ctx),
     finishedSessions(ctx),
     activeContext(ctx),
+    currentDeload(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
@@ -182,14 +188,21 @@ export async function planFor(
 
     const last = sessions[0];
 
+    // A light week comes off the top of whatever progression decided, and
+    // rounds down — a deload that rounds back up is not a deload.
+    const deloaded =
+      deload.active && prescription.weightKg != null
+        ? roundToIncrement(prescription.weightKg * DELOAD_LOAD_FACTOR, slot.incrementKg, 'down')
+        : prescription.weightKg;
+
     return {
       exerciseId: exercise.id,
       name: exercise.name,
       pattern: exercise.pattern,
-      sets: prescription.sets,
+      sets: deload.active ? deloadSets(prescription.sets) : prescription.sets,
       targetReps: prescription.targetReps,
-      weightKg: prescription.weightKg,
-      reason: prescription.reason,
+      weightKg: deloaded,
+      reason: deload.active ? 'deload' : prescription.reason,
       restSeconds: slot.restSeconds,
       incrementKg: slot.incrementKg,
       range: slot.range,
@@ -203,6 +216,7 @@ export async function planFor(
 
   return {
     template,
+    deload,
     dayName: day.name,
     programName: program.name,
     rampIn: ramp,

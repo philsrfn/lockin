@@ -16,6 +16,8 @@ import {
   OnboardingSchema,
   ChooseProgramSchema,
   LogCardioSchema,
+  LogMeasurementSchema,
+  SetDeloadSchema,
   SaveContextSchema,
   UpdateContextSchema,
   LogFoodSchema,
@@ -60,6 +62,12 @@ import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
 import { deleteCardio, logCardio, recentCardio } from '../services/cardio';
+import { currentDeload, setDeloadEvery } from '../services/deloads';
+import {
+  deleteMeasurement,
+  listMeasurements,
+  logMeasurement,
+} from '../services/measurements';
 import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
@@ -241,6 +249,37 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const { id } = IdParamSchema.parse(request.params);
     await deleteCardio(request.ctx, id);
     return { deleted: true };
+  });
+
+  /**
+   * Waist and the rest of the tape. Weight alone stalls for a fortnight while
+   * the mirror keeps changing, and that fortnight is where people quit.
+   */
+  app.get('/measurements', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(1000).default(180) })
+      .parse(request.query);
+    return { measurements: await listMeasurements(request.ctx, query.days) };
+  });
+
+  app.post('/measurements', async (request, reply) => {
+    const body = LogMeasurementSchema.parse(request.body);
+    return reply.code(201).send({ measurement: await logMeasurement(request.ctx, body) });
+  });
+
+  app.delete('/measurements/:date', async (request) => {
+    const { date } = z
+      .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+      .parse(request.params);
+    await deleteMeasurement(request.ctx, date);
+    return { deleted: true };
+  });
+
+  /** Scheduled light weeks. 0 turns them off. */
+  app.get('/deload', async (request) => ({ deload: await currentDeload(request.ctx) }));
+
+  app.patch('/deload', async (request) => {
+    const body = SetDeloadSchema.parse(request.body);
+    return { deload: await setDeloadEvery(request.ctx, body.everyWeeks) };
   });
 
   app.get('/bodyweight', async (request) => {

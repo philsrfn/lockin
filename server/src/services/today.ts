@@ -7,6 +7,7 @@ import { type Session, openSession, recentSessions, sessionsToday } from './sess
 import { type WeightSummary, summary as weightSummary } from './bodyweight';
 import { dayIn } from '../domain/time';
 import { type CardioSession, cardioToday } from './cardio';
+import { ensureDeload } from './deloads';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
@@ -68,6 +69,10 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     getWeek(ctx),
     cardioToday(ctx, zone),
   ]);
+
+  // Recorded here rather than by a job: this payload is fetched every time he
+  // opens the app, so a light week starts at the start of the week.
+  await ensureDeload(ctx, zone);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
   // count its own sets as history when prescribing the next load.

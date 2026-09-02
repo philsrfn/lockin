@@ -156,3 +156,21 @@ export const JobNameSchema = z.enum([
   'weekly_review',
   'log_nudge',
 ]);
+
+export const FridgePhotoSchema = z.object({
+  // Base64, ~8MB of encoded data at most. The photo is never stored.
+  imageBase64: z.string().min(100).max(11_000_000),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+});
+
+export const FridgeItemSchema = z.object({
+  name: z.string().min(1).max(80),
+  estimatedQty: z.string().max(40).default(''),
+  confidence: z.enum(['low', 'medium', 'high']).default('medium'),
+});
+
+export const MealPlanSchema = z.object({
+  items: z.array(FridgeItemSchema).min(1).max(40),
+  /** The list must have been through his hands — §9 step 3. */
+  confirmed: z.literal(true),
+});

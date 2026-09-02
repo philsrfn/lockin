@@ -16,8 +16,11 @@ export type ToolResult = {
   result: unknown;
 };
 
+/** An inline image. Base64, never a URL — the file never leaves this process. */
+export type InlineImage = { data: string; mimeType: string };
+
 export type Turn =
-  | { role: 'user'; text: string }
+  | { role: 'user'; text: string; images?: InlineImage[] }
   | {
       role: 'model';
       text: string;

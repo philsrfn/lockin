@@ -79,6 +79,7 @@ export default function RootLayout() {
         <Stack.Screen name="workout" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="progress" />
         <Stack.Screen name="rules" />
+        <Stack.Screen name="fridge" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
     </SafeAreaProvider>
   );

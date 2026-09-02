@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '../../src/api/client';
 import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
@@ -29,6 +29,7 @@ const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
  * vegetable — precision there is not required and should not be requested.
  */
 export default function FoodScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [today, setToday] = useState<Today | null>(null);
   const [foods, setFoods] = useState<Food[]>([]);
@@ -221,6 +222,11 @@ export default function FoodScreen() {
             onPress={() => setCapture('describe')}
           />
         </View>
+        <Button
+          title="What's in the fridge?"
+          variant="secondary"
+          onPress={() => router.push('/fridge')}
+        />
         <Button title="Enter by hand" variant="ghost" onPress={() => setManualOpen(true)} />
       </ScrollView>
 

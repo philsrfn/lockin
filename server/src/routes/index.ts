@@ -10,7 +10,9 @@ import {
   AddRuleSchema,
   BarcodeQuerySchema,
   EstimateFoodSchema,
+  FridgePhotoSchema,
   JobNameSchema,
+  MealPlanSchema,
   LogFoodSchema,
   LogMealSchema,
   RegisterPushSchema,
@@ -39,6 +41,7 @@ import { archiveFood, createFood, getFood, listFoods, updateFood } from '../serv
 import { lookupBarcode, saveScanned } from '../services/barcode';
 import { estimateFood } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
+import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
 import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
@@ -241,6 +244,25 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/foods/estimate', async (request) => {
     const body = EstimateFoodSchema.parse(request.body);
     return { estimate: await estimateFood(body.text) };
+  });
+
+  /**
+   * §9: vision returns candidates and stops. The photo is passed to the model
+   * and dropped — nothing is written and nothing is stored.
+   */
+  app.post('/fridge/read', async (request) => {
+    const body = FridgePhotoSchema.parse(request.body);
+    return { items: await readFridgePhoto(body.imageBase64, body.mimeType) };
+  });
+
+  /**
+   * Plans against what is LEFT of today (§9 step 5), and only from a list he
+   * has confirmed — `confirmed: true` is required, so an unedited vision pass
+   * cannot reach here by accident.
+   */
+  app.post('/fridge/plan', async (request) => {
+    const body = MealPlanSchema.parse(request.body);
+    return { plan: await generateMealPlan(body.items) };
   });
 
   app.get('/meals', async () => ({ meals: await mealsToday() }));

@@ -19,7 +19,15 @@ const client = new GoogleGenAI({ apiKey: env.geminiApiKey });
 function partsFor(turn: Turn): { role: string; parts: Part[] } {
   switch (turn.role) {
     case 'user':
-      return { role: 'user', parts: [{ text: turn.text }] };
+      return {
+        role: 'user',
+        parts: [
+          { text: turn.text },
+          ...(turn.images ?? []).map((image) => ({
+            inlineData: { data: image.data, mimeType: image.mimeType },
+          })),
+        ],
+      };
 
     case 'model':
       // Echo the provider's own parts back verbatim when we have them: Gemini's

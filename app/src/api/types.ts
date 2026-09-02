@@ -181,6 +181,25 @@ export type Progress = {
   exercises: ExerciseProgress[];
 };
 
+export type FridgeItem = {
+  name: string;
+  estimatedQty: string;
+  confidence: 'low' | 'medium' | 'high';
+};
+
+export type MealIdea = {
+  name: string;
+  slot: string;
+  usesFromFridge: string[];
+  kcal: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  method: string;
+};
+
+export type MealPlan = { meals: MealIdea[]; note: string; reprompted: boolean };
+
 export type WeeklyReview = {
   weekEnding: string;
   trend: string;

@@ -15,6 +15,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     logger: { level: process.env.LOG_LEVEL ?? 'info' },
     // A phone on gym wifi retries; a slow body should not hold a socket open.
     requestTimeout: 20_000,
+    // Fastify defaults to 1MB, which a base64 fridge photo exceeds immediately.
+    // The failure is a bare 413 with no clue what happened.
+    bodyLimit: 12 * 1024 * 1024,
     // Deployed behind the host's TLS terminator, so the real client address
     // arrives in X-Forwarded-For.
     trustProxy: true,

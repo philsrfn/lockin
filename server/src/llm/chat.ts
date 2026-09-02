@@ -10,7 +10,7 @@ import { pool, query } from '../db';
 import { assembleContext } from './context';
 import { runTool } from './handlers';
 import { trainerSystemInstruction } from './prompts/trainer';
-import { geminiProvider } from './gemini';
+import { generateFor } from './metered';
 import { LlmError, type ToolCall, type ToolResult, type Turn } from './provider';
 import { TOOLS } from './tools';
 
@@ -116,7 +116,7 @@ export async function sendMessage(ctx: Ctx, text: string): Promise<ChatReply> {
   const usage = { promptTokens: 0, outputTokens: 0, totalTokens: 0 };
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
-    const output = await geminiProvider.generate({
+    const output = await generateFor(ctx, {
       purpose: 'chat',
       systemInstruction,
       history: turns,

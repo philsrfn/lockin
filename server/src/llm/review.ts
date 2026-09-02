@@ -10,7 +10,7 @@
  * safeCalorieTarget, so §7's floors hold whatever it says.
  */
 import { LlmError } from './provider';
-import { geminiProvider } from './gemini';
+import { generateFor } from './metered';
 import type { Ctx } from '../db';
 import { MAX_WEEKLY_LOSS_KG, checkCalorieTarget } from '../domain/safety';
 import { addDays, movingAverage, weeklyChangeKg } from '../domain/trend';
@@ -168,7 +168,7 @@ async function buildBrief(ctx: Ctx): Promise<Brief> {
 export async function generateWeeklyReview(ctx: Ctx): Promise<WeeklyReview> {
   const brief = await buildBrief(ctx);
 
-  const output = await geminiProvider.generate({
+  const output = await generateFor(ctx, {
       purpose: 'weekly_review',
     systemInstruction: INSTRUCTION,
     history: [{ role: 'user', text: `This week's numbers:\n\n${brief.lines.join('\n')}` }],

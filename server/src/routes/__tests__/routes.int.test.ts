@@ -12,6 +12,7 @@ import { buildServer } from '../../index';
 import { TEST_BEARER_TOKEN } from '../../test/database';
 import { exerciseIdByName, resetData, resetProfile } from '../../test/helpers';
 import { syncRootToken } from '../../services/users';
+import { resetBuckets } from '../../rateLimit';
 
 let app: FastifyInstance;
 
@@ -33,6 +34,9 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetData();
   await resetProfile();
+  // The limiter is in memory and keyed by athlete; every test here is the same
+  // athlete, so without this the suite would rate-limit itself.
+  resetBuckets();
 });
 
 describe('authentication', () => {
@@ -333,6 +337,35 @@ describe('the routes themselves', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().details.map((d: { path: string }) => d.path)).toContain('birthYear');
+  });
+
+  it('refuses once an athlete is asking too often, and says when to come back', async () => {
+    // 240 a minute is generous for a phone draining a sync queue and a hard
+    // stop for a loop.
+    for (let i = 0; i < 240; i += 1) {
+      await app.inject({ method: 'GET', url: '/profile', headers: auth });
+    }
+
+    const response = await app.inject({ method: 'GET', url: '/profile', headers: auth });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json().error).toContain('Too many requests');
+  });
+
+  it('never rate-limits the health check', async () => {
+    for (let i = 0; i < 250; i += 1) {
+      await app.inject({ method: 'GET', url: '/health' });
+    }
+
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200);
+  });
+
+  it('reports what the trainer has cost today', async () => {
+    const response = await app.inject({ method: 'GET', url: '/usage', headers: auth });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().usage).toMatchObject({ calls: 0, tokens: 0 });
+    expect(response.json().usage.budget).toBeGreaterThan(0);
   });
 
   it('drains a sync batch', async () => {

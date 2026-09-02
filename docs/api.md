@@ -125,6 +125,23 @@ which is a separate question and lives on the profile.
 Pushes are addressed, never broadcast: a notification goes only to the devices
 registered by the athlete the token resolves to.
 
+## Limits
+
+Two, both per athlete, both returning 429.
+
+* **240 requests a minute.** Generous on purpose: a phone draining a sync queue
+  after a basement gym makes a burst of legitimate calls, and the limit must not
+  turn that into lost sets. `/health` is exempt.
+* **40 model calls an hour**, counted separately so a chat loop cannot lock
+  somebody out of logging a set.
+
+There is also a **daily token budget** per athlete, checked before each model
+call rather than after — after is a bill. `GET /usage` reports the day's calls,
+tokens and what is left. A budget of `0` means no ceiling.
+
+The buckets are in memory: one box, one process. When there is a second, that
+is the file that has to change.
+
 ## Writes return state
 
 Per §6, every write returns the resulting state rather than an acknowledgement.

@@ -23,7 +23,7 @@ import { recentSessions } from '../services/sessions';
 import { type Program, currentProgram } from '../services/programs';
 import { upcomingTemplate } from '../services/workouts';
 import { assembleContext } from './context';
-import { geminiProvider } from './gemini';
+import { generateFor } from './metered';
 import { LlmError } from './provider';
 
 export type CoachSwap = { from: string; to: string; reason: string };
@@ -204,7 +204,7 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
   // the coach claim three sessions while the screen beside it showed two.
   const strengthThisWeek = week.strength.done;
 
-  const output = await geminiProvider.generate({
+  const output = await generateFor(ctx, {
       purpose: 'coach_note',
     systemInstruction: INSTRUCTION,
     history: [

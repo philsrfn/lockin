@@ -8,6 +8,7 @@ import { env } from './env';
 import { HttpError } from './errors';
 import { LlmError } from './llm/provider';
 import { loggerOptions, requestIdFor, useLogger } from './logging';
+import { registerRateLimit } from './rateLimit';
 import { registerRoutes } from './routes/index';
 import { exercisesByName } from './services/exercises';
 import { syncRootToken } from './services/users';
@@ -69,6 +70,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   registerAuth(app);
+  // After auth, so the bucket is keyed by athlete rather than by address —
+  // one person on hotel wifi must not spend another's allowance.
+  registerRateLimit(app);
   await registerRoutes(app);
 
   // Jobs, the scheduler and the LLM layer log through the same stream from

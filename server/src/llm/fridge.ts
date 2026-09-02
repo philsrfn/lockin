@@ -11,7 +11,7 @@
  */
 import { LlmError } from './provider';
 import { log } from '../logging';
-import { geminiProvider } from './gemini';
+import { generateFor } from './metered';
 import type { Ctx } from '../db';
 import { remaining } from '../domain/macros';
 import { validateMealPlan } from '../rules/validator';
@@ -56,10 +56,11 @@ mis-detected ingredient becomes a meal he cannot cook, which is worse than a
 short list.`;
 
 export async function readFridgePhoto(
+  ctx: Ctx,
   imageBase64: string,
   mimeType: string,
 ): Promise<FridgeItem[]> {
-  const output = await geminiProvider.generate({
+  const output = await generateFor(ctx, {
       purpose: 'fridge_photo',
     systemInstruction: VISION_INSTRUCTION,
     history: [
@@ -196,7 +197,7 @@ Keep the method to two sentences. He can cook, he does not need a recipe.
 Never moralise about food.`;
 
   const ask = async (extra?: string): Promise<MealPlan> => {
-    const output = await geminiProvider.generate({
+    const output = await generateFor(ctx, {
       purpose: 'meal_plan',
       systemInstruction: instruction,
       history: [{ role: 'user', text: extra ? `${brief}\n\n${extra}` : brief }],

@@ -19,8 +19,9 @@
  * applies to the fridge photo. A guess he has agreed with is data. A guess
  * written silently is corruption.
  */
+import type { Ctx } from '../db';
 import { LlmError } from './provider';
-import { geminiProvider } from './gemini';
+import { generateFor } from './metered';
 
 export type FoodEstimate = {
   name: string;
@@ -75,12 +76,12 @@ sauce" is low, and saying so is more useful than a confident wrong number.
 Round to whole grams and whole calories. Do not add commentary, do not moralise
 about the food, and never refuse to estimate something.`;
 
-export async function estimateFood(text: string): Promise<FoodEstimate> {
+export async function estimateFood(ctx: Ctx, text: string): Promise<FoodEstimate> {
   const described = text.trim();
   if (!described) throw new LlmError('Nothing to estimate', false);
   if (described.length > 400) throw new LlmError('That description is too long', false);
 
-  const output = await geminiProvider.generate({
+  const output = await generateFor(ctx, {
       purpose: 'food_estimate',
     systemInstruction: INSTRUCTION,
     history: [{ role: 'user', text: described }],

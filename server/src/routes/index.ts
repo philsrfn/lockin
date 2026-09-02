@@ -63,6 +63,7 @@ import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
 import { deleteCardio, logCardio, recentCardio } from '../services/cardio';
 import { currentDeload, setDeloadEvery } from '../services/deloads';
+import { usageToday } from '../services/usage';
 import {
   deleteMeasurement,
   listMeasurements,
@@ -277,6 +278,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   /** Scheduled light weeks. 0 turns them off. */
   app.get('/deload', async (request) => ({ deload: await currentDeload(request.ctx) }));
 
+  /** What the trainer has cost today, and what is left. */
+  app.get('/usage', async (request) => ({ usage: await usageToday(request.ctx) }));
+
   app.patch('/deload', async (request) => {
     const body = SetDeloadSchema.parse(request.body);
     return { deload: await setDeloadEvery(request.ctx, body.everyWeeks) };
@@ -383,7 +387,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/foods/estimate', async (request) => {
     const body = EstimateFoodSchema.parse(request.body);
-    return { estimate: await estimateFood(body.text) };
+    return { estimate: await estimateFood(request.ctx, body.text) };
   });
 
   /**
@@ -392,7 +396,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/fridge/read', async (request) => {
     const body = FridgePhotoSchema.parse(request.body);
-    return { items: await readFridgePhoto(body.imageBase64, body.mimeType) };
+    return { items: await readFridgePhoto(request.ctx, body.imageBase64, body.mimeType) };
   });
 
   /**

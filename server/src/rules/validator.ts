@@ -9,13 +9,14 @@
  *
  * Pure. No database, no model.
  */
-import { MEAL_CHECKS, TRAINING_CHECKS } from './checks';
+import { type CheckLimits, DEFAULT_LIMITS, MEAL_CHECKS, TRAINING_CHECKS } from './checks';
 import { type MealPlanDay, type Rule, type TrainingWeek, type Violation, activeRulesFor } from './schema';
 
 function run<T>(
   subject: T,
   rules: Rule[],
-  checks: Record<string, (subject: T) => string | null>,
+  checks: Record<string, (subject: T, limits: CheckLimits) => string | null>,
+  limits: CheckLimits,
 ): Violation[] {
   const violations: Violation[] = [];
 
@@ -27,7 +28,7 @@ function run<T>(
     const check = checks[rule.code];
     if (!check) continue;
 
-    const message = check(subject);
+    const message = check(subject, limits);
     if (message) {
       violations.push({ ruleId: rule.id, tier: rule.tier, code: rule.code, message });
     }
@@ -40,16 +41,18 @@ export function validateMealPlan(
   plan: MealPlanDay,
   rules: Rule[],
   contextName: string | null,
+  limits: CheckLimits = DEFAULT_LIMITS,
 ): Violation[] {
-  return run(plan, activeRulesFor(rules, contextName), MEAL_CHECKS);
+  return run(plan, activeRulesFor(rules, contextName), MEAL_CHECKS, limits);
 }
 
 export function validateTrainingWeek(
   week: TrainingWeek,
   rules: Rule[],
   contextName: string | null = null,
+  limits: CheckLimits = DEFAULT_LIMITS,
 ): Violation[] {
-  return run(week, activeRulesFor(rules, contextName), TRAINING_CHECKS);
+  return run(week, activeRulesFor(rules, contextName), TRAINING_CHECKS, limits);
 }
 
 /** The sentence handed back to the model on the single retry §5 allows. */

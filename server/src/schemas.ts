@@ -90,6 +90,24 @@ export const UpdateProfileSchema = z.object({
   timezone: z.string().min(1).max(64),
 });
 
+/**
+ * The questionnaire. Targets are computed from these in code (§1) — the body
+ * is described here, never the numbers.
+ */
+export const OnboardingSchema = z.object({
+  name: z.string().min(1).max(80).nullish(),
+  sex: z.enum(['male', 'female']),
+  birthYear: z.number().int().min(1900).max(2100),
+  heightCm: z.number().min(120).max(250),
+  weightKg: z.number().min(30).max(300),
+  goal: z.enum(['lose', 'maintain', 'gain']),
+  goalWeightKg: z.number().min(30).max(300).nullish(),
+  trainingDaysPerWeek: z.number().int().min(0).max(7),
+  activity: z.enum(['sedentary', 'light', 'moderate', 'active']).optional(),
+  weeklyRateKg: z.number().min(0).max(2).optional(),
+  timezone: z.string().min(1).max(64).optional(),
+});
+
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
 
 export const SaveFoodSchema = z.object({

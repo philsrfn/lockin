@@ -16,7 +16,7 @@ import { MAX_WEEKLY_LOSS_KG, checkCalorieTarget } from '../domain/safety';
 import { addDays, movingAverage, weeklyChangeKg } from '../domain/trend';
 import { dayIn, daySpanIn } from '../domain/time';
 import { listEntries } from '../services/bodyweight';
-import { getProfile } from '../services/profile';
+import { athleteFacts, getProfile } from '../services/profile';
 import { recentSessions } from '../services/sessions';
 
 export type WeeklyReview = {
@@ -187,7 +187,11 @@ export async function generateWeeklyReview(ctx: Ctx): Promise<WeeklyReview> {
 
   // §7 holds regardless of what the model asked for.
   const proposed = Number(parsed.calorieTarget);
-  const safe = checkCalorieTarget(Number.isFinite(proposed) ? proposed : brief.calorieTarget);
+  // The floor is this athlete's, not a constant chosen for one man.
+  const safe = checkCalorieTarget(
+    Number.isFinite(proposed) ? proposed : brief.calorieTarget,
+    await athleteFacts(ctx),
+  );
   const calorieTarget = safe.value;
   const calorieChanged = calorieTarget !== brief.calorieTarget;
 

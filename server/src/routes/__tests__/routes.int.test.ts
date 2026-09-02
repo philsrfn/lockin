@@ -266,6 +266,40 @@ describe('the routes themselves', () => {
     expect(response.json().error).toContain('not a timezone');
   });
 
+  it('answers the questionnaire and computes targets', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/onboarding',
+      headers: auth,
+      payload: {
+        sex: 'female',
+        birthYear: 1996,
+        heightCm: 155,
+        weightKg: 60,
+        goal: 'lose',
+        trainingDaysPerWeek: 3,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { profile, explanation } = response.json();
+    expect(profile.onboarded).toBe(true);
+    expect(profile.calorieTarget).toBeLessThan(1800);
+    expect(explanation.maintenanceKcal).toBeGreaterThan(0);
+  });
+
+  it('rejects a questionnaire missing the body it needs', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/onboarding',
+      headers: auth,
+      payload: { sex: 'female', heightCm: 155 },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().details.map((d: { path: string }) => d.path)).toContain('birthYear');
+  });
+
   it('drains a sync batch', async () => {
     const response = await app.inject({
       method: 'POST',

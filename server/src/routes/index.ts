@@ -13,6 +13,7 @@ import {
   FridgePhotoSchema,
   JobNameSchema,
   MealPlanSchema,
+  OnboardingSchema,
   LogFoodSchema,
   LogMealSchema,
   RegisterPushSchema,
@@ -28,6 +29,7 @@ import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
 import { getProfile, setTimezone } from '../services/profile';
+import { completeOnboarding } from '../services/onboarding';
 import {
   createSession,
   finishSession,
@@ -68,6 +70,18 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/profile', async (request) => ({ profile: await getProfile(request.ctx) }));
+
+  /**
+   * The questionnaire. Height, weight, goal and training days in; calories,
+   * protein and the fat floor out, computed in code and explained.
+   *
+   * Idempotent — running it again re-computes from the new answers, because
+   * "I got that wrong, let me redo it" is a thing people do.
+   */
+  app.post('/onboarding', async (request) => {
+    const body = OnboardingSchema.parse(request.body);
+    return completeOnboarding(request.ctx, body);
+  });
 
   /**
    * Where he is. Everything that says "today" — the week strip, the macros, the

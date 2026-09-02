@@ -105,6 +105,10 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
       `insert into profile
          (user_id, name, timezone, height_cm, calorie_target, protein_target_g, fat_floor_g)
        values ($1, $2, $3, $4, $5, $6, $7)`,
+      // Placeholders, not targets. `onboarded_at` stays null until the
+      // questionnaire is answered, and the app routes to onboarding on that —
+      // so these numbers are never shown to anybody. Computing real ones needs
+      // a sex, an age and a goal, which is exactly what onboarding collects.
       [
         user.id,
         input.name ?? null,

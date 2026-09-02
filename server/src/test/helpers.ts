@@ -54,7 +54,12 @@ export async function resetProfile(): Promise<void> {
     `update profile
      set calorie_target = 2300, protein_target_g = 190, fat_floor_g = 70,
          goal_weight_kg = 80, height_cm = 191, name = 'Phil',
-         timezone = 'Europe/Berlin'
+         timezone = 'Europe/Berlin',
+         -- Back to the athlete who predates onboarding: no sex, no birth year,
+         -- already onboarded. That is the shape the fallback floors are for.
+         sex = null, birth_year = null, activity_level = null, goal = null,
+         training_days_per_week = null, weekly_rate_kg = null,
+         onboarded_at = now()
      where user_id = 1`,
   );
 }

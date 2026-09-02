@@ -1,6 +1,13 @@
 import type { Ctx } from '../db';
 import type { MacroTargets } from '../domain/macros';
 import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
+import {
+  type ActivityLevel,
+  type Goal,
+  type Sex,
+  ageFromBirthYear,
+} from '../domain/targets';
+import type { AthleteFacts } from '../domain/safety';
 import { isValidTimeZone } from '../domain/time';
 import { badRequest } from '../errors';
 
@@ -14,6 +21,18 @@ export type Profile = {
   calorieTarget: number;
   proteinTargetG: number;
   fatFloorG: number;
+  sex: Sex | null;
+  activityLevel: ActivityLevel | null;
+  goal: Goal | null;
+  trainingDaysPerWeek: number | null;
+  /** The rate the targets were sized from, after clamping. Negative is loss. */
+  weeklyRateKg: number | null;
+  /**
+   * False until the questionnaire is answered. The app routes to onboarding on
+   * this rather than on a missing field, so adding a question later does not
+   * send everyone back through it.
+   */
+  onboarded: boolean;
 };
 
 export async function getProfile(ctx: Ctx): Promise<Profile> {
@@ -26,9 +45,17 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
     calorie_target: number;
     protein_target_g: number;
     fat_floor_g: number;
+    sex: Sex | null;
+    activity_level: ActivityLevel | null;
+    goal: Goal | null;
+    training_days_per_week: number | null;
+    weekly_rate_kg: number | null;
+    onboarded_at: Date | null;
   }>(
     `select name, timezone, height_cm, birth_year, goal_weight_kg,
-            calorie_target, protein_target_g, fat_floor_g
+            calorie_target, protein_target_g, fat_floor_g,
+            sex, activity_level, goal, training_days_per_week, weekly_rate_kg,
+            onboarded_at
      from profile where user_id = $1`,
     [ctx.userId],
   );
@@ -45,6 +72,32 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
     calorieTarget: row.calorie_target,
     proteinTargetG: row.protein_target_g,
     fatFloorG: row.fat_floor_g,
+    sex: row.sex,
+    activityLevel: row.activity_level,
+    goal: row.goal,
+    trainingDaysPerWeek: row.training_days_per_week,
+    weeklyRateKg: row.weekly_rate_kg,
+    onboarded: row.onboarded_at !== null,
+  };
+}
+
+/**
+ * What the §7 floors need to be about this athlete rather than about Phil.
+ * Reads the latest weigh-in, because a floor derived from a weight recorded at
+ * signup would drift wrong over a year of training.
+ */
+export async function athleteFacts(ctx: Ctx, profile?: Profile): Promise<AthleteFacts> {
+  const current = profile ?? (await getProfile(ctx));
+  const { rows } = await ctx.db.query<{ weight_kg: number }>(
+    'select weight_kg from bodyweight where user_id = $1 order by measured_on desc limit 1',
+    [ctx.userId],
+  );
+
+  return {
+    sex: current.sex,
+    heightCm: current.heightCm,
+    weightKg: rows[0]?.weight_kg ?? null,
+    ageYears: current.birthYear ? ageFromBirthYear(current.birthYear) : null,
   };
 }
 
@@ -64,18 +117,19 @@ export async function updateTargets(
   input: { calorieTarget?: number; proteinTargetG?: number; goalWeightKg?: number },
 ): Promise<{ profile: Profile; refusals: string[] }> {
   const current = await getProfile(ctx);
+  const facts = await athleteFacts(ctx, current);
   const refusals: string[] = [];
 
   let calorieTarget = current.calorieTarget;
   if (input.calorieTarget !== undefined) {
-    const verdict = checkCalorieTarget(input.calorieTarget);
+    const verdict = checkCalorieTarget(input.calorieTarget, facts);
     if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
     calorieTarget = verdict.value;
   }
 
   let proteinTargetG = current.proteinTargetG;
   if (input.proteinTargetG !== undefined) {
-    const verdict = checkProteinTarget(input.proteinTargetG);
+    const verdict = checkProteinTarget(input.proteinTargetG, facts);
     if (!verdict.ok && verdict.reason) refusals.push(verdict.reason);
     proteinTargetG = verdict.value;
   }

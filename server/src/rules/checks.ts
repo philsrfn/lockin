@@ -13,6 +13,18 @@
 import { MIN_PROTEIN_TARGET_G } from '../domain/safety';
 import type { MealPlanDay, TrainingWeek } from './schema';
 
+/**
+ * Numbers a check needs that belong to the athlete rather than to the rule.
+ * "Never propose a day under 160g protein" is Phil's floor; the same rule for
+ * a 60 kg athlete is a different number, and hardcoding his would make the
+ * rule unsatisfiable for her.
+ */
+export type CheckLimits = {
+  proteinFloorG: number;
+};
+
+export const DEFAULT_LIMITS: CheckLimits = { proteinFloorG: MIN_PROTEIN_TARGET_G };
+
 const has = (text: string, patterns: RegExp[]): boolean =>
   patterns.some((pattern) => pattern.test(text));
 
@@ -23,8 +35,8 @@ const OATS = [/oats?/i, /hafer/i, /porridge/i];
 const HALF_PORTION = [/half/i, /halbe/i, /\bhälfte\b/i, /1\/2/];
 const PROTEIN_ADD_ON = [/quark/i, /skyr/i, /chicken/i, /hähnchen/i, /shake/i, /protein/i, /tofu/i, /soy/i];
 
-export type MealCheck = (plan: MealPlanDay) => string | null;
-export type TrainingCheck = (week: TrainingWeek) => string | null;
+export type MealCheck = (plan: MealPlanDay, limits: CheckLimits) => string | null;
+export type TrainingCheck = (week: TrainingWeek, limits: CheckLimits) => string | null;
 
 /** Returns a message describing the violation, or null when the rule holds. */
 export const MEAL_CHECKS: Record<string, MealCheck> = {
@@ -64,11 +76,11 @@ export const MEAL_CHECKS: Record<string, MealCheck> = {
     );
   },
 
-  min_daily_protein(plan) {
+  min_daily_protein(plan, limits) {
     const total = plan.meals.reduce((sum, meal) => sum + (meal.proteinG || 0), 0);
-    return total >= MIN_PROTEIN_TARGET_G
+    return total >= limits.proteinFloorG
       ? null
-      : `The day totals ${Math.round(total)}g protein. Never propose a day under ${MIN_PROTEIN_TARGET_G}g.`;
+      : `The day totals ${Math.round(total)}g protein. Never propose a day under ${limits.proteinFloorG}g.`;
   },
 };
 

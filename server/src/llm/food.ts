@@ -81,6 +81,7 @@ export async function estimateFood(text: string): Promise<FoodEstimate> {
   if (described.length > 400) throw new LlmError('That description is too long', false);
 
   const output = await geminiProvider.generate({
+      purpose: 'food_estimate',
     systemInstruction: INSTRUCTION,
     history: [{ role: 'user', text: described }],
     responseSchema: SCHEMA,

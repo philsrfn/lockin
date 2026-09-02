@@ -167,6 +167,7 @@ export async function generateWeeklyReview(db: Queryable = pool): Promise<Weekly
   const brief = await buildBrief(db);
 
   const output = await geminiProvider.generate({
+      purpose: 'weekly_review',
     systemInstruction: INSTRUCTION,
     history: [{ role: 'user', text: `This week's numbers:\n\n${brief.lines.join('\n')}` }],
     responseSchema: SCHEMA,

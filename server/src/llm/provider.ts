@@ -51,6 +51,13 @@ export type GenerateInput = {
   responseSchema?: Record<string, unknown>;
   maxOutputTokens?: number;
   temperature?: number;
+  /**
+   * What this call is for — 'chat', 'coach_note', 'weekly_review'. Logged, not
+   * sent to the model. Token spend is the app's largest variable cost and it
+   * was being computed and thrown away; without a label the total tells you
+   * nothing about what to change.
+   */
+  purpose?: string;
 };
 
 export type Usage = {

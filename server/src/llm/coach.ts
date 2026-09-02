@@ -190,6 +190,7 @@ export async function generateNote(forDate?: string): Promise<CoachNote> {
   const strengthThisWeek = week.strength.done;
 
   const output = await geminiProvider.generate({
+      purpose: 'coach_note',
     systemInstruction: INSTRUCTION,
     history: [
       {

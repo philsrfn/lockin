@@ -3,6 +3,7 @@
  */
 import { GoogleGenAI } from '@google/genai';
 import { env } from '../env';
+import { log } from '../logging';
 import {
   type GenerateInput,
   type GenerateOutput,
@@ -84,6 +85,9 @@ export const geminiProvider: LlmProvider = {
       config.responseJsonSchema = input.responseSchema;
     }
 
+    const purpose = input.purpose ?? 'unknown';
+    const startedAt = Date.now();
+
     let response;
     try {
       response = await client.models.generateContent({
@@ -93,6 +97,10 @@ export const geminiProvider: LlmProvider = {
       });
     } catch (error) {
       const status = (error as { status?: number }).status ?? 0;
+      log.warn(
+        { purpose, model, status, durationMs: Date.now() - startedAt, err: error },
+        'llm call failed',
+      );
       throw new LlmError(
         `Gemini call failed: ${(error as Error).message}`,
         status === 0 || status === 429 || status >= 500,
@@ -114,6 +122,19 @@ export const geminiProvider: LlmProvider = {
       });
 
     const usage = response.usageMetadata;
+
+    log.info(
+      {
+        purpose,
+        model,
+        durationMs: Date.now() - startedAt,
+        promptTokens: usage?.promptTokenCount ?? 0,
+        outputTokens: usage?.candidatesTokenCount ?? 0,
+        totalTokens: usage?.totalTokenCount ?? 0,
+        toolCalls: toolCalls.length,
+      },
+      'llm call',
+    );
 
     return {
       text: (response.text ?? '').trim(),

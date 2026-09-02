@@ -110,6 +110,7 @@ export async function sendMessage(text: string): Promise<ChatReply> {
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
     const output = await geminiProvider.generate({
+      purpose: 'chat',
       systemInstruction,
       history: turns,
       tools: TOOLS,

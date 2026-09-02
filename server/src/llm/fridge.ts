@@ -10,6 +10,7 @@
  * The photo is never stored. It is passed to the model and dropped.
  */
 import { LlmError } from './provider';
+import { log } from '../logging';
 import { geminiProvider } from './gemini';
 import { type Queryable, pool } from '../db';
 import { remaining } from '../domain/macros';
@@ -59,6 +60,7 @@ export async function readFridgePhoto(
   mimeType: string,
 ): Promise<FridgeItem[]> {
   const output = await geminiProvider.generate({
+      purpose: 'fridge_photo',
     systemInstruction: VISION_INSTRUCTION,
     history: [
       {
@@ -198,6 +200,7 @@ Never moralise about food.`;
 
   const ask = async (extra?: string): Promise<MealPlan> => {
     const output = await geminiProvider.generate({
+      purpose: 'meal_plan',
       systemInstruction: instruction,
       history: [{ role: 'user', text: extra ? `${brief}\n\n${extra}` : brief }],
       responseSchema: PLAN_SCHEMA,
@@ -255,7 +258,7 @@ Never moralise about food.`;
       const detail = violations.map((v) => v.message).join(' ');
       plan.note =
         `${plan.note} (This still breaks a rule: ${detail} Treat it as a suggestion, not a plan.)`.trim();
-      console.warn('meal plan failed validation twice:', detail);
+      log.warn({ detail }, 'meal plan failed validation twice, falling back');
     }
   }
 

@@ -1,3 +1,5 @@
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { registerAuth } from './auth';
@@ -5,6 +7,7 @@ import { pool } from './db';
 import { env } from './env';
 import { HttpError } from './errors';
 import { LlmError } from './llm/provider';
+import { loggerOptions, requestIdFor, useLogger } from './logging';
 import { registerRoutes } from './routes/index';
 import { exercisesByName } from './services/exercises';
 import { jobHandlers } from './jobs/handlers';
@@ -12,7 +15,10 @@ import { startScheduler } from './jobs/scheduler';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: process.env.LOG_LEVEL ?? 'info' },
+    logger: loggerOptions,
+    // One id per request, echoed back to the caller and stamped on every log
+    // line and error body it produces.
+    genReqId: (request) => requestIdFor(request as { headers: Record<string, unknown> }),
     // A phone on gym wifi retries; a slow body should not hold a socket open.
     requestTimeout: 20_000,
     // Fastify defaults to 1MB, which a base64 fridge photo exceeds immediately.
@@ -23,21 +29,30 @@ export async function buildServer(): Promise<FastifyInstance> {
     trustProxy: true,
   });
 
+  // Every response carries its id, so a screenshot of a failure is enough to
+  // find the request that caused it.
+  app.addHook('onSend', async (request, reply) => {
+    reply.header('x-request-id', request.id);
+  });
+
   app.setErrorHandler((error, request, reply) => {
+    const requestId = request.id;
+
     if (error instanceof HttpError) {
-      return reply.code(error.statusCode).send({ error: error.message });
+      return reply.code(error.statusCode).send({ error: error.message, requestId });
     }
 
     if (error instanceof LlmError) {
       // The trainer being unreachable is not a bug in the app. 503 so the
       // phone knows to retry rather than showing a crash.
       request.log.warn({ err: error }, 'llm call failed');
-      return reply.code(error.retryable ? 503 : 400).send({ error: error.message });
+      return reply.code(error.retryable ? 503 : 400).send({ error: error.message, requestId });
     }
 
     if (error instanceof ZodError) {
       return reply.code(400).send({
         error: 'Invalid request',
+        requestId,
         details: error.issues.map((issue) => ({
           path: issue.path.join('.'),
           message: issue.message,
@@ -46,14 +61,18 @@ export async function buildServer(): Promise<FastifyInstance> {
     }
 
     // Anything else is a bug, not a client mistake: log it in full, tell the
-    // phone nothing beyond the status code.
+    // phone nothing beyond the status code and the id to quote back.
     request.log.error({ err: error }, 'unhandled error');
     const status = (error as { statusCode?: number }).statusCode ?? 500;
-    return reply.code(status >= 400 ? status : 500).send({ error: 'Internal error' });
+    return reply.code(status >= 400 ? status : 500).send({ error: 'Internal error', requestId });
   });
 
   registerAuth(app);
   await registerRoutes(app);
+
+  // Jobs, the scheduler and the LLM layer log through the same stream from
+  // here on, instead of writing to console and out of the structured log.
+  useLogger(app.log);
 
   return app;
 }
@@ -80,7 +99,15 @@ async function start(): Promise<void> {
   }
 }
 
-start().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Run directly: `npm start`. Importing this module — which the route tests do,
+// to exercise the real error handler and auth hook — must not bind a port or
+// start the scheduler.
+const isEntrypoint =
+  !!process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  start().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

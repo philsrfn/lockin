@@ -10,6 +10,7 @@
  */
 import { pool } from '../db';
 import { dayIn, minutesOfDayIn, weekdayOf } from '../domain/time';
+import { log } from '../logging';
 import { athleteZone } from '../services/clock';
 
 export type JobResult = {
@@ -93,13 +94,13 @@ async function run(job: string, handler: JobHandler, parts: NowParts): Promise<v
       'update job_runs set status = $3, detail = $4, ran_at = now() where job = $1 and ran_for = $2',
       [job, date, result.status, JSON.stringify(result.detail ?? {})],
     );
-    console.log(`job ${job}: ${result.status}`);
+    log.info({ job, ranFor: date, status: result.status, detail: result.detail }, 'job finished');
   } catch (error) {
     await pool.query(
       'update job_runs set status = $3, detail = $4 where job = $1 and ran_for = $2',
       [job, date, 'failed', JSON.stringify({ error: (error as Error).message })],
     );
-    console.error(`job ${job} failed:`, (error as Error).message);
+    log.error({ job, ranFor: date, err: error }, 'job failed');
   }
 }
 
@@ -117,7 +118,7 @@ export function startScheduler(handlers: Record<string, JobHandler>): () => void
       }
     } catch (error) {
       // A scheduler that dies on one bad tick stops every future job.
-      console.error('scheduler tick failed:', (error as Error).message);
+      log.error({ err: error }, 'scheduler tick failed');
     }
   };
 

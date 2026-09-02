@@ -8,12 +8,19 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Ctx } from '../../db';
-import { anotherAthlete, daysAgo, phil, resetData, resetProfile } from '../../test/helpers';
+import {
+  anotherAthlete,
+  daysAgo,
+  exerciseIdByName,
+  phil,
+  resetData,
+  resetProfile,
+} from '../../test/helpers';
 import { completeOnboarding } from '../onboarding';
 import { getProfile } from '../profile';
 import { currentProgram, listPrograms, programBySlug, setProgram, slotsFor } from '../programs';
 import { createSession } from '../sessions';
-import { planFor, upcomingTemplate } from '../workouts';
+import { planFor, prescribeExercise, upcomingTemplate } from '../workouts';
 import { pool } from '../../db';
 
 let sam: Ctx;
@@ -24,6 +31,12 @@ beforeEach(async () => {
   await pool.query(
     `update profile set program_id = (select id from programs where slug = 'full_body_3')
      where user_id = 1`,
+  );
+  // Places are edited by some tests here; put Home back the way it is seeded.
+  await pool.query(
+    `update contexts
+     set equipment = '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}'
+     where user_id = 1 and name = 'Home'`,
   );
   sam = await anotherAthlete();
 });
@@ -193,6 +206,46 @@ describe('choosing one at signup', () => {
 
     expect((await currentProgram(sam)).slug).toBe('upper_lower_4');
     expect((await getProfile(sam)).trainingDaysPerWeek).toBe(4);
+  });
+});
+
+describe('what the place has', () => {
+  it('offers every substitute when the place has not said', async () => {
+    // Nobody inventories a commercial gym. Assuming the worst would empty the
+    // swap list for the majority.
+    const squat = (await planFor(phil, 'A')).exercises[0]!;
+
+    expect(squat.substitutes.map((sub) => sub.name)).toContain('Hack Squat');
+    expect(squat.substitutes.map((sub) => sub.name)).toContain('Walking Lunge');
+  });
+
+  it('drops what a hotel room does not have', async () => {
+    await pool.query(
+      `update contexts
+       set equipment = equipment || '{"available": ["dumbbell", "bodyweight"]}'::jsonb
+       where user_id = 1 and is_active`,
+    );
+
+    const squat = (await planFor(phil, 'A')).exercises[0]!;
+    const names = squat.substitutes.map((sub) => sub.name);
+
+    expect(names).not.toContain('Hack Squat');
+    expect(names).not.toContain('Leg Press');
+    // And still leaves him something he can actually do.
+    expect(names).toContain('Walking Lunge');
+    expect(names).toContain('Dumbbell Squat');
+  });
+
+  it('filters a single prescription the same way', async () => {
+    await pool.query(
+      `update contexts
+       set equipment = equipment || '{"available": ["bodyweight"]}'::jsonb
+       where user_id = 1 and is_active`,
+    );
+
+    const lat = await prescribeExercise(phil, await exerciseIdByName('Lat Pulldown'));
+
+    expect(lat.substitutes.map((sub) => sub.name)).toEqual([]);
   });
 });
 

@@ -41,6 +41,11 @@ from the body, in code (§1).
 
 ## Training
 
+Substitutes are filtered by what the active place has. A context whose
+`equipment.available` lists what is there — `["dumbbell", "bodyweight"]` for a
+hotel room — only gets substitutes it can actually do; one that says nothing
+gets them all, because nobody inventories a commercial gym.
+
 A **programme** is an ordered list of days that rotates — full body A/B/C,
 upper/lower U1/L1/U2/L2, push/pull/legs. A day's `code` is what
 `sessions.template` stores, so it is history as much as configuration; `dayName`
@@ -51,7 +56,7 @@ which is a separate question and lives on the profile.
 |---|---|---|---|
 | GET | `/today` | — | everything the Today screen needs, one round trip |
 | GET | `/week` | — | the seven-day strip the home screen is built on |
-| GET | `/exercises` | — | `{exercises}` with substitute ids |
+| GET | `/exercises` | — | `{exercises}` with substitute ids and equipment |
 | GET | `/programs` | — | `{programs, current}` — the catalogue and the one he is on |
 | POST | `/programs/choose` | `{programId}` | `{current}`. History keeps its day codes; the rotation restarts. |
 | GET | `/workouts/next` | `?template=<day code>` | prescriptions; defaults to the next in rotation |

@@ -13,7 +13,8 @@ import {
 import { type DayCode, defaultsForPattern, nextInRotation } from '../domain/program';
 import { addDays, dayIn, daySpanIn } from '../domain/time';
 import { athleteZone } from './clock';
-import { type Exercise, getExercise, listExercises } from './exercises';
+import { type Exercise, availableAt, equipmentAt, getExercise, listExercises } from './exercises';
+import { activeContext } from './contexts';
 import { type Program, currentProgram, slotsFor } from './programs';
 import { firstSessionAt } from './sessions';
 
@@ -144,14 +145,18 @@ export async function planFor(
   const day = program.days.find((entry) => entry.code === template);
   if (!day) throw notFound(`${program.name} has no day called ${template}`);
 
-  const [slots, allExercises, firstAt, finished] = await Promise.all([
+  const [slots, allExercises, firstAt, finished, context] = await Promise.all([
     slotsFor(ctx, program.id, day.code),
     listExercises(ctx.db),
     firstSessionAt(ctx),
     finishedSessions(ctx),
+    activeContext(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
+  // A hotel room with two dumbbells should not offer a hack squat as the
+  // alternative to a back squat.
+  const here = equipmentAt(context);
 
   const ramp = rampIn(firstAt, now);
   const gate = jointPainGate(finished);
@@ -191,7 +196,7 @@ export async function planFor(
       last: last ? { performedAt: last.performedAt.toISOString(), sets: last.sets } : null,
       substitutes: exercise.substitutes
         .map((id) => byId.get(id))
-        .filter((sub): sub is Exercise => sub !== undefined)
+        .filter((sub): sub is Exercise => sub !== undefined && availableAt(sub, here))
         .map((sub) => ({ id: sub.id, name: sub.name, pattern: sub.pattern })),
     } satisfies ExercisePrescription;
   });
@@ -220,14 +225,16 @@ export async function prescribeExercise(
 ): Promise<ExercisePrescription> {
   const now = options.now ?? new Date();
 
-  const [exercise, allExercises, firstAt, finished] = await Promise.all([
+  const [exercise, allExercises, firstAt, finished, context] = await Promise.all([
     getExercise(exerciseId, ctx.db),
     listExercises(ctx.db),
     firstSessionAt(ctx),
     finishedSessions(ctx),
+    activeContext(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
+  const here = equipmentAt(context);
   const defaults = defaultsForPattern(exercise.pattern);
   const ramp = rampIn(firstAt, now);
   const gate = jointPainGate(finished);
@@ -263,7 +270,7 @@ export async function prescribeExercise(
     last: last ? { performedAt: last.performedAt.toISOString(), sets: last.sets } : null,
     substitutes: exercise.substitutes
       .map((id) => byId.get(id))
-      .filter((sub): sub is Exercise => sub !== undefined)
+      .filter((sub): sub is Exercise => sub !== undefined && availableAt(sub, here))
       .map((sub) => ({ id: sub.id, name: sub.name, pattern: sub.pattern })),
   };
 }

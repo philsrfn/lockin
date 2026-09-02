@@ -10,8 +10,10 @@ import {
   AddRuleSchema,
   BarcodeQuerySchema,
   EstimateFoodSchema,
+  JobNameSchema,
   LogFoodSchema,
   LogMealSchema,
+  RegisterPushSchema,
   SaveScannedSchema,
   UpdateRuleSchema,
   SaveFoodSchema,
@@ -36,6 +38,10 @@ import { getToday } from '../services/today';
 import { archiveFood, createFood, getFood, listFoods, updateFood } from '../services/foods';
 import { lookupBarcode, saveScanned } from '../services/barcode';
 import { estimateFood } from '../llm/food';
+import { generateWeeklyReview, latestReview } from '../llm/review';
+import { jobHandlers, recentRuns } from '../jobs/handlers';
+import { forceRun } from '../jobs/scheduler';
+import { registerToken, sendPush } from '../push';
 import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
@@ -144,6 +150,35 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/bodyweight', async (request, reply) => {
     const body = LogWeightSchema.parse(request.body);
     return reply.code(201).send(await logWeight(body));
+  });
+
+  // --- proactive coaching (phase 3)
+
+  app.post('/push/register', async (request, reply) => {
+    const body = RegisterPushSchema.parse(request.body);
+    await registerToken(body.token, body.platform ?? null);
+    return reply.code(201).send({ registered: true });
+  });
+
+  /** Proves the round trip to his phone without waiting for 07:30. */
+  app.post('/push/test', async () => ({
+    result: await sendPush({
+      title: 'lockin',
+      body: 'Notifications are working.',
+      data: { screen: 'today' },
+    }),
+  }));
+
+  app.get('/review', async () => ({ review: await latestReview() }));
+
+  app.post('/review/generate', async () => ({ review: await generateWeeklyReview() }));
+
+  app.get('/jobs', async () => ({ runs: await recentRuns() }));
+
+  /** Manual trigger, so a job can be checked without waiting a week for it. */
+  app.post('/jobs/:job/run', async (request) => {
+    const { job } = z.object({ job: JobNameSchema }).parse(request.params);
+    return { result: await forceRun(job, jobHandlers[job]) };
   });
 
   app.get('/rules', async () => ({ rules: await listRules() }));

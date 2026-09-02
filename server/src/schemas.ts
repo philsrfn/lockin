@@ -144,3 +144,15 @@ export const UpdateRuleSchema = z.object({
   scope: z.string().max(60).nullish(),
   active: z.boolean().optional(),
 });
+
+export const RegisterPushSchema = z.object({
+  token: z.string().min(10).max(200),
+  platform: z.string().max(20).nullish(),
+});
+
+export const JobNameSchema = z.enum([
+  'morning_checkin',
+  'dinner_prompt',
+  'weekly_review',
+  'log_nudge',
+]);

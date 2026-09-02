@@ -61,6 +61,8 @@ export type GenerateOutput = {
   toolCalls: ToolCall[];
   opaque?: unknown;
   usage: Usage;
+  /** The model string that actually answered. A fallback must never be silent. */
+  model: string;
 };
 
 export interface LlmProvider {

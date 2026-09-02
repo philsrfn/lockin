@@ -111,6 +111,7 @@ export const geminiProvider: LlmProvider = {
       text: (response.text ?? '').trim(),
       toolCalls,
       opaque: parts,
+      model,
       usage: {
         promptTokens: usage?.promptTokenCount ?? 0,
         outputTokens: usage?.candidatesTokenCount ?? 0,

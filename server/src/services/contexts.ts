@@ -1,4 +1,4 @@
-import { type Queryable, pool, queryOne } from '../db';
+import type { Ctx } from '../db';
 import { notFound } from '../errors';
 
 export type Context = {
@@ -27,13 +27,18 @@ const toContext = (row: ContextRow): Context => ({
 
 const SELECT = 'select id, name, equipment, food_profile, is_active from contexts';
 
-export async function listContexts(db: Queryable = pool): Promise<Context[]> {
-  const { rows } = await db.query<ContextRow>(`${SELECT} order by id`);
+export async function listContexts(ctx: Ctx): Promise<Context[]> {
+  const { rows } = await ctx.db.query<ContextRow>(`${SELECT} where user_id = $1 order by id`, [
+    ctx.userId,
+  ]);
   return rows.map(toContext);
 }
 
-export async function activeContext(db: Queryable = pool): Promise<Context | null> {
-  const { rows } = await db.query<ContextRow>(`${SELECT} where is_active limit 1`);
+export async function activeContext(ctx: Ctx): Promise<Context | null> {
+  const { rows } = await ctx.db.query<ContextRow>(
+    `${SELECT} where user_id = $1 and is_active limit 1`,
+    [ctx.userId],
+  );
   const row = rows[0];
   return row ? toContext(row) : null;
 }
@@ -42,10 +47,18 @@ export async function activeContext(db: Queryable = pool): Promise<Context | nul
  * Switching city. One statement, so there is never a moment with two active
  * contexts or none.
  */
-export async function activateContext(id: number): Promise<Context[]> {
-  const exists = await queryOne<{ id: number }>('select id from contexts where id = $1', [id]);
-  if (!exists) throw notFound(`No context ${id}`);
+export async function activateContext(ctx: Ctx, id: number): Promise<Context[]> {
+  // Scoped on the way in: a context id belonging to someone else must read as
+  // missing, not as a thing he is merely forbidden to switch to.
+  const { rowCount } = await ctx.db.query('select 1 from contexts where id = $1 and user_id = $2', [
+    id,
+    ctx.userId,
+  ]);
+  if (!rowCount) throw notFound(`No context ${id}`);
 
-  await pool.query('update contexts set is_active = (id = $1)', [id]);
-  return listContexts();
+  await ctx.db.query('update contexts set is_active = (id = $1) where user_id = $2', [
+    id,
+    ctx.userId,
+  ]);
+  return listContexts(ctx);
 }

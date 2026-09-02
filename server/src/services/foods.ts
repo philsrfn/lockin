@@ -2,7 +2,7 @@
  * Phil's own food library. §11: no general nutrition database — roughly 90% of
  * intake is ~25 foods, and the library grows by use rather than by seeding.
  */
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { badRequest, notFound } from '../errors';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -50,7 +50,7 @@ const SELECT = `
   select id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
          times_used, last_used_at
   from foods
-  where not archived
+  where not archived and user_id = $1
 `;
 
 /**
@@ -58,15 +58,16 @@ const SELECT = `
  * That ordering is the whole point: the top of the screen should already have
  * what he is about to log.
  */
-export async function listFoods(db: Queryable = pool): Promise<Food[]> {
-  const { rows } = await db.query<FoodRow>(
+export async function listFoods(ctx: Ctx): Promise<Food[]> {
+  const { rows } = await ctx.db.query<FoodRow>(
     `${SELECT} order by quick_add desc, last_used_at desc nulls last, times_used desc, name`,
+    [ctx.userId],
   );
   return rows.map(toFood);
 }
 
-export async function getFood(id: number, db: Queryable = pool): Promise<Food> {
-  const { rows } = await db.query<FoodRow>(`${SELECT} and id = $1`, [id]);
+export async function getFood(ctx: Ctx, id: number): Promise<Food> {
+  const { rows } = await ctx.db.query<FoodRow>(`${SELECT} and id = $2`, [ctx.userId, id]);
   const row = rows[0];
   if (!row) throw notFound(`No food ${id}`);
   return toFood(row);
@@ -82,7 +83,7 @@ export type SaveFoodInput = {
   defaultSlot?: MealSlot | null;
 };
 
-export async function createFood(input: SaveFoodInput, db: Queryable = pool): Promise<Food> {
+export async function createFood(ctx: Ctx, input: SaveFoodInput): Promise<Food> {
   const name = input.name?.trim();
   if (!name) throw badRequest('A food needs a name');
   if (!Number.isFinite(input.kcal) || input.kcal < 0) throw badRequest('kcal must be a number');
@@ -90,18 +91,19 @@ export async function createFood(input: SaveFoodInput, db: Queryable = pool): Pr
     throw badRequest('proteinG must be a number');
   }
 
-  const { rows } = await db.query<FoodRow>(
-    `insert into foods (name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot)
-     values ($1, $2, $3, $4, $5, $6, $7)
+  const { rows } = await ctx.db.query<FoodRow>(
+    `insert into foods (user_id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
      -- Saving the same thing twice should update it, not fail. He is not
      -- thinking about primary keys while logging lunch.
-     on conflict (lower(name)) where not archived do update
+     on conflict (user_id, lower(name)) where not archived do update
        set kcal = excluded.kcal, protein_g = excluded.protein_g,
            fat_g = excluded.fat_g, carbs_g = excluded.carbs_g,
            quick_add = excluded.quick_add, default_slot = excluded.default_slot
      returning id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
                times_used, last_used_at`,
     [
+      ctx.userId,
       name,
       Math.round(input.kcal),
       Math.round(input.proteinG),
@@ -115,18 +117,19 @@ export async function createFood(input: SaveFoodInput, db: Queryable = pool): Pr
 }
 
 export async function updateFood(
+  ctx: Ctx,
   id: number,
   input: Partial<SaveFoodInput>,
-  db: Queryable = pool,
 ): Promise<Food> {
-  const current = await getFood(id, db);
-  const { rows } = await db.query<FoodRow>(
-    `update foods set name = $2, kcal = $3, protein_g = $4, fat_g = $5, carbs_g = $6,
-                      quick_add = $7, default_slot = $8
-     where id = $1
+  const current = await getFood(ctx, id);
+  const { rows } = await ctx.db.query<FoodRow>(
+    `update foods set name = $3, kcal = $4, protein_g = $5, fat_g = $6, carbs_g = $7,
+                      quick_add = $8, default_slot = $9
+     where id = $2 and user_id = $1
      returning id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
                times_used, last_used_at`,
     [
+      ctx.userId,
       id,
       input.name?.trim() || current.name,
       input.kcal ?? current.kcal,
@@ -144,14 +147,17 @@ export async function updateFood(
  * Archived, never deleted. Meals already logged against it keep their food_id,
  * and his history stays intact.
  */
-export async function archiveFood(id: number, db: Queryable = pool): Promise<void> {
-  const { rowCount } = await db.query('update foods set archived = true where id = $1', [id]);
+export async function archiveFood(ctx: Ctx, id: number): Promise<void> {
+  const { rowCount } = await ctx.db.query(
+    'update foods set archived = true where id = $1 and user_id = $2',
+    [id, ctx.userId],
+  );
   if (!rowCount) throw notFound(`No food ${id}`);
 }
 
-export async function recordUse(id: number, db: Queryable = pool): Promise<void> {
-  await db.query(
-    'update foods set times_used = times_used + 1, last_used_at = now() where id = $1',
-    [id],
+export async function recordUse(ctx: Ctx, id: number): Promise<void> {
+  await ctx.db.query(
+    'update foods set times_used = times_used + 1, last_used_at = now() where id = $1 and user_id = $2',
+    [id, ctx.userId],
   );
 }

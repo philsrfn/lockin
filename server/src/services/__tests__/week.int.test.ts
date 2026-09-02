@@ -7,7 +7,7 @@
  * no protein, and drawing it as zero would invent a failure.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isoDaysAgo, resetData, resetProfile } from '../../test/helpers';
+import { isoDaysAgo, resetData, resetProfile, phil } from '../../test/helpers';
 import { logWeight } from '../bodyweight';
 import { logMeal } from '../meals';
 import { createSession, finishSession } from '../sessions';
@@ -22,21 +22,21 @@ beforeEach(async () => {
 });
 
 async function finishedSession(template: 'A' | 'B' | 'C', daysBack: number) {
-  const session = await createSession({ template, performedAt: daysAgo(daysBack) });
-  await recordSet({
+  const session = await createSession(phil, { template, performedAt: daysAgo(daysBack) });
+  await recordSet(phil, {
     sessionId: session.id,
     exerciseId: await exerciseIdByName('Back Squat'),
     setIndex: 1,
     weightKg: 90,
     reps: 8,
   });
-  await finishSession(session.id, { rpe: 8 });
+  await finishSession(phil, session.id, { rpe: 8 });
   return session;
 }
 
 describe('getWeek', () => {
   it('always returns seven days, ending today', async () => {
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.days).toHaveLength(7);
     expect(week.days.at(-1)?.date).toBe(isoDaysAgo(0));
@@ -45,7 +45,7 @@ describe('getWeek', () => {
   });
 
   it('draws a day he did not log as absent, not as zero', async () => {
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.days.every((day) => day.proteinPct === null)).toBe(true);
     expect(week.avgProteinG).toBeNull();
@@ -55,7 +55,7 @@ describe('getWeek', () => {
   it('marks the days he lifted, with the template letter and set count', async () => {
     await finishedSession('B', 2);
 
-    const day = (await getWeek()).days.find((entry) => entry.date === isoDaysAgo(2));
+    const day = (await getWeek(phil)).days.find((entry) => entry.date === isoDaysAgo(2));
 
     expect(day?.lifted).toBe(true);
     expect(day?.template).toBe('B');
@@ -63,9 +63,9 @@ describe('getWeek', () => {
   });
 
   it('does not count a session he started and never finished', async () => {
-    await createSession({ template: 'A' });
+    await createSession(phil, { template: 'A' });
 
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.strength.done).toBe(0);
     expect(week.days.at(-1)?.lifted).toBe(false);
@@ -75,7 +75,7 @@ describe('getWeek', () => {
     await finishedSession('A', 5);
     await finishedSession('B', 3);
 
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.strength).toEqual({ done: 2, target: 3 });
   });
@@ -83,23 +83,23 @@ describe('getWeek', () => {
   it('leaves a session older than the strip out of the tally', async () => {
     await finishedSession('A', 9);
 
-    expect((await getWeek()).strength.done).toBe(0);
+    expect((await getWeek(phil)).strength.done).toBe(0);
   });
 
   it('carries the weigh-ins through', async () => {
-    await logWeight({ measuredOn: isoDaysAgo(1), weightKg: 99 });
-    await logWeight({ measuredOn: isoDaysAgo(0), weightKg: 98.8 });
+    await logWeight(phil, { measuredOn: isoDaysAgo(1), weightKg: 99 });
+    await logWeight(phil, { measuredOn: isoDaysAgo(0), weightKg: 98.8 });
 
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.weighIns).toEqual({ done: 2, target: 7 });
     expect(week.days.at(-1)?.weightKg).toBe(98.8);
   });
 
   it('reports protein as a percentage of his target', async () => {
-    await logMeal({ slot: 'breakfast', description: 'Skyr', proteinG: 95, kcal: 520 });
+    await logMeal(phil, { slot: 'breakfast', description: 'Skyr', proteinG: 95, kcal: 520 });
 
-    const today = (await getWeek()).days.at(-1);
+    const today = (await getWeek(phil)).days.at(-1);
 
     expect(today?.proteinG).toBe(95);
     expect(today?.kcal).toBe(520);
@@ -107,22 +107,22 @@ describe('getWeek', () => {
   });
 
   it('averages protein over the days he logged, not over seven', async () => {
-    await logMeal({
+    await logMeal(phil, {
       slot: 'dinner',
       description: 'one',
       proteinG: 200,
       eatenAt: daysAgo(2),
     });
-    await logMeal({ slot: 'dinner', description: 'two', proteinG: 100 });
+    await logMeal(phil, { slot: 'dinner', description: 'two', proteinG: 100 });
 
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     expect(week.loggedDays).toBe(2);
     expect(week.avgProteinG).toBe(150);
   });
 
   it('labels the weekdays in German, two letters', async () => {
-    const week = await getWeek();
+    const week = await getWeek(phil);
 
     for (const day of week.days) {
       expect(['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']).toContain(day.weekday);
@@ -132,7 +132,7 @@ describe('getWeek', () => {
 
 describe('getToday', () => {
   it('answers the whole screen in one round trip', async () => {
-    const today = await getToday();
+    const today = await getToday(phil);
 
     expect(today.date).toBe(isoDaysAgo(0));
     expect(today.profile.name).toBe('Phil');
@@ -144,9 +144,9 @@ describe('getToday', () => {
   });
 
   it('reports macros remaining against his targets', async () => {
-    await logMeal({ slot: 'breakfast', description: 'Skyr', kcal: 520, proteinG: 55, fatG: 6 });
+    await logMeal(phil, { slot: 'breakfast', description: 'Skyr', kcal: 520, proteinG: 55, fatG: 6 });
 
-    const today = await getToday();
+    const today = await getToday(phil);
 
     expect(today.macros.consumed.proteinG).toBe(55);
     expect(today.macros.remaining.proteinG).toBe(190 - 55);
@@ -155,9 +155,9 @@ describe('getToday', () => {
   });
 
   it('shows the session in progress and plans around it', async () => {
-    const open = await createSession({ template: 'C' });
+    const open = await createSession(phil, { template: 'C' });
 
-    const today = await getToday();
+    const today = await getToday(phil);
 
     expect(today.openSession?.id).toBe(open.id);
     expect(today.plan.template).toBe('C');
@@ -166,7 +166,7 @@ describe('getToday', () => {
   it('lists a finished session so the screen stops offering a workout he has done', async () => {
     const session = await finishedSession('A', 0);
 
-    const today = await getToday();
+    const today = await getToday(phil);
 
     expect(today.completedToday.map((entry) => entry.id)).toEqual([session.id]);
     expect(today.openSession).toBeNull();
@@ -176,7 +176,7 @@ describe('getToday', () => {
     await finishedSession('A', 4);
     await finishedSession('B', 1);
 
-    const [today, week] = await Promise.all([getToday(), getWeek()]);
+    const [today, week] = await Promise.all([getToday(phil), getWeek(phil)]);
 
     expect(today.week.strengthSessions.done).toBe(week.strength.done);
     expect(today.week.strengthSessions.target).toBe(3);

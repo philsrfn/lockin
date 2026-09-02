@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import {
   type JointPainGate,
   type PerformedSet,
@@ -54,23 +54,24 @@ type ExerciseHistory = { sessionId: number; performedAt: Date; sets: PerformedSe
  * first. One query for the whole template rather than one per movement.
  */
 async function historyFor(
+  ctx: Ctx,
   exerciseIds: number[],
   excludeSessionId: number | undefined,
-  db: Queryable,
 ): Promise<Map<number, ExerciseHistory>> {
   const byExercise = new Map<number, ExerciseHistory>();
   if (exerciseIds.length === 0) return byExercise;
 
-  const { rows } = await db.query<HistoryRow>(
+  const { rows } = await ctx.db.query<HistoryRow>(
     `select st.exercise_id, st.session_id, se.performed_at,
             st.weight_kg, st.reps, st.rir
      from sets st
      join sessions se on se.id = st.session_id
-     where st.exercise_id = any($1::int[])
-       and ($2::int is null or st.session_id <> $2)
+     where st.user_id = $1
+       and st.exercise_id = any($2::int[])
+       and ($3::int is null or st.session_id <> $3)
        and st.reps > 0
      order by st.exercise_id, se.performed_at desc, st.set_index`,
-    [exerciseIds, excludeSessionId ?? null],
+    [ctx.userId, exerciseIds, excludeSessionId ?? null],
   );
 
   for (const row of rows) {
@@ -95,42 +96,44 @@ async function historyFor(
 }
 
 /** Sessions he actually closed out, for the joint-pain streak. */
-async function finishedSessions(db: Queryable) {
-  const { rows } = await db.query<{ performed_at: Date; joint_pain: boolean }>(
+async function finishedSessions(ctx: Ctx) {
+  const { rows } = await ctx.db.query<{ performed_at: Date; joint_pain: boolean }>(
     `select performed_at, joint_pain
      from sessions
-     where rpe is not null
+     where user_id = $1 and rpe is not null
      order by performed_at desc
      limit 5`,
+    [ctx.userId],
   );
   return rows.map((row) => ({ performedAt: row.performed_at, jointPain: row.joint_pain }));
 }
 
 /** Which day comes next: A → B → C → A, off the last session he logged. */
-export async function upcomingTemplate(db: Queryable = pool): Promise<TemplateId> {
-  const { rows } = await db.query<{ template: string | null }>(
+export async function upcomingTemplate(ctx: Ctx): Promise<TemplateId> {
+  const { rows } = await ctx.db.query<{ template: string | null }>(
     `select template from sessions
-     where template is not null
+     where user_id = $1 and template is not null
      order by performed_at desc
      limit 1`,
+    [ctx.userId],
   );
   const last = rows[0]?.template;
   return nextTemplate(last === 'A' || last === 'B' || last === 'C' ? last : null);
 }
 
 export async function planFor(
+  ctx: Ctx,
   template: TemplateId,
   options: { excludeSessionId?: number; now?: Date } = {},
-  db: Queryable = pool,
 ): Promise<WorkoutPlan> {
   const now = options.now ?? new Date();
   const slots = TEMPLATES[template];
 
   const [byName, allExercises, firstAt, finished] = await Promise.all([
-    exercisesByName(db),
-    listExercises(db),
-    firstSessionAt(db),
-    finishedSessions(db),
+    exercisesByName(ctx.db),
+    listExercises(ctx.db),
+    firstSessionAt(ctx),
+    finishedSessions(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
@@ -139,9 +142,9 @@ export async function planFor(
   const ramp = rampIn(firstAt, now);
   const gate = jointPainGate(finished);
   const history = await historyFor(
+    ctx,
     resolved.map(({ exercise }) => exercise.id),
     options.excludeSessionId,
-    db,
   );
 
   const exercises = resolved.map(({ slot, exercise }) => {
@@ -189,17 +192,17 @@ export async function planFor(
  * Phase 2's swap_exercise tool calls this same function.
  */
 export async function prescribeExercise(
+  ctx: Ctx,
   exerciseId: number,
   options: { excludeSessionId?: number; targetSets?: number; now?: Date } = {},
-  db: Queryable = pool,
 ): Promise<ExercisePrescription> {
   const now = options.now ?? new Date();
 
   const [exercise, allExercises, firstAt, finished] = await Promise.all([
-    getExercise(exerciseId, db),
-    listExercises(db),
-    firstSessionAt(db),
-    finishedSessions(db),
+    getExercise(exerciseId, ctx.db),
+    listExercises(ctx.db),
+    firstSessionAt(ctx),
+    finishedSessions(ctx),
   ]);
 
   const byId = new Map<number, Exercise>(allExercises.map((e) => [e.id, e]));
@@ -207,7 +210,7 @@ export async function prescribeExercise(
   const ramp = rampIn(firstAt, now);
   const gate = jointPainGate(finished);
 
-  const history = await historyFor([exerciseId], options.excludeSessionId, db);
+  const history = await historyFor(ctx, [exerciseId], options.excludeSessionId);
   const sessions = history.get(exerciseId) ?? [];
 
   const requested = options.targetSets ?? 3;
@@ -266,18 +269,14 @@ export type Progress = {
  *
  * Arithmetic, in code, per §1.
  */
-export async function progress(
-  days = 90,
-  db: Queryable = pool,
-  zone?: string,
-): Promise<Progress> {
+export async function progress(ctx: Ctx, days = 90, zone?: string): Promise<Progress> {
   // Calendar days in his zone, so a session logged at 22:00 is charted on the
   // day he trained rather than the next one.
-  const timezone = zone ?? (await athleteZone(db));
+  const timezone = zone ?? (await athleteZone(ctx));
   const lastDay = dayIn(timezone);
   const span = daySpanIn(timezone, addDays(lastDay, -(days - 1)), lastDay);
 
-  const { rows } = await db.query<{
+  const { rows } = await ctx.db.query<{
     exercise_id: number;
     name: string;
     pattern: string;
@@ -286,15 +285,15 @@ export async function progress(
     reps: number;
   }>(
     `select st.exercise_id, e.name, e.pattern,
-            to_char(se.performed_at at time zone $3, 'YYYY-MM-DD') as performed_on,
+            to_char(se.performed_at at time zone $4, 'YYYY-MM-DD') as performed_on,
             st.weight_kg, st.reps
      from sets st
      join sessions se on se.id = st.session_id
      join exercises e on e.id = st.exercise_id
-     where se.performed_at >= $1 and se.performed_at < $2
+     where st.user_id = $1 and se.performed_at >= $2 and se.performed_at < $3
        and st.reps > 0
      order by e.name, se.performed_at`,
-    [span.from, span.until, timezone],
+    [ctx.userId, span.from, span.until, timezone],
   );
 
   const byExercise = new Map<number, ExerciseProgress>();

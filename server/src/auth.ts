@@ -1,25 +1,38 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
-import { env } from './env';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { type Ctx, ctxFor } from './db';
 import { unauthorized } from './errors';
+import { findUserByToken } from './services/users';
 
-/** Paths reachable without the bearer token. */
+/** Paths reachable without a token. */
 const PUBLIC_PATHS = new Set(['/health']);
 
-function digest(value: string): Buffer {
-  return createHash('sha256').update(value).digest();
+declare module 'fastify' {
+  interface FastifyRequest {
+    /**
+     * Who is asking. Set by the auth hook, and the only way a route reaches
+     * data — there is no service call that does not take one.
+     */
+    ctx: Ctx;
+  }
 }
 
-// Hashed first so both sides are always 32 bytes — timingSafeEqual throws on a
-// length mismatch, and the throw itself would leak the token length.
-const expected = digest(env.bearerToken);
-
 /**
- * One user, one long-lived token in the iOS keychain. No user table, no signup,
- * no refresh — per §2 of the spec, do not build auth infrastructure.
+ * One long-lived token per athlete, held in the iOS keychain. No signup flow,
+ * no refresh, no password reset — §2 says do not build auth infrastructure,
+ * and this is the smallest thing that supports more than one person.
+ *
+ * The token is matched by its sha256 against `users.token_hash`, so the check
+ * is an index lookup rather than a comparison against one environment variable,
+ * and a database dump is not a list of passwords. Sign in with Apple replaces
+ * the front of this; the row it resolves to does not change.
  */
 export function registerAuth(app: FastifyInstance): void {
-  app.addHook('onRequest', async (request) => {
+  // Declared null on the prototype; the hook below assigns a real one per
+  // request, before any handler runs. A request that reaches a handler without
+  // it has already been rejected.
+  app.decorateRequest('ctx', null as unknown as Ctx);
+
+  app.addHook('onRequest', async (request: FastifyRequest) => {
     const path = request.url.split('?')[0] ?? request.url;
     if (PUBLIC_PATHS.has(path)) return;
 
@@ -28,8 +41,13 @@ export function registerAuth(app: FastifyInstance): void {
       throw unauthorized('Missing bearer token');
     }
 
-    if (!timingSafeEqual(digest(header.slice('Bearer '.length)), expected)) {
+    const user = await findUserByToken(header.slice('Bearer '.length));
+    if (!user) {
+      // Deliberately the same message whether the token is malformed, expired
+      // or simply someone else's.
       throw unauthorized('Invalid bearer token');
     }
+
+    request.ctx = ctxFor(user.id);
   });
 }

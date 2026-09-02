@@ -11,12 +11,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildServer } from '../../index';
 import { TEST_BEARER_TOKEN } from '../../test/database';
 import { exerciseIdByName, resetData, resetProfile } from '../../test/helpers';
+import { syncRootToken } from '../../services/users';
 
 let app: FastifyInstance;
 
 const auth = { authorization: `Bearer ${TEST_BEARER_TOKEN}` };
 
 beforeAll(async () => {
+  // Authentication is a lookup against users.token_hash now, so the seeded
+  // athlete has to actually own the token these tests present. This is what
+  // start() does at boot with the deployed APP_BEARER_TOKEN.
+  await syncRootToken(TEST_BEARER_TOKEN);
   app = await buildServer();
   await app.ready();
 });

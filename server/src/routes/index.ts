@@ -67,7 +67,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.get('/profile', async () => ({ profile: await getProfile() }));
+  app.get('/profile', async (request) => ({ profile: await getProfile(request.ctx) }));
 
   /**
    * Where he is. Everything that says "today" — the week strip, the macros, the
@@ -75,28 +75,28 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.patch('/profile', async (request) => {
     const body = UpdateProfileSchema.parse(request.body);
-    return { profile: await setTimezone(body.timezone) };
+    return { profile: await setTimezone(request.ctx, body.timezone) };
   });
 
-  app.get('/contexts', async () => ({ contexts: await listContexts() }));
+  app.get('/contexts', async (request) => ({ contexts: await listContexts(request.ctx) }));
 
   app.post('/contexts/:id/activate', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
-    return { contexts: await activateContext(id) };
+    return { contexts: await activateContext(request.ctx, id) };
   });
 
   app.get('/exercises', async () => ({ exercises: await listExercises() }));
 
-  app.get('/today', async () => getToday());
+  app.get('/today', async (request) => getToday(request.ctx));
 
   /** The seven-day shape the home screen is built on. */
-  app.get('/week', async () => getWeek());
+  app.get('/week', async (request) => getWeek(request.ctx));
 
   app.get('/workouts/next', async (request) => {
     const query = z.object({ template: TemplateIdSchema.optional() }).parse(request.query);
-    const template = query.template ?? (await upcomingTemplate());
-    const open = await openSession();
-    return planFor(template, { excludeSessionId: open?.id });
+    const template = query.template ?? (await upcomingTemplate(request.ctx));
+    const open = await openSession(request.ctx);
+    return planFor(request.ctx, template, { excludeSessionId: open?.id });
   });
 
   // Used by the swap button: the substitute's own history decides its load.
@@ -110,7 +110,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       .parse(request.query);
 
     return {
-      prescription: await prescribeExercise(id, {
+      prescription: await prescribeExercise(request.ctx, id, {
         excludeSessionId: query.excludeSessionId,
         targetSets: query.sets,
       }),
@@ -120,120 +120,122 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/progress', async (request) => {
     const query = z.object({ days: z.coerce.number().int().min(7).max(365).default(90) })
       .parse(request.query);
-    return progress(query.days);
+    return progress(request.ctx, query.days);
   });
 
   app.get('/sessions', async (request) => {
     const query = z.object({ limit: z.coerce.number().int().min(1).max(200).default(20) })
       .parse(request.query);
-    return { sessions: await listSessions(query.limit) };
+    return { sessions: await listSessions(request.ctx, query.limit) };
   });
 
-  app.get('/sessions/open', async () => ({ session: await openSession() }));
+  app.get('/sessions/open', async (request) => ({ session: await openSession(request.ctx) }));
 
   app.get('/sessions/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
-    return { session: await getSession(id) };
+    return { session: await getSession(request.ctx, id) };
   });
 
   app.post('/sessions', async (request, reply) => {
     const body = CreateSessionSchema.parse(request.body);
-    return reply.code(201).send({ session: await createSession(body) });
+    return reply.code(201).send({ session: await createSession(request.ctx, body) });
   });
 
   app.patch('/sessions/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     const body = FinishSessionSchema.parse(request.body);
-    return { session: await finishSession(id, body) };
+    return { session: await finishSession(request.ctx, id, body) };
   });
 
   app.post('/sets', async (request, reply) => {
     const body = RecordSetSchema.parse(request.body);
-    const { setId, session } = await recordSet(body);
+    const { setId, session } = await recordSet(request.ctx, body);
     return reply.code(201).send({ setId, session });
   });
 
   app.delete('/sets/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
-    return { session: await deleteSet(id) };
+    return { session: await deleteSet(request.ctx, id) };
   });
 
   app.get('/bodyweight', async (request) => {
     const query = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) })
       .parse(request.query);
-    return weightSummary(query.days);
+    return weightSummary(request.ctx, query.days);
   });
 
   app.post('/bodyweight', async (request, reply) => {
     const body = LogWeightSchema.parse(request.body);
-    return reply.code(201).send(await logWeight(body));
+    return reply.code(201).send(await logWeight(request.ctx, body));
   });
 
   // --- proactive coaching (phase 3)
 
   app.post('/push/register', async (request, reply) => {
     const body = RegisterPushSchema.parse(request.body);
-    await registerToken(body.token, body.platform ?? null);
+    await registerToken(request.ctx, body.token, body.platform ?? null);
     return reply.code(201).send({ registered: true });
   });
 
   /** Proves the round trip to his phone without waiting for 07:30. */
-  app.post('/push/test', async () => ({
-    result: await sendPush({
+  app.post('/push/test', async (request) => ({
+    result: await sendPush(request.ctx, {
       title: 'lockin',
       body: 'Notifications are working.',
       data: { screen: 'today' },
     }),
   }));
 
-  app.get('/review', async () => ({ review: await latestReview() }));
+  app.get('/review', async (request) => ({ review: await latestReview(request.ctx) }));
 
-  app.post('/review/generate', async () => ({ review: await generateWeeklyReview() }));
+  app.post('/review/generate', async (request) => ({
+    review: await generateWeeklyReview(request.ctx),
+  }));
 
-  app.get('/jobs', async () => ({ runs: await recentRuns() }));
+  app.get('/jobs', async (request) => ({ runs: await recentRuns(request.ctx) }));
 
   /** Manual trigger, so a job can be checked without waiting a week for it. */
   app.post('/jobs/:job/run', async (request) => {
     const { job } = z.object({ job: JobNameSchema }).parse(request.params);
-    return { result: await forceRun(job, jobHandlers[job]) };
+    return { result: await forceRun(request.ctx, job, jobHandlers[job]) };
   });
 
-  app.get('/rules', async () => ({ rules: await listRules() }));
+  app.get('/rules', async (request) => ({ rules: await listRules(request.ctx) }));
 
   app.post('/rules', async (request, reply) => {
     const body = AddRuleSchema.parse(request.body);
-    const result = await addRule(body);
-    return reply.code(201).send({ ...result, rules: await listRules() });
+    const result = await addRule(request.ctx, body);
+    return reply.code(201).send({ ...result, rules: await listRules(request.ctx) });
   });
 
   app.patch('/rules/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     const body = UpdateRuleSchema.parse(request.body);
-    await updateRule(id, body);
-    return { rules: await listRules() };
+    await updateRule(request.ctx, id, body);
+    return { rules: await listRules(request.ctx) };
   });
 
   // --- food (phase 4). All new paths; nothing existing changed, so the build
   // already on his phone keeps working untouched.
 
-  app.get('/foods', async () => ({ foods: await listFoods() }));
+  app.get('/foods', async (request) => ({ foods: await listFoods(request.ctx) }));
 
   app.post('/foods', async (request, reply) => {
     const body = SaveFoodSchema.parse(request.body);
-    return reply.code(201).send({ food: await createFood(body) });
+    return reply.code(201).send({ food: await createFood(request.ctx, body) });
   });
 
   app.patch('/foods/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     const body = UpdateFoodSchema.parse(request.body);
-    return { food: await updateFood(id, body) };
+    return { food: await updateFood(request.ctx, id, body) };
   });
 
   // Archived, not deleted: meals already logged against it keep their history.
   app.delete('/foods/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
-    await archiveFood(id);
-    return { foods: await listFoods() };
+    await archiveFood(request.ctx, id);
+    return { foods: await listFoods(request.ctx) };
   });
 
   /**
@@ -242,13 +244,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get('/foods/barcode', async (request) => {
     const query = BarcodeQuerySchema.parse(request.query);
-    return { candidate: await lookupBarcode(query.barcode) };
+    return { candidate: await lookupBarcode(request.ctx, query.barcode) };
   });
 
   /** Keeps a scanned product, so the next scan of it needs no network. */
   app.post('/foods/scanned', async (request, reply) => {
     const body = SaveScannedSchema.parse(request.body);
-    return reply.code(201).send({ food: await saveScanned(body) });
+    return reply.code(201).send({ food: await saveScanned(request.ctx, body) });
   });
 
   /**
@@ -276,22 +278,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/fridge/plan', async (request) => {
     const body = MealPlanSchema.parse(request.body);
-    return { plan: await generateMealPlan(body.items) };
+    return { plan: await generateMealPlan(request.ctx, body.items) };
   });
 
-  app.get('/meals', async () => ({ meals: await mealsToday() }));
+  app.get('/meals', async (request) => ({ meals: await mealsToday(request.ctx) }));
 
   app.post('/meals', async (request, reply) => {
     const body = LogMealSchema.parse(request.body);
-    const result = await logMeal(body);
+    const result = await logMeal(request.ctx, body);
     return reply.code(201).send({ meal: result.meal, consumed: result.today });
   });
 
   /** One tap on a quick-add tile. The library supplies the macros. */
   app.post('/meals/from-food', async (request, reply) => {
     const body = LogFoodSchema.parse(request.body);
-    const food = await getFood(body.foodId);
-    const result = await logMeal({
+    const food = await getFood(request.ctx, body.foodId);
+    const result = await logMeal(request.ctx, {
       slot: body.slot ?? food.defaultSlot ?? 'snack',
       description: food.name,
       kcal: food.kcal,
@@ -305,7 +307,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/meals/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
-    const result = await deleteMeal(id);
+    const result = await deleteMeal(request.ctx, id);
     return { consumed: result.today };
   });
 
@@ -316,22 +318,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/coach/today', async (request) => {
     const body = z.object({ force: z.boolean().optional() }).parse(request.body ?? {});
-    return { coach: await noteForToday({ force: body.force }) };
+    return { coach: await noteForToday(request.ctx, { force: body.force }) };
   });
 
   app.get('/chat', async (request) => {
     const query = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
       .parse(request.query);
-    return { messages: await history(query.limit) };
+    return { messages: await history(request.ctx, query.limit) };
   });
 
   app.post('/chat', async (request) => {
     const body = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
-    return sendMessage(body.text);
+    return sendMessage(request.ctx, body.text);
   });
 
   app.post('/sync', async (request) => {
     const body = SyncBatchSchema.parse(request.body);
-    return { results: await drain(body.ops) };
+    return { results: await drain(request.ctx, body.ops) };
   });
 }

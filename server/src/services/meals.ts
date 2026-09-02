@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { badRequest, notFound } from '../errors';
 import { type Macros, sumMacros } from '../domain/macros';
 import { dayIn, dayRangeIn } from '../domain/time';
@@ -68,21 +68,23 @@ export type LogMealInput = {
  * the trainer can log a meal the moment he mentions one in chat.
  */
 export async function logMeal(
+  ctx: Ctx,
   input: LogMealInput,
-  db: Queryable = pool,
   zone?: string,
 ): Promise<{ meal: Meal; today: Macros }> {
-  const timezone = zone ?? (await athleteZone(db));
+  const timezone = zone ?? (await athleteZone(ctx));
 
   if (!SLOTS.includes(input.slot)) {
     throw badRequest(`slot must be one of ${SLOTS.join(', ')}`);
   }
 
-  const { rows } = await db.query<MealRow>(
-    `insert into meals (eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, food_id, source)
-     values (coalesce($1::timestamptz, now()), $2, $3, $4, $5, $6, $7, $8, $9)
+  const { rows } = await ctx.db.query<MealRow>(
+    `insert into meals
+       (user_id, eaten_at, slot, description, kcal, protein_g, fat_g, carbs_g, food_id, source)
+     values ($1, coalesce($2::timestamptz, now()), $3, $4, $5, $6, $7, $8, $9, $10)
      returning ${MEAL_COLUMNS}`,
     [
+      ctx.userId,
       input.eatenAt ?? null,
       input.slot,
       input.description,
@@ -96,41 +98,40 @@ export async function logMeal(
   );
 
   // Keeps the food screen ordered by what he actually reaches for.
-  if (input.foodId != null) await recordUse(input.foodId, db);
+  if (input.foodId != null) await recordUse(ctx, input.foodId);
 
-  return { meal: toMeal(rows[0]!), today: await macrosToday(db, timezone) };
+  return { meal: toMeal(rows[0]!), today: await macrosToday(ctx, timezone) };
 }
 
 /**
  * What he has eaten today, where "today" is his day — a dinner logged at 21:00
  * is that day's dinner in Boston as much as in Berlin.
  */
-export async function mealsToday(db: Queryable = pool, zone?: string): Promise<Meal[]> {
-  const timezone = zone ?? (await athleteZone(db));
+export async function mealsToday(ctx: Ctx, zone?: string): Promise<Meal[]> {
+  const timezone = zone ?? (await athleteZone(ctx));
   const { from, until } = dayRangeIn(timezone, dayIn(timezone));
 
-  const { rows } = await db.query<MealRow>(
+  const { rows } = await ctx.db.query<MealRow>(
     `select ${MEAL_COLUMNS} from meals
-     where eaten_at >= $1 and eaten_at < $2
+     where user_id = $1 and eaten_at >= $2 and eaten_at < $3
      order by eaten_at`,
-    [from, until],
+    [ctx.userId, from, until],
   );
   return rows.map(toMeal);
 }
 
 /** Undo a mis-tap. Returns what today looks like afterwards. */
-export async function deleteMeal(
-  id: number,
-  db: Queryable = pool,
-  zone?: string,
-): Promise<{ today: Macros }> {
-  const { rowCount } = await db.query('delete from meals where id = $1', [id]);
+export async function deleteMeal(ctx: Ctx, id: number, zone?: string): Promise<{ today: Macros }> {
+  const { rowCount } = await ctx.db.query('delete from meals where id = $1 and user_id = $2', [
+    id,
+    ctx.userId,
+  ]);
   if (!rowCount) throw notFound(`No meal ${id}`);
-  return { today: await macrosToday(db, zone) };
+  return { today: await macrosToday(ctx, zone) };
 }
 
-export async function macrosToday(db: Queryable = pool, zone?: string): Promise<Macros> {
-  const meals = await mealsToday(db, zone);
+export async function macrosToday(ctx: Ctx, zone?: string): Promise<Macros> {
+  const meals = await mealsToday(ctx, zone);
   return sumMacros(meals.map(mealToMacros));
 }
 

@@ -9,7 +9,7 @@
  * Cardio is deliberately absent. There is nowhere to log it yet, and showing a
  * "0 of 2 zone-2" he has no way to satisfy would be inventing a failure.
  */
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { addDays, dayIn, daySpanIn, weekdayOf } from '../domain/time';
 import { getProfile } from './profile';
 
@@ -41,8 +41,8 @@ export type Week = {
 
 const WEEKDAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
-export async function getWeek(db: Queryable = pool): Promise<Week> {
-  const profile = await getProfile(db);
+export async function getWeek(ctx: Ctx): Promise<Week> {
+  const profile = await getProfile(ctx);
   const asOf = dayIn(profile.timezone);
   const firstDay = addDays(asOf, -6);
   const span = daySpanIn(profile.timezone, firstDay, asOf);
@@ -51,28 +51,29 @@ export async function getWeek(db: Queryable = pool): Promise<Week> {
   // read the database session's timezone instead, and a late session would slide
   // into the wrong column of the strip.
   const [sessions, weights, meals] = await Promise.all([
-    db.query<{ day: string; template: string | null; sets: number }>(
-      `select to_char(s.performed_at at time zone $3, 'YYYY-MM-DD') as day,
+    ctx.db.query<{ day: string; template: string | null; sets: number }>(
+      `select to_char(s.performed_at at time zone $4, 'YYYY-MM-DD') as day,
               max(s.template) as template,
               count(st.id)::int as sets
        from sessions s
        left join sets st on st.session_id = s.id
-       where s.performed_at >= $1 and s.performed_at < $2 and s.rpe is not null
+       where s.user_id = $1 and s.performed_at >= $2 and s.performed_at < $3
+         and s.rpe is not null
        group by 1`,
-      [span.from, span.until, profile.timezone],
+      [ctx.userId, span.from, span.until, profile.timezone],
     ),
-    db.query<{ day: string; weight_kg: number }>(
+    ctx.db.query<{ day: string; weight_kg: number }>(
       `select to_char(measured_on, 'YYYY-MM-DD') as day, weight_kg
-       from bodyweight where measured_on >= $1::date`,
-      [firstDay],
+       from bodyweight where user_id = $1 and measured_on >= $2::date`,
+      [ctx.userId, firstDay],
     ),
-    db.query<{ day: string; protein: number; kcal: number }>(
-      `select to_char(eaten_at at time zone $3, 'YYYY-MM-DD') as day,
+    ctx.db.query<{ day: string; protein: number; kcal: number }>(
+      `select to_char(eaten_at at time zone $4, 'YYYY-MM-DD') as day,
               coalesce(sum(protein_g), 0)::int as protein,
               coalesce(sum(kcal), 0)::int as kcal
-       from meals where eaten_at >= $1 and eaten_at < $2
+       from meals where user_id = $1 and eaten_at >= $2 and eaten_at < $3
        group by 1`,
-      [span.from, span.until, profile.timezone],
+      [ctx.userId, span.from, span.until, profile.timezone],
     ),
   ]);
 

@@ -1,5 +1,4 @@
-import type { PoolClient } from 'pg';
-import { type Queryable, pool, transaction } from '../db';
+import { type Ctx, transactionFor } from '../db';
 import { badRequest, notFound } from '../errors';
 import { type Session, getSession } from './sessions';
 
@@ -21,8 +20,8 @@ export type RecordSetInput = {
  * rather than assuming the write landed.
  */
 export async function recordSet(
+  ctx: Ctx,
   input: RecordSetInput,
-  client?: PoolClient,
 ): Promise<{ setId: number; session: Session }> {
   if (input.setIndex < 1) throw badRequest('setIndex starts at 1');
   if (input.reps < 0) throw badRequest('reps cannot be negative');
@@ -31,22 +30,30 @@ export async function recordSet(
     throw badRequest('rir must be between 0 and 10');
   }
 
-  const run = async (db: PoolClient) => {
-    const session = await db.query('select id from sessions where id = $1', [input.sessionId]);
+  const run = async (inner: Ctx) => {
+    const session = await inner.db.query('select id from sessions where id = $1 and user_id = $2', [
+      input.sessionId,
+      inner.userId,
+    ]);
     if (!session.rowCount) throw notFound(`No session ${input.sessionId}`);
 
-    const exercise = await db.query('select id from exercises where id = $1', [input.exerciseId]);
+    // Exercises are a shared catalog of movements, not anyone's data, so this
+    // one lookup is deliberately unscoped.
+    const exercise = await inner.db.query('select id from exercises where id = $1', [
+      input.exerciseId,
+    ]);
     if (!exercise.rowCount) throw notFound(`No exercise ${input.exerciseId}`);
 
-    const { rows } = await db.query<{ id: number }>(
-      `insert into sets (session_id, exercise_id, set_index, weight_kg, reps, rir)
-       values ($1, $2, $3, $4, $5, $6)
+    const { rows } = await inner.db.query<{ id: number }>(
+      `insert into sets (user_id, session_id, exercise_id, set_index, weight_kg, reps, rir)
+       values ($1, $2, $3, $4, $5, $6, $7)
        on conflict (session_id, exercise_id, set_index) do update
          set weight_kg = excluded.weight_kg,
              reps      = excluded.reps,
              rir       = excluded.rir
        returning id`,
       [
+        inner.userId,
         input.sessionId,
         input.exerciseId,
         input.setIndex,
@@ -56,19 +63,19 @@ export async function recordSet(
       ],
     );
 
-    return { setId: rows[0]!.id, session: await getSession(input.sessionId, db) };
+    return { setId: rows[0]!.id, session: await getSession(inner, input.sessionId) };
   };
 
-  return client ? run(client) : transaction(run);
+  return ctx.inTransaction ? run(ctx) : transactionFor(ctx, run);
 }
 
 /** Deleting a mis-tap. Returns the session so the logger can re-render. */
-export async function deleteSet(id: number, db: Queryable = pool): Promise<Session> {
-  const { rows } = await db.query<{ session_id: number }>(
-    'delete from sets where id = $1 returning session_id',
-    [id],
+export async function deleteSet(ctx: Ctx, id: number): Promise<Session> {
+  const { rows } = await ctx.db.query<{ session_id: number }>(
+    'delete from sets where id = $1 and user_id = $2 returning session_id',
+    [id, ctx.userId],
   );
   const row = rows[0];
   if (!row) throw notFound(`No set ${id}`);
-  return getSession(row.session_id, db);
+  return getSession(ctx, row.session_id);
 }

@@ -5,6 +5,7 @@
  * conversation across app launches, and so a tool call made yesterday is still
  * visible context today.
  */
+import type { Ctx } from '../db';
 import { pool, query } from '../db';
 import { assembleContext } from './context';
 import { runTool } from './handlers';
@@ -32,18 +33,24 @@ type MessageRow = {
   created_at: Date;
 };
 
-async function persist(role: Turn['role'], content: Record<string, unknown>): Promise<void> {
-  await pool.query('insert into chat_messages (role, content) values ($1, $2)', [
+async function persist(
+  ctx: Ctx,
+  role: Turn['role'],
+  content: Record<string, unknown>,
+): Promise<void> {
+  await ctx.db.query('insert into chat_messages (user_id, role, content) values ($1, $2, $3)', [
+    ctx.userId,
     role,
     JSON.stringify(content),
   ]);
 }
 
-async function loadHistory(): Promise<Turn[]> {
-  const rows = await query<MessageRow>(
+async function loadHistory(ctx: Ctx): Promise<Turn[]> {
+  const { rows } = await ctx.db.query<MessageRow>(
     `select id, role, content, created_at from chat_messages
-     order by id desc limit $1`,
-    [HISTORY_TURNS],
+     where user_id = $1
+     order by id desc limit $2`,
+    [ctx.userId, HISTORY_TURNS],
   );
 
   return rows
@@ -68,12 +75,12 @@ async function loadHistory(): Promise<Turn[]> {
 }
 
 /** What the app shows in the chat tab. */
-export async function history(limit = 50): Promise<ChatMessage[]> {
-  const rows = await query<MessageRow>(
+export async function history(ctx: Ctx, limit = 50): Promise<ChatMessage[]> {
+  const { rows } = await ctx.db.query<MessageRow>(
     `select id, role, content, created_at from chat_messages
-     where role in ('user', 'model')
-     order by id desc limit $1`,
-    [limit],
+     where user_id = $1 and role in ('user', 'model')
+     order by id desc limit $2`,
+    [ctx.userId, limit],
   );
 
   return rows
@@ -95,14 +102,14 @@ export type ChatReply = {
   usage: { promptTokens: number; outputTokens: number; totalTokens: number };
 };
 
-export async function sendMessage(text: string): Promise<ChatReply> {
+export async function sendMessage(ctx: Ctx, text: string): Promise<ChatReply> {
   const trimmed = text.trim();
   if (!trimmed) throw new LlmError('Empty message', false);
 
-  const priorTurns = await loadHistory();
-  await persist('user', { text: trimmed });
+  const priorTurns = await loadHistory(ctx);
+  await persist(ctx, 'user', { text: trimmed });
 
-  const systemInstruction = trainerSystemInstruction(await assembleContext());
+  const systemInstruction = trainerSystemInstruction(await assembleContext(ctx));
   const turns: Turn[] = [...priorTurns, { role: 'user', text: trimmed }];
 
   const ranTools: { name: string; ok: boolean }[] = [];
@@ -130,11 +137,11 @@ export async function sendMessage(text: string): Promise<ChatReply> {
     turns.push(modelTurn);
 
     if (output.toolCalls.length === 0) {
-      await persist('model', { text: output.text, opaque: output.opaque, ranTools });
+      await persist(ctx, 'model', { text: output.text, opaque: output.opaque, ranTools });
       return { text: output.text, ranTools, usage };
     }
 
-    await persist('model', {
+    await persist(ctx, 'model', {
       text: output.text,
       toolCalls: output.toolCalls,
       opaque: output.opaque,
@@ -142,18 +149,18 @@ export async function sendMessage(text: string): Promise<ChatReply> {
 
     const results: ToolResult[] = [];
     for (const call of output.toolCalls) {
-      const result = await runTool(call);
+      const result = await runTool(ctx, call);
       ranTools.push({ name: call.name, ok: result.ok !== false });
       results.push({ id: call.id, name: call.name, result });
     }
 
     turns.push({ role: 'tool', results });
-    await persist('tool', { results });
+    await persist(ctx, 'tool', { results });
   }
 
   // Ran out of rounds. Say so rather than returning silence.
   const fallback =
     'I got stuck working through that — say it again and I will keep it simpler.';
-  await persist('model', { text: fallback, ranTools });
+  await persist(ctx, 'model', { text: fallback, ranTools });
   return { text: fallback, ranTools, usage };
 }

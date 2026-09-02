@@ -6,7 +6,7 @@
  * the second scan of the same tub needs no network at all.
  */
 import { badRequest, notFound } from '../errors';
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { type Food, createFood } from './foods';
 
 const ENDPOINT = 'https://world.openfoodfacts.org/api/v2/product';
@@ -44,16 +44,13 @@ const num = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? Number(parsed) : null;
 };
 
-export async function lookupBarcode(
-  barcode: string,
-  db: Queryable = pool,
-): Promise<BarcodeCandidate> {
+export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeCandidate> {
   const code = barcode.trim();
   if (!/^\d{6,14}$/.test(code)) throw badRequest('That does not look like a barcode');
 
   // His own library first: he may have corrected the macros, and his numbers
   // should always beat the crowd-sourced ones.
-  const { rows } = await db.query<{
+  const { rows } = await ctx.db.query<{
     name: string;
     kcal: number;
     protein_g: number;
@@ -61,8 +58,8 @@ export async function lookupBarcode(
     carbs_g: number | null;
   }>(
     `select name, kcal, protein_g, fat_g, carbs_g from foods
-     where barcode = $1 and not archived limit 1`,
-    [code],
+     where user_id = $1 and barcode = $2 and not archived limit 1`,
+    [ctx.userId, code],
   );
 
   const mine = rows[0];
@@ -131,22 +128,19 @@ export async function lookupBarcode(
 
 /** Saves a scanned product into his library so the next scan is offline. */
 export async function saveScanned(
+  ctx: Ctx,
   candidate: { barcode: string; name: string; kcal: number; proteinG: number; fatG?: number | null; carbsG?: number | null },
-  db: Queryable = pool,
 ): Promise<Food> {
-  const food = await createFood(
-    {
-      name: candidate.name,
-      kcal: candidate.kcal,
-      proteinG: candidate.proteinG,
-      fatG: candidate.fatG ?? null,
-      carbsG: candidate.carbsG ?? null,
-    },
-    db,
+  const food = await createFood(ctx, {
+    name: candidate.name,
+    kcal: candidate.kcal,
+    proteinG: candidate.proteinG,
+    fatG: candidate.fatG ?? null,
+    carbsG: candidate.carbsG ?? null,
+  });
+  await ctx.db.query(
+    'update foods set barcode = $3 where id = $1 and user_id = $2 and barcode is null',
+    [food.id, ctx.userId, candidate.barcode],
   );
-  await db.query('update foods set barcode = $2 where id = $1 and barcode is null', [
-    food.id,
-    candidate.barcode,
-  ]);
   return food;
 }

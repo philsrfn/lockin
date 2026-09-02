@@ -5,7 +5,7 @@
  * job that produced it, and it must never block a write. He can always open
  * the app.
  */
-import { type Queryable, pool } from './db';
+import type { Ctx } from './db';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -17,32 +17,45 @@ export type PushMessage = {
 };
 
 export async function registerToken(
+  ctx: Ctx,
   token: string,
   platform: string | null,
-  db: Queryable = pool,
 ): Promise<void> {
-  await db.query(
-    `insert into push_tokens (token, platform) values ($1, $2)
-     on conflict (token) do update set last_seen_at = now(), platform = excluded.platform`,
-    [token, platform],
+  // A reinstall issues a new token; the same token arriving under a different
+  // user means the device changed hands, and it should follow the device.
+  await ctx.db.query(
+    `insert into push_tokens (user_id, token, platform) values ($1, $2, $3)
+     on conflict (token) do update
+       set last_seen_at = now(), platform = excluded.platform, user_id = excluded.user_id`,
+    [ctx.userId, token, platform],
   );
 }
 
-export async function listTokens(db: Queryable = pool): Promise<string[]> {
-  const { rows } = await db.query<{ token: string }>('select token from push_tokens');
+export async function listTokens(ctx: Ctx): Promise<string[]> {
+  const { rows } = await ctx.db.query<{ token: string }>(
+    'select token from push_tokens where user_id = $1',
+    [ctx.userId],
+  );
   return rows.map((row) => row.token);
 }
 
 /** A token Expo tells us is dead is removed, or every send retries it forever. */
-async function dropToken(token: string, db: Queryable): Promise<void> {
-  await db.query('delete from push_tokens where token = $1', [token]);
+async function dropToken(ctx: Ctx, token: string): Promise<void> {
+  await ctx.db.query('delete from push_tokens where token = $1 and user_id = $2', [
+    token,
+    ctx.userId,
+  ]);
 }
 
+/**
+ * Addressed, never broadcast. Before this every push went to every registered
+ * device in the system — a second user would have received Phil's 07:30 nudge.
+ */
 export async function sendPush(
+  ctx: Ctx,
   message: PushMessage,
-  db: Queryable = pool,
 ): Promise<{ sent: number; failed: number }> {
-  const tokens = await listTokens(db);
+  const tokens = await listTokens(ctx);
   if (tokens.length === 0) return { sent: 0, failed: 0 };
 
   const payload = tokens.map((to) => ({
@@ -82,7 +95,7 @@ export async function sendPush(
       failed += 1;
       if (entry.details?.error === 'DeviceNotRegistered') {
         const token = tokens[index];
-        if (token) await dropToken(token, db);
+        if (token) await dropToken(ctx, token);
       }
     }),
   );

@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../db';
 import type { SyncOp } from '../../schemas';
-import { exerciseIdByName, isoDaysAgo, resetData } from '../../test/helpers';
+import { exerciseIdByName, isoDaysAgo, resetData, phil } from '../../test/helpers';
 import { listSessions } from '../sessions';
 import { drain } from '../sync';
 
@@ -39,7 +39,7 @@ describe('drain', () => {
     const sessionClientId = randomUUID();
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    const results = await drain([
+    const results = await drain(phil, [
       createSessionOp(sessionClientId),
       recordSetOp({ exerciseId, sessionClientId }),
       { clientId: randomUUID(), op: 'finish_session', payload: { sessionClientId, rpe: 8 } },
@@ -47,7 +47,7 @@ describe('drain', () => {
 
     expect(results.map((result) => result.status)).toEqual(['applied', 'applied', 'applied']);
 
-    const [session] = await listSessions();
+    const [session] = await listSessions(phil);
     expect(session?.sets).toHaveLength(1);
     expect(session?.rpe).toBe(8);
   });
@@ -56,13 +56,13 @@ describe('drain', () => {
     const sessionClientId = randomUUID();
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    await drain([
+    await drain(phil, [
       createSessionOp(sessionClientId),
       recordSetOp({ exerciseId, sessionClientId, setIndex: 1 }),
       recordSetOp({ exerciseId, sessionClientId, setIndex: 2 }),
     ]);
 
-    const [session] = await listSessions();
+    const [session] = await listSessions(phil);
     expect(session?.sets.map((set) => set.setIndex)).toEqual([1, 2]);
   });
 
@@ -75,12 +75,12 @@ describe('drain', () => {
       recordSetOp({ exerciseId, sessionClientId }, setClientId),
     ];
 
-    await drain(batch);
-    const replay = await drain(batch);
+    await drain(phil, batch);
+    const replay = await drain(phil, batch);
 
     expect(replay.map((result) => result.status)).toEqual(['duplicate', 'duplicate']);
 
-    const sessions = await listSessions();
+    const sessions = await listSessions(phil);
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.sets).toHaveLength(1);
   });
@@ -88,8 +88,8 @@ describe('drain', () => {
   it('returns the original result on a replay, so the phone can still resolve ids', async () => {
     const clientId = randomUUID();
 
-    const first = await drain([createSessionOp(clientId)]);
-    const second = await drain([createSessionOp(clientId)]);
+    const first = await drain(phil, [createSessionOp(clientId)]);
+    const second = await drain(phil, [createSessionOp(clientId)]);
 
     expect(second[0]?.status).toBe('duplicate');
     expect((second[0]?.data as { id: number }).id).toBe((first[0]?.data as { id: number }).id);
@@ -99,7 +99,7 @@ describe('drain', () => {
     const sessionClientId = randomUUID();
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    const results = await drain([
+    const results = await drain(phil, [
       createSessionOp(sessionClientId),
       recordSetOp({ exerciseId, sessionClientId, setIndex: 1 }),
       // Exercise 9999 does not exist — a stale local library, say.
@@ -114,7 +114,7 @@ describe('drain', () => {
       'applied',
     ]);
 
-    const [session] = await listSessions();
+    const [session] = await listSessions(phil);
     expect(session?.sets.map((set) => set.setIndex)).toEqual([1, 3]);
   });
 
@@ -122,7 +122,7 @@ describe('drain', () => {
     const sessionClientId = randomUUID();
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    const [, failure] = await drain([
+    const [, failure] = await drain(phil, [
       createSessionOp(sessionClientId),
       recordSetOp({ exerciseId: 9999, sessionClientId }),
     ]);
@@ -135,10 +135,10 @@ describe('drain', () => {
     const clientId = randomUUID();
     const sessionClientId = randomUUID();
     const exerciseId = await exerciseIdByName('Back Squat');
-    await drain([createSessionOp(sessionClientId)]);
+    await drain(phil, [createSessionOp(sessionClientId)]);
 
-    await drain([recordSetOp({ exerciseId: 9999, sessionClientId }, clientId)]);
-    const retried = await drain([recordSetOp({ exerciseId, sessionClientId }, clientId)]);
+    await drain(phil, [recordSetOp({ exerciseId: 9999, sessionClientId }, clientId)]);
+    const retried = await drain(phil, [recordSetOp({ exerciseId, sessionClientId }, clientId)]);
 
     expect(retried[0]?.status).toBe('applied');
   });
@@ -146,36 +146,36 @@ describe('drain', () => {
   it('fails a set whose session never synced rather than inventing one', async () => {
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    const [result] = await drain([recordSetOp({ exerciseId, sessionClientId: randomUUID() })]);
+    const [result] = await drain(phil, [recordSetOp({ exerciseId, sessionClientId: randomUUID() })]);
 
     expect(result?.status).toBe('failed');
     expect(result?.error).toContain('No synced session');
-    expect(await listSessions()).toEqual([]);
+    expect(await listSessions(phil)).toEqual([]);
   });
 
   it('fails a set that names no session at all', async () => {
     const exerciseId = await exerciseIdByName('Back Squat');
 
-    const [result] = await drain([recordSetOp({ exerciseId })]);
+    const [result] = await drain(phil, [recordSetOp({ exerciseId })]);
 
     expect(result?.error).toContain('Either sessionId or sessionClientId is required');
   });
 
   it('accepts a server session id directly, for a set queued after the session synced', async () => {
     const exerciseId = await exerciseIdByName('Back Squat');
-    const [created] = await drain([createSessionOp()]);
+    const [created] = await drain(phil, [createSessionOp()]);
     const sessionId = (created?.data as { id: number }).id;
 
-    const [result] = await drain([recordSetOp({ exerciseId, sessionId })]);
+    const [result] = await drain(phil, [recordSetOp({ exerciseId, sessionId })]);
 
     expect(result?.status).toBe('applied');
   });
 
   it('rolls the op back entirely when its write fails half-way', async () => {
     const sessionClientId = randomUUID();
-    await drain([createSessionOp(sessionClientId)]);
+    await drain(phil, [createSessionOp(sessionClientId)]);
 
-    const [result] = await drain([
+    const [result] = await drain(phil, [
       recordSetOp({ exerciseId: 9999, sessionClientId }, randomUUID()),
     ]);
 
@@ -185,7 +185,7 @@ describe('drain', () => {
   });
 
   it('syncs a weigh-in queued from the scale in the morning', async () => {
-    const [result] = await drain([
+    const [result] = await drain(phil, [
       {
         clientId: randomUUID(),
         op: 'log_weight',
@@ -198,18 +198,18 @@ describe('drain', () => {
   });
 
   it('handles an empty batch without complaint', async () => {
-    expect(await drain([])).toEqual([]);
+    expect(await drain(phil, [])).toEqual([]);
   });
 
   it('applies two independent sessions from one drain', async () => {
     const first = randomUUID();
     const second = randomUUID();
 
-    await drain([
+    await drain(phil, [
       { clientId: first, op: 'create_session', payload: { template: 'A' } },
       { clientId: second, op: 'create_session', payload: { template: 'B' } },
     ]);
 
-    expect((await listSessions()).map((session) => session.template).sort()).toEqual(['A', 'B']);
+    expect((await listSessions(phil)).map((session) => session.template).sort()).toEqual(['A', 'B']);
   });
 });

@@ -12,7 +12,7 @@
 import { LlmError } from './provider';
 import { log } from '../logging';
 import { geminiProvider } from './gemini';
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { remaining } from '../domain/macros';
 import { validateMealPlan } from '../rules/validator';
 import { listRules } from '../services/rules';
@@ -148,18 +148,15 @@ const PLAN_SCHEMA = {
  * Planning against the full target at 8pm is how you get told to eat 2300 kcal
  * on top of what you already ate.
  */
-export async function generateMealPlan(
-  items: FridgeItem[],
-  db: Queryable = pool,
-): Promise<MealPlan> {
+export async function generateMealPlan(ctx: Ctx, items: FridgeItem[]): Promise<MealPlan> {
   if (items.length === 0) throw new LlmError('Nothing in the list to cook with', false);
 
   const [profile, consumed, context, rules, logged] = await Promise.all([
-    getProfile(db),
-    macrosToday(db),
-    activeContext(db),
-    listRules(db),
-    mealsToday(db),
+    getProfile(ctx),
+    macrosToday(ctx),
+    activeContext(ctx),
+    listRules(ctx),
+    mealsToday(ctx),
   ]);
 
   const left = remaining(macroTargets(profile), consumed);

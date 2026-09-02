@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { badRequest } from '../errors';
 import { addDays, dayIn } from '../domain/time';
 import { athleteZone } from './clock';
@@ -27,36 +27,33 @@ export type WeightSummary = {
 };
 
 export async function listEntries(
+  ctx: Ctx,
   days: number,
-  db: Queryable = pool,
   zone?: string,
 ): Promise<WeightEntry[]> {
   // Counted from his today, not the database server's. `measured_on` is a bare
   // date, so the window is calendar arithmetic rather than an interval.
-  const asOf = dayIn(zone ?? (await athleteZone(db)));
-  const { rows } = await db.query<{ measured_on: string; weight_kg: number }>(
+  const asOf = dayIn(zone ?? (await athleteZone(ctx)));
+  const { rows } = await ctx.db.query<{ measured_on: string; weight_kg: number }>(
     `select measured_on, weight_kg
      from bodyweight
-     where measured_on >= $1::date
+     where user_id = $1 and measured_on >= $2::date
      order by measured_on`,
-    [addDays(asOf, -days)],
+    [ctx.userId, addDays(asOf, -days)],
   );
   return rows.map((row) => ({ measuredOn: row.measured_on, weightKg: row.weight_kg }));
 }
 
-export async function summary(
-  days = 30,
-  db: Queryable = pool,
-  zone?: string,
-): Promise<WeightSummary> {
-  const timezone = zone ?? (await athleteZone(db));
+export async function summary(ctx: Ctx, days = 30, zone?: string): Promise<WeightSummary> {
+  const timezone = zone ?? (await athleteZone(ctx));
   // Reach back an extra fortnight so the oldest points in the series still have
   // a full window behind them, and so week-over-week has a prior week to use.
-  const entries = await listEntries(days + 14, db, timezone);
+  const entries = await listEntries(ctx, days + 14, timezone);
   const asOf = dayIn(timezone);
 
-  const { rows } = await db.query<{ goal_weight_kg: number | null }>(
-    'select goal_weight_kg from profile where id = 1',
+  const { rows } = await ctx.db.query<{ goal_weight_kg: number | null }>(
+    'select goal_weight_kg from profile where user_id = $1',
+    [ctx.userId],
   );
 
   const latest = entries.length > 0 ? entries[entries.length - 1]! : null;
@@ -80,11 +77,11 @@ export type LogWeightInput = {
  * morning number rather than skewing the average with a duplicate.
  */
 export async function logWeight(
+  ctx: Ctx,
   input: LogWeightInput,
-  db: Queryable = pool,
   zone?: string,
 ): Promise<{ entry: WeightEntry; summary: WeightSummary }> {
-  const timezone = zone ?? (await athleteZone(db));
+  const timezone = zone ?? (await athleteZone(ctx));
   const measuredOn = input.measuredOn ?? dayIn(timezone);
 
   if (!ISO_DATE.test(measuredOn)) {
@@ -97,17 +94,17 @@ export async function logWeight(
     throw badRequest(`weightKg must be between ${MIN_PLAUSIBLE_KG} and ${MAX_PLAUSIBLE_KG}`);
   }
 
-  const { rows } = await db.query<{ measured_on: string; weight_kg: number }>(
-    `insert into bodyweight (measured_on, weight_kg)
-     values ($1, $2)
-     on conflict (measured_on) do update set weight_kg = excluded.weight_kg
+  const { rows } = await ctx.db.query<{ measured_on: string; weight_kg: number }>(
+    `insert into bodyweight (user_id, measured_on, weight_kg)
+     values ($1, $2, $3)
+     on conflict (user_id, measured_on) do update set weight_kg = excluded.weight_kg
      returning measured_on, weight_kg`,
-    [measuredOn, input.weightKg],
+    [ctx.userId, measuredOn, input.weightKg],
   );
 
   const row = rows[0]!;
   return {
     entry: { measuredOn: row.measured_on, weightKg: row.weight_kg },
-    summary: await summary(30, db, timezone),
+    summary: await summary(ctx, 30, timezone),
   };
 }

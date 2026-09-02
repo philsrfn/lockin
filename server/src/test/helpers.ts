@@ -3,7 +3,22 @@
  * way the app builds them — through the services — so a test can never set up
  * state the application itself could not produce.
  */
-import { pool } from '../db';
+import { type Ctx, ctxFor, pool } from '../db';
+import { provisionUser } from '../services/users';
+
+/**
+ * The seeded athlete, user 1. Most tests act as him; the ones that care about
+ * isolation provision a second person with `anotherAthlete()`.
+ */
+export const phil: Ctx = ctxFor(1);
+
+/** A second athlete, with their own profile, context, rules and schedule. */
+export async function anotherAthlete(name = 'Sam'): Promise<Ctx> {
+  const { ctx } = await provisionUser({ name, timezone: 'Europe/Berlin' });
+  // The provisioning transaction has committed; hand back a pooled context
+  // rather than one bound to a client that has been released.
+  return ctxFor(ctx.userId);
+}
 
 /**
  * Tables the tests write to. Reference data (profile, contexts, exercises,
@@ -27,9 +42,10 @@ const TRANSACTIONAL_TABLES = [
 
 /** Between tests. Keeps ids predictable by restarting the sequences. */
 export async function resetData(): Promise<void> {
-  await pool.query(
-    `truncate ${TRANSACTIONAL_TABLES.join(', ')} restart identity cascade`,
-  );
+  await pool.query(`truncate ${TRANSACTIONAL_TABLES.join(', ')} restart identity cascade`);
+  // Athletes provisioned by a test, and the rows that came with them. User 1 is
+  // the seed and stays.
+  await pool.query('delete from users where id <> 1');
 }
 
 /** Back to the seeded targets, for tests that move them. */
@@ -39,7 +55,7 @@ export async function resetProfile(): Promise<void> {
      set calorie_target = 2300, protein_target_g = 190, fat_floor_g = 70,
          goal_weight_kg = 80, height_cm = 191, name = 'Phil',
          timezone = 'Europe/Berlin'
-     where id = 1`,
+     where user_id = 1`,
   );
 }
 
@@ -54,7 +70,7 @@ export async function exerciseIdByName(name: string): Promise<number> {
 
 export async function contextIdByName(name: string): Promise<number> {
   const { rows } = await pool.query<{ id: number }>(
-    'select id from contexts where name = $1',
+    'select id from contexts where name = $1 and user_id = 1',
     [name],
   );
   if (!rows[0]) throw new Error(`No seeded context named ${name}`);

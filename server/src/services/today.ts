@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { type Macros, type RemainingMacros, remaining } from '../domain/macros';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { type Context, activeContext } from './contexts';
@@ -43,31 +43,31 @@ export type Today = {
  * Everything the Today screen needs, in one round trip. On a bad gym wifi
  * connection two requests are twice the chance of neither arriving.
  */
-export async function getToday(db: Queryable = pool): Promise<Today> {
+export async function getToday(ctx: Ctx): Promise<Today> {
   // Resolved once and handed down, so every part of this payload agrees about
   // which day it is — and so the ten reads below do not each look it up again.
-  const profile = await getProfile(db);
+  const profile = await getProfile(ctx);
   const zone = profile.timezone;
   const today = dayIn(zone);
 
   const [context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week] =
     await Promise.all([
-    activeContext(db),
-    openSession(db),
-    weightSummary(30, db, zone),
-    macrosToday(db, zone),
-    recentSessions(7, db),
+    activeContext(ctx),
+    openSession(ctx),
+    weightSummary(ctx, 30, zone),
+    macrosToday(ctx, zone),
+    recentSessions(ctx, 7),
     // Read-only: whatever was generated earlier. Never generates here.
-    cachedNote(today, db),
-    mealsToday(db, zone),
-    sessionsToday(db, zone),
-    getWeek(db),
+    cachedNote(ctx, today),
+    mealsToday(ctx, zone),
+    sessionsToday(ctx, zone),
+    getWeek(ctx),
   ]);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
   // count its own sets as history when prescribing the next load.
-  const template = open?.template ?? (await upcomingTemplate(db));
-  const plan = await planFor(template, { excludeSessionId: open?.id }, db);
+  const template = open?.template ?? (await upcomingTemplate(ctx));
+  const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
   const targets = macroTargets(profile);
 

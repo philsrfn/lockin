@@ -8,6 +8,7 @@
  * { ok: false, error } so the trainer can say what went wrong instead of
  * pretending it worked.
  */
+import type { Ctx } from '../db';
 import { HttpError } from '../errors';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
@@ -26,8 +27,8 @@ export type ToolOutcome = Record<string, unknown> & { ok: boolean };
 const fail = (error: string, hint?: string): ToolOutcome => ({ ok: false, error, ...(hint ? { hint } : {}) });
 
 /** Exercise names come from the model, so match generously but never guess wildly. */
-async function resolveExercise(name: string) {
-  const exercises = await listExercises();
+async function resolveExercise(ctx: Ctx, name: string) {
+  const exercises = await listExercises(ctx.db);
   const wanted = name.trim().toLowerCase();
 
   return (
@@ -38,16 +39,19 @@ async function resolveExercise(name: string) {
   );
 }
 
-const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOutcome>> = {
-  async get_today() {
-    return { ok: true, today: await getToday() };
+const HANDLERS: Record<
+  string,
+  (ctx: Ctx, args: Record<string, unknown>) => Promise<ToolOutcome>
+> = {
+  async get_today(ctx) {
+    return { ok: true, today: await getToday(ctx) };
   },
 
-  async get_history(args) {
+  async get_history(ctx, args) {
     const days = Math.min(Math.max(Number(args.days ?? 14), 1), 90);
     const [sessions, weight] = await Promise.all([
-      listSessions(30),
-      weightSummary(days),
+      listSessions(ctx, 30),
+      weightSummary(ctx, days),
     ]);
     return {
       ok: true,
@@ -57,38 +61,38 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     };
   },
 
-  async set_context(args) {
+  async set_context(ctx, args) {
     const name = String(args.name ?? '').trim();
-    const contexts = await listContexts();
+    const contexts = await listContexts(ctx);
     const match = contexts.find(
       (context) => context.name.toLowerCase() === name.toLowerCase(),
     );
     if (!match) {
       return fail(`No context called "${name}"`, `Known: ${contexts.map((c) => c.name).join(', ')}`);
     }
-    return { ok: true, contexts: await activateContext(match.id) };
+    return { ok: true, contexts: await activateContext(ctx, match.id) };
   },
 
-  async log_weight(args) {
-    const result = await logWeight({
+  async log_weight(ctx, args) {
+    const result = await logWeight(ctx, {
       weightKg: Number(args.weightKg),
       measuredOn: args.measuredOn ? String(args.measuredOn) : undefined,
     });
     return { ok: true, entry: result.entry, average7: result.summary.average7, changeKg: result.summary.changeKg };
   },
 
-  async log_set(args) {
-    const session = await openSession();
+  async log_set(ctx, args) {
+    const session = await openSession(ctx);
     if (!session) {
       return fail('No session is open', 'Call log_session with action "start" first.');
     }
 
-    const exercise = await resolveExercise(String(args.exerciseName ?? ''));
+    const exercise = await resolveExercise(ctx, String(args.exerciseName ?? ''));
     if (!exercise) return fail(`No exercise matching "${args.exerciseName}"`);
 
     const alreadyLogged = session.sets.filter((set) => set.exerciseId === exercise.id).length;
 
-    const { session: updated } = await recordSet({
+    const { session: updated } = await recordSet(ctx, {
       sessionId: session.id,
       exerciseId: exercise.id,
       setIndex: alreadyLogged + 1,
@@ -100,27 +104,27 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     return { ok: true, exercise: exercise.name, session: updated };
   },
 
-  async log_session(args) {
+  async log_session(ctx, args) {
     const action = String(args.action ?? '');
 
     if (action === 'start') {
-      const existing = await openSession();
+      const existing = await openSession(ctx);
       if (existing) return { ok: true, alreadyOpen: true, session: existing };
 
       const template = ['A', 'B', 'C'].includes(String(args.template))
         ? (String(args.template) as 'A' | 'B' | 'C')
-        : await upcomingTemplate();
+        : await upcomingTemplate(ctx);
 
-      return { ok: true, session: await createSession({ template }) };
+      return { ok: true, session: await createSession(ctx, { template }) };
     }
 
     if (action === 'finish') {
-      const session = await openSession();
+      const session = await openSession(ctx);
       if (!session) return fail('No session is open to finish');
 
       return {
         ok: true,
-        session: await finishSession(session.id, {
+        session: await finishSession(ctx, session.id, {
           rpe: args.rpe === undefined ? null : Number(args.rpe),
           notes: args.notes === undefined ? null : String(args.notes),
           jointPain: args.jointPain === undefined ? undefined : Boolean(args.jointPain),
@@ -131,8 +135,8 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     return fail('action must be "start" or "finish"');
   },
 
-  async log_meal(args) {
-    const result = await logMeal({
+  async log_meal(ctx, args) {
+    const result = await logMeal(ctx, {
       slot: String(args.slot) as 'breakfast' | 'lunch' | 'dinner' | 'snack',
       description: String(args.description ?? ''),
       kcal: args.kcal === undefined ? null : Number(args.kcal),
@@ -140,7 +144,7 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
       source: args.source === undefined ? null : String(args.source),
     });
 
-    const profile = await getProfile();
+    const profile = await getProfile(ctx);
     return {
       ok: true,
       meal: result.meal,
@@ -150,9 +154,9 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     };
   },
 
-  async swap_exercise(args) {
-    const from = await resolveExercise(String(args.from ?? ''));
-    const to = await resolveExercise(String(args.to ?? ''));
+  async swap_exercise(ctx, args) {
+    const from = await resolveExercise(ctx, String(args.from ?? ''));
+    const to = await resolveExercise(ctx, String(args.to ?? ''));
     if (!from) return fail(`No exercise matching "${args.from}"`);
     if (!to) return fail(`No exercise matching "${args.to}"`);
 
@@ -162,22 +166,22 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
       );
     }
 
-    const session = await openSession();
+    const session = await openSession(ctx);
     return {
       ok: true,
       // A swap is a suggestion until he logs a set against it; nothing is
       // written here beyond telling him the right load to use.
-      prescription: await prescribeExercise(to.id, { excludeSessionId: session?.id }),
+      prescription: await prescribeExercise(ctx, to.id, { excludeSessionId: session?.id }),
       replaced: from.name,
     };
   },
 
-  async adjust_calorie_target(args) {
+  async adjust_calorie_target(ctx, args) {
     if (!String(args.reason ?? '').trim()) {
       return fail('A reason is required — he should always know why a target moved.');
     }
 
-    const { profile, refusals } = await updateTargets({
+    const { profile, refusals } = await updateTargets(ctx, {
       calorieTarget: args.calorieTarget === undefined ? undefined : Number(args.calorieTarget),
       proteinTargetG: args.proteinTargetG === undefined ? undefined : Number(args.proteinTargetG),
       goalWeightKg: args.goalWeightKg === undefined ? undefined : Number(args.goalWeightKg),
@@ -192,8 +196,8 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     };
   },
 
-  async add_rule(args) {
-    const result = await addRule({
+  async add_rule(ctx, args) {
+    const result = await addRule(ctx, {
       tier: String(args.tier) as 'hard' | 'soft' | 'never',
       text: String(args.text ?? ''),
       scope: args.scope === undefined ? null : String(args.scope),
@@ -206,17 +210,17 @@ const HANDLERS: Record<string, (args: Record<string, unknown>) => Promise<ToolOu
     };
   },
 
-  async deactivate_rule(args) {
-    return { ok: true, rule: await deactivateRule(Number(args.ruleId)), rules: await listRules() };
+  async deactivate_rule(ctx, args) {
+    return { ok: true, rule: await deactivateRule(ctx, Number(args.ruleId)), rules: await listRules(ctx) };
   },
 };
 
-export async function runTool(call: ToolCall): Promise<ToolOutcome> {
+export async function runTool(ctx: Ctx, call: ToolCall): Promise<ToolOutcome> {
   const handler = HANDLERS[call.name];
   if (!handler) return fail(`Unknown tool "${call.name}"`);
 
   try {
-    return await handler(call.args);
+    return await handler(ctx, call.args);
   } catch (error) {
     // A tool failure is information for the trainer, not a crashed request.
     const message = error instanceof HttpError ? error.message : 'Something went wrong';

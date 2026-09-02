@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import type { MacroTargets } from '../domain/macros';
 import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
 import { isValidTimeZone } from '../domain/time';
@@ -16,8 +16,8 @@ export type Profile = {
   fatFloorG: number;
 };
 
-export async function getProfile(db: Queryable = pool): Promise<Profile> {
-  const { rows } = await db.query<{
+export async function getProfile(ctx: Ctx): Promise<Profile> {
+  const { rows } = await ctx.db.query<{
     name: string | null;
     timezone: string;
     height_cm: number;
@@ -29,11 +29,12 @@ export async function getProfile(db: Queryable = pool): Promise<Profile> {
   }>(
     `select name, timezone, height_cm, birth_year, goal_weight_kg,
             calorie_target, protein_target_g, fat_floor_g
-     from profile where id = 1`,
+     from profile where user_id = $1`,
+    [ctx.userId],
   );
 
   const row = rows[0];
-  if (!row) throw new Error('Profile row is missing — did the seed migration run?');
+  if (!row) throw new Error(`No profile for user ${ctx.userId} — was the user provisioned?`);
 
   return {
     name: row.name,
@@ -59,10 +60,10 @@ export const macroTargets = (profile: Profile): MacroTargets => ({
  * honestly rather than quietly obeying.
  */
 export async function updateTargets(
+  ctx: Ctx,
   input: { calorieTarget?: number; proteinTargetG?: number; goalWeightKg?: number },
-  db: Queryable = pool,
 ): Promise<{ profile: Profile; refusals: string[] }> {
-  const current = await getProfile(db);
+  const current = await getProfile(ctx);
   const refusals: string[] = [];
 
   let calorieTarget = current.calorieTarget;
@@ -86,14 +87,14 @@ export async function updateTargets(
     goalWeightKg = verdict.value;
   }
 
-  await db.query(
+  await ctx.db.query(
     `update profile
-     set calorie_target = $1, protein_target_g = $2, goal_weight_kg = $3, updated_at = now()
-     where id = 1`,
-    [calorieTarget, proteinTargetG, goalWeightKg],
+     set calorie_target = $2, protein_target_g = $3, goal_weight_kg = $4, updated_at = now()
+     where user_id = $1`,
+    [ctx.userId, calorieTarget, proteinTargetG, goalWeightKg],
   );
 
-  return { profile: await getProfile(db), refusals };
+  return { profile: await getProfile(ctx), refusals };
 }
 
 /**
@@ -101,10 +102,13 @@ export async function updateTargets(
  * a zone the runtime does not know would make every date in the app throw at
  * the moment it is read rather than at the moment it is set.
  */
-export async function setTimezone(zone: string, db: Queryable = pool): Promise<Profile> {
+export async function setTimezone(ctx: Ctx, zone: string): Promise<Profile> {
   if (!isValidTimeZone(zone)) {
     throw badRequest(`${zone} is not a timezone this server knows`);
   }
-  await db.query('update profile set timezone = $1, updated_at = now() where id = 1', [zone]);
-  return getProfile(db);
+  await ctx.db.query(
+    'update profile set timezone = $2, updated_at = now() where user_id = $1',
+    [ctx.userId, zone],
+  );
+  return getProfile(ctx);
 }

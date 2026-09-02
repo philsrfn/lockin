@@ -12,7 +12,7 @@
  * replaced with the rotation, a swap across movement patterns is dropped, and
  * a sixth training day is refused by the §7 rest-day floor.
  */
-import { type Queryable, pool, queryOne } from '../db';
+import type { Ctx } from '../db';
 import { checkTrainingDays } from '../domain/safety';
 import { WEEKLY_TARGETS } from '../domain/templates';
 import { athleteToday } from '../services/clock';
@@ -120,11 +120,11 @@ const toNote = (row: NoteRow): CoachNote => ({
   swaps: row.swaps ?? [],
 });
 
-export async function cachedNote(date: string, db: Queryable = pool): Promise<CoachNote | null> {
-  const { rows } = await db.query<NoteRow>(
+export async function cachedNote(ctx: Ctx, date: string): Promise<CoachNote | null> {
+  const { rows } = await ctx.db.query<NoteRow>(
     `select for_date, session_type, template, headline, body, swaps, context_name
-     from coach_notes where for_date = $1`,
-    [date],
+     from coach_notes where user_id = $1 and for_date = $2`,
+    [ctx.userId, date],
   );
   return rows[0] ? toNote(rows[0]) : null;
 }
@@ -134,6 +134,7 @@ export async function cachedNote(date: string, db: Queryable = pool): Promise<Co
  * The model proposes; code disposes.
  */
 async function sanitise(
+  ctx: Ctx,
   raw: {
     sessionType?: string;
     template?: string;
@@ -156,11 +157,11 @@ async function sanitise(
   if (sessionType === 'strength') {
     template = ['A', 'B', 'C'].includes(String(raw.template))
       ? (raw.template as CoachNote['template'])
-      : await upcomingTemplate();
+      : await upcomingTemplate(ctx);
   }
 
   // A swap must stay inside the movement pattern, and both names must exist.
-  const exercises = await listExercises();
+  const exercises = await listExercises(ctx.db);
   const byName = new Map(exercises.map((exercise) => [exercise.name.toLowerCase(), exercise]));
   const swaps = (raw.swaps ?? []).filter((swap) => {
     const from = byName.get(String(swap.from).toLowerCase());
@@ -178,12 +179,12 @@ async function sanitise(
 }
 
 /** Generates the note, validates it, stores it. */
-export async function generateNote(forDate?: string): Promise<CoachNote> {
-  const date = forDate ?? (await athleteToday());
+export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNote> {
+  const date = forDate ?? (await athleteToday(ctx));
   const [context, sessions, week] = await Promise.all([
-    activeContext(),
-    recentSessions(7),
-    getWeek(),
+    activeContext(ctx),
+    recentSessions(ctx, 7),
+    getWeek(ctx),
   ]);
   // Calendar days, matching the strip on the home screen. A rolling window made
   // the coach claim three sessions while the screen beside it showed two.
@@ -196,7 +197,7 @@ export async function generateNote(forDate?: string): Promise<CoachNote> {
       {
         role: 'user',
         text:
-          `${await assembleContext()}\n\n` +
+          `${await assembleContext(ctx)}\n\n` +
           `Weekly targets: ${WEEKLY_TARGETS.strengthSessions} strength, ` +
           `${WEEKLY_TARGETS.zone2Sessions} × ${WEEKLY_TARGETS.zone2Minutes}min zone-2, ` +
           `${WEEKLY_TARGETS.stepsPerDay} steps/day.\n\n` +
@@ -221,12 +222,13 @@ export async function generateNote(forDate?: string): Promise<CoachNote> {
     throw new LlmError('The coach returned something that was not JSON', true);
   }
 
-  const note = await sanitise(parsed as never, strengthThisWeek);
+  const note = await sanitise(ctx, parsed as never, strengthThisWeek);
 
-  await pool.query(
-    `insert into coach_notes (for_date, session_type, template, headline, body, swaps, context_name)
-     values ($1, $2, $3, $4, $5, $6, $7)
-     on conflict (for_date) do update
+  await ctx.db.query(
+    `insert into coach_notes
+       (user_id, for_date, session_type, template, headline, body, swaps, context_name)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (user_id, for_date) do update
        set session_type = excluded.session_type,
            template     = excluded.template,
            headline     = excluded.headline,
@@ -235,6 +237,7 @@ export async function generateNote(forDate?: string): Promise<CoachNote> {
            context_name = excluded.context_name,
            created_at   = now()`,
     [
+      ctx.userId,
       date,
       note.sessionType,
       note.template,
@@ -252,20 +255,23 @@ export async function generateNote(forDate?: string): Promise<CoachNote> {
  * The note for today, generated at most once unless forced — or unless he has
  * moved city since it was written, which changes the gym and the food rules.
  */
-export async function noteForToday(options: { force?: boolean } = {}): Promise<CoachNote | null> {
-  const date = await athleteToday();
+export async function noteForToday(
+  ctx: Ctx,
+  options: { force?: boolean } = {},
+): Promise<CoachNote | null> {
+  const date = await athleteToday(ctx);
 
   if (!options.force) {
-    const cached = await cachedNote(date);
+    const cached = await cachedNote(ctx, date);
     if (cached) {
-      const stale = await queryOne<{ context_name: string | null }>(
-        'select context_name from coach_notes where for_date = $1',
-        [date],
+      const { rows } = await ctx.db.query<{ context_name: string | null }>(
+        'select context_name from coach_notes where user_id = $1 and for_date = $2',
+        [ctx.userId, date],
       );
-      const context = await activeContext();
-      if (stale?.context_name === (context?.name ?? null)) return cached;
+      const context = await activeContext(ctx);
+      if (rows[0]?.context_name === (context?.name ?? null)) return cached;
     }
   }
 
-  return generateNote(date);
+  return generateNote(ctx, date);
 }

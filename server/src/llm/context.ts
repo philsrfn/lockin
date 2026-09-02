@@ -19,28 +19,29 @@ import { planFor, upcomingTemplate } from '../services/workouts';
 import { openSession } from '../services/sessions';
 import { activeRulesFor } from '../rules/schema';
 import { dayIn } from '../domain/time';
+import type { Ctx } from '../db';
 
 const kg = (value: number | null | undefined, dp = 1) =>
   value == null ? 'unknown' : value.toFixed(dp).replace(/\.0$/, '');
 
 /** Assembles the ATHLETE / CONTEXT / RULES / RECENT / TODAY blocks of §10. */
-export async function assembleContext(): Promise<string> {
+export async function assembleContext(ctx: Ctx): Promise<string> {
   // His zone decides what "today" and "the last 14 days" mean in every line
   // below, so it is resolved before anything is read.
-  const profile = await getProfile();
+  const profile = await getProfile(ctx);
   const zone = profile.timezone;
   const asOf = dayIn(zone);
 
   const [context, rules, sessions, entries, meals, consumed, firstAt, open] =
     await Promise.all([
-      activeContext(),
-      listRules(),
-      recentSessions(14),
-      listEntries(28, undefined, zone),
-      mealsToday(undefined, zone),
-      macrosToday(undefined, zone),
-      firstSessionAt(),
-      openSession(),
+      activeContext(ctx),
+      listRules(ctx),
+      recentSessions(ctx, 14),
+      listEntries(ctx, 28, zone),
+      mealsToday(ctx, zone),
+      macrosToday(ctx, zone),
+      firstSessionAt(ctx),
+      openSession(ctx),
     ]);
 
   const average7 = movingAverage(entries, asOf);
@@ -54,8 +55,8 @@ export async function assembleContext(): Promise<string> {
   const gate = jointPainGate(finished);
   const ramp = rampIn(firstAt, new Date());
 
-  const template = open?.template ?? (await upcomingTemplate());
-  const plan = await planFor(template, { excludeSessionId: open?.id });
+  const template = open?.template ?? (await upcomingTemplate(ctx));
+  const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
   const scoped = activeRulesFor(rules, context?.name ?? null);
   const byTier = (tier: string) =>

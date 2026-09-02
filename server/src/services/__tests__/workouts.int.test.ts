@@ -8,7 +8,7 @@
  * merely computed.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { daysAgo, exerciseIdByName, resetData } from '../../test/helpers';
+import { daysAgo, exerciseIdByName, resetData, phil } from '../../test/helpers';
 import { createSession, finishSession } from '../sessions';
 import { recordSet } from '../sets';
 import { planFor, prescribeExercise, progress, upcomingTemplate } from '../workouts';
@@ -24,14 +24,14 @@ async function loggedSession(options: {
   rpe?: number;
   jointPain?: boolean;
 }) {
-  const session = await createSession({
+  const session = await createSession(phil, {
     template: options.template,
     performedAt: daysAgo(options.daysBack),
   });
   const exerciseId = await exerciseIdByName(options.exercise);
 
   for (const [index, set] of options.sets.entries()) {
-    await recordSet({
+    await recordSet(phil, {
       sessionId: session.id,
       exerciseId,
       setIndex: index + 1,
@@ -41,7 +41,7 @@ async function loggedSession(options: {
     });
   }
 
-  await finishSession(session.id, {
+  await finishSession(phil, session.id, {
     rpe: options.rpe ?? 8,
     jointPain: options.jointPain ?? false,
   });
@@ -53,26 +53,26 @@ const LONG_AGO = new Date(Date.now() - 400 * 86_400_000);
 
 describe('upcomingTemplate', () => {
   it('starts at A when he has never trained', async () => {
-    expect(await upcomingTemplate()).toBe('A');
+    expect(await upcomingTemplate(phil)).toBe('A');
   });
 
   it('rotates off the last session, not off the weekday', async () => {
-    await createSession({ template: 'A', performedAt: daysAgo(2) });
+    await createSession(phil, { template: 'A', performedAt: daysAgo(2) });
 
-    expect(await upcomingTemplate()).toBe('B');
+    expect(await upcomingTemplate(phil)).toBe('B');
   });
 
   it('wraps C back round to A', async () => {
-    await createSession({ template: 'A', performedAt: daysAgo(6) });
-    await createSession({ template: 'C', performedAt: daysAgo(2) });
+    await createSession(phil, { template: 'A', performedAt: daysAgo(6) });
+    await createSession(phil, { template: 'C', performedAt: daysAgo(2) });
 
-    expect(await upcomingTemplate()).toBe('A');
+    expect(await upcomingTemplate(phil)).toBe('A');
   });
 });
 
 describe('planFor', () => {
   it('lays out the whole template, with substitutes for each movement', async () => {
-    const plan = await planFor('A');
+    const plan = await planFor(phil, 'A');
 
     expect(plan.template).toBe('A');
     expect(plan.exercises.map((exercise) => exercise.name)).toEqual([
@@ -87,7 +87,7 @@ describe('planFor', () => {
   });
 
   it('leaves the weight blank the first time — he picks it, we record it', async () => {
-    const plan = await planFor('A');
+    const plan = await planFor(phil, 'A');
     const squat = plan.exercises[0];
 
     expect(squat?.weightKg).toBeNull();
@@ -107,7 +107,7 @@ describe('planFor', () => {
       ],
     });
 
-    const squat = (await planFor('A', { now: NOW })).exercises[0];
+    const squat = (await planFor(phil, 'A', { now: NOW })).exercises[0];
 
     expect(squat?.last?.sets).toHaveLength(3);
     expect(squat?.weightKg).toBe(87.5);
@@ -122,7 +122,7 @@ describe('planFor', () => {
       sets: [{ weightKg: 80, reps: 8 }],
     });
 
-    const plan = await planFor('A', { now: NOW });
+    const plan = await planFor(phil, 'A', { now: NOW });
 
     expect(plan.rampIn.active).toBe(true);
     expect(plan.exercises.every((exercise) => exercise.sets <= 2)).toBe(true);
@@ -136,7 +136,7 @@ describe('planFor', () => {
       sets: [{ weightKg: 80, reps: 8 }],
     });
 
-    const plan = await planFor('A', { now: NOW });
+    const plan = await planFor(phil, 'A', { now: NOW });
 
     expect(plan.rampIn.active).toBe(false);
     expect(plan.exercises[0]?.sets).toBe(3);
@@ -158,7 +158,7 @@ describe('planFor', () => {
       jointPain: true,
     });
 
-    const plan = await planFor('A', { now: LONG_AGO });
+    const plan = await planFor(phil, 'A', { now: LONG_AGO });
 
     expect(plan.jointPain.recommendDoctor).toBe(true);
     // Every set was at the top of the range — without the gate this would be a
@@ -175,8 +175,8 @@ describe('planFor', () => {
       sets: [{ weightKg: 80, reps: 8 }, { weightKg: 80, reps: 8 }, { weightKg: 80, reps: 8 }],
     });
 
-    const open = await createSession({ template: 'A' });
-    await recordSet({
+    const open = await createSession(phil, { template: 'A' });
+    await recordSet(phil, {
       sessionId: open.id,
       exerciseId: await exerciseIdByName('Back Squat'),
       setIndex: 1,
@@ -184,8 +184,8 @@ describe('planFor', () => {
       reps: 12,
     });
 
-    const withOpen = await planFor('A', { excludeSessionId: open.id, now: NOW });
-    const withoutExclusion = await planFor('A', { now: NOW });
+    const withOpen = await planFor(phil, 'A', { excludeSessionId: open.id, now: NOW });
+    const withoutExclusion = await planFor(phil, 'A', { now: NOW });
 
     // Mid-session, the target must still be what the *last* session earned.
     expect(withOpen.exercises[0]?.last?.sets).toHaveLength(3);
@@ -200,7 +200,7 @@ describe('planFor', () => {
       sets: [{ weightKg: 60, reps: 0 }, { weightKg: 90, reps: 8 }],
     });
 
-    const squat = (await planFor('A', { now: NOW })).exercises[0];
+    const squat = (await planFor(phil, 'A', { now: NOW })).exercises[0];
 
     expect(squat?.last?.sets.map((set) => set.reps)).toEqual([8]);
   });
@@ -215,27 +215,27 @@ describe('prescribeExercise', () => {
       sets: [{ weightKg: 160, reps: 8 }, { weightKg: 160, reps: 8 }, { weightKg: 160, reps: 8 }],
     });
 
-    const legPress = await prescribeExercise(await exerciseIdByName('Leg Press'), { now: NOW });
+    const legPress = await prescribeExercise(phil, await exerciseIdByName('Leg Press'), { now: NOW });
 
     expect(legPress.weightKg).toBe(160);
     expect(legPress.last?.sets).toHaveLength(3);
   });
 
   it('uses pattern defaults for a movement the templates never name', async () => {
-    const curl = await prescribeExercise(await exerciseIdByName('Barbell Curl'));
+    const curl = await prescribeExercise(phil, await exerciseIdByName('Barbell Curl'));
 
     expect(curl.incrementKg).toBe(1.25);
     expect(curl.restSeconds).toBe(60);
   });
 
   it('404s on an exercise that is not in the library', async () => {
-    await expect(prescribeExercise(9999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(prescribeExercise(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
 describe('progress', () => {
   it('is empty rather than zeroed before he has trained', async () => {
-    expect(await progress()).toEqual({
+    expect(await progress(phil)).toEqual({
       sessionCount: 0,
       setCount: 0,
       totalVolumeKg: 0,
@@ -251,7 +251,7 @@ describe('progress', () => {
       sets: [{ weightKg: 90, reps: 8 }, { weightKg: 90, reps: 8 }],
     });
 
-    const result = await progress();
+    const result = await progress(phil);
 
     expect(result.sessionCount).toBe(1);
     expect(result.setCount).toBe(2);
@@ -266,7 +266,7 @@ describe('progress', () => {
       sets: [{ weightKg: 90, reps: 5 }, { weightKg: 90, reps: 10 }, { weightKg: 90, reps: 8 }],
     });
 
-    const squat = (await progress()).exercises.find((entry) => entry.name === 'Back Squat');
+    const squat = (await progress(phil)).exercises.find((entry) => entry.name === 'Back Squat');
 
     expect(squat?.points).toHaveLength(1);
     expect(squat?.points[0]?.reps).toBe(10);
@@ -286,7 +286,7 @@ describe('progress', () => {
       sets: [{ weightKg: 90, reps: 3 }],
     });
 
-    const points = (await progress()).exercises[0]?.points ?? [];
+    const points = (await progress(phil)).exercises[0]?.points ?? [];
 
     // 80 × (1 + 8/30) = 101.3 against 90 × (1 + 3/30) = 99.
     expect(points[0]?.estimated1rm).toBeCloseTo(101.3, 1);
@@ -313,7 +313,7 @@ describe('progress', () => {
       sets: [{ weightKg: 60, reps: 10 }],
     });
 
-    const result = await progress();
+    const result = await progress(phil);
 
     expect(result.exercises[0]?.name).toBe('Back Squat');
     expect(result.exercises[0]?.points.map((point) => point.weightKg)).toEqual([80, 85]);
@@ -327,7 +327,7 @@ describe('progress', () => {
       sets: [{ weightKg: 80, reps: 8 }],
     });
 
-    expect((await progress(90)).exercises).toEqual([]);
-    expect((await progress(365)).exercises).toHaveLength(1);
+    expect((await progress(phil, 90)).exercises).toEqual([]);
+    expect((await progress(phil, 365)).exercises).toHaveLength(1);
   });
 });

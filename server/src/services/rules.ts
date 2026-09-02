@@ -1,4 +1,4 @@
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { badRequest, notFound } from '../errors';
 import type { Rule, RuleTier } from '../rules/schema';
 
@@ -20,9 +20,10 @@ const toRule = (row: RuleRow): Rule => ({
   active: row.active,
 });
 
-export async function listRules(db: Queryable = pool): Promise<Rule[]> {
-  const { rows } = await db.query<RuleRow>(
-    'select id, tier, text, scope, code, active from rules order by tier, id',
+export async function listRules(ctx: Ctx): Promise<Rule[]> {
+  const { rows } = await ctx.db.query<RuleRow>(
+    'select id, tier, text, scope, code, active from rules where user_id = $1 order by tier, id',
+    [ctx.userId],
   );
   return rows.map(toRule);
 }
@@ -33,28 +34,28 @@ export async function listRules(db: Queryable = pool): Promise<Rule[]> {
  * silently would be worse than saying it.
  */
 export async function addRule(
+  ctx: Ctx,
   input: { tier: RuleTier; text: string; scope?: string | null },
-  db: Queryable = pool,
 ): Promise<{ rule: Rule; enforceable: boolean }> {
   if (!['hard', 'soft', 'never'].includes(input.tier)) {
     throw badRequest('tier must be hard, soft or never');
   }
   if (!input.text?.trim()) throw badRequest('A rule needs text');
 
-  const { rows } = await db.query<RuleRow>(
-    `insert into rules (tier, text, scope, active) values ($1, $2, $3, true)
+  const { rows } = await ctx.db.query<RuleRow>(
+    `insert into rules (user_id, tier, text, scope, active) values ($1, $2, $3, $4, true)
      returning id, tier, text, scope, code, active`,
-    [input.tier, input.text.trim(), input.scope ?? null],
+    [ctx.userId, input.tier, input.text.trim(), input.scope ?? null],
   );
 
   return { rule: toRule(rows[0]!), enforceable: false };
 }
 
-export async function deactivateRule(id: number, db: Queryable = pool): Promise<Rule> {
-  const { rows } = await db.query<RuleRow>(
-    `update rules set active = false where id = $1
+export async function deactivateRule(ctx: Ctx, id: number): Promise<Rule> {
+  const { rows } = await ctx.db.query<RuleRow>(
+    `update rules set active = false where id = $1 and user_id = $2
      returning id, tier, text, scope, code, active`,
-    [id],
+    [id, ctx.userId],
   );
   const row = rows[0];
   if (!row) throw notFound(`No rule ${id}`);
@@ -69,13 +70,13 @@ export async function deactivateRule(id: number, db: Queryable = pool): Promise<
  * disarm a safety floor.
  */
 export async function updateRule(
+  ctx: Ctx,
   id: number,
   input: { tier?: RuleTier; text?: string; scope?: string | null; active?: boolean },
-  db: Queryable = pool,
 ): Promise<Rule> {
-  const { rows: existing } = await db.query<RuleRow>(
-    'select id, tier, text, scope, code, active from rules where id = $1',
-    [id],
+  const { rows: existing } = await ctx.db.query<RuleRow>(
+    'select id, tier, text, scope, code, active from rules where id = $1 and user_id = $2',
+    [id, ctx.userId],
   );
   const current = existing[0];
   if (!current) throw notFound(`No rule ${id}`);
@@ -92,13 +93,14 @@ export async function updateRule(
     );
   }
 
-  const { rows } = await db.query<RuleRow>(
+  const { rows } = await ctx.db.query<RuleRow>(
     `update rules
-     set tier = $2, text = $3, scope = $4, active = $5
-     where id = $1
+     set tier = $3, text = $4, scope = $5, active = $6
+     where id = $1 and user_id = $2
      returning id, tier, text, scope, code, active`,
     [
       id,
+      ctx.userId,
       input.tier ?? current.tier,
       input.text?.trim() ?? current.text,
       input.scope === undefined ? current.scope : input.scope,

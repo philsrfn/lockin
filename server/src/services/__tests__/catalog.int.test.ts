@@ -9,7 +9,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../db';
-import { contextIdByName, resetData, resetProfile } from '../../test/helpers';
+import { contextIdByName, resetData, resetProfile, phil } from '../../test/helpers';
 import { activateContext, activeContext, listContexts } from '../contexts';
 import { exercisesByName, getExercise, listExercises } from '../exercises';
 import { getProfile, macroTargets, updateTargets } from '../profile';
@@ -25,7 +25,7 @@ beforeEach(async () => {
 
 describe('profile', () => {
   it('reads the seeded athlete', async () => {
-    const profile = await getProfile();
+    const profile = await getProfile(phil);
 
     expect(profile).toMatchObject({
       name: 'Phil',
@@ -38,7 +38,7 @@ describe('profile', () => {
   });
 
   it('exposes macro targets in the shape the remaining-macros maths wants', async () => {
-    expect(macroTargets(await getProfile())).toEqual({
+    expect(macroTargets(await getProfile(phil))).toEqual({
       kcal: 2300,
       proteinG: 190,
       fatFloorG: 70,
@@ -46,28 +46,28 @@ describe('profile', () => {
   });
 
   it('accepts a change that clears the floors', async () => {
-    const result = await updateTargets({ calorieTarget: 2100 });
+    const result = await updateTargets(phil, { calorieTarget: 2100 });
 
     expect(result.refusals).toEqual([]);
     expect(result.profile.calorieTarget).toBe(2100);
   });
 
   it('refuses a calorie target under the floor and says so', async () => {
-    const result = await updateTargets({ calorieTarget: 1200 });
+    const result = await updateTargets(phil, { calorieTarget: 1200 });
 
     expect(result.profile.calorieTarget).toBe(1800);
     expect(result.refusals.join(' ')).toContain('1800');
   });
 
   it('refuses a protein target under the floor', async () => {
-    const result = await updateTargets({ proteinTargetG: 100 });
+    const result = await updateTargets(phil, { proteinTargetG: 100 });
 
     expect(result.profile.proteinTargetG).toBe(160);
     expect(result.refusals).toHaveLength(1);
   });
 
   it('refuses a goal weight below a BMI of 20 for his height', async () => {
-    const result = await updateTargets({ goalWeightKg: 65 });
+    const result = await updateTargets(phil, { goalWeightKg: 65 });
 
     // 20 × 1.91² = 72.96, rounded up to the next half kilo.
     expect(result.profile.goalWeightKg).toBeGreaterThanOrEqual(72.9);
@@ -75,15 +75,15 @@ describe('profile', () => {
   });
 
   it('leaves untouched fields alone', async () => {
-    await updateTargets({ calorieTarget: 2100 });
+    await updateTargets(phil, { calorieTarget: 2100 });
 
-    const profile = await getProfile();
+    const profile = await getProfile(phil);
     expect(profile.proteinTargetG).toBe(190);
     expect(profile.goalWeightKg).toBe(80);
   });
 
   it('collects every refusal in one call rather than stopping at the first', async () => {
-    const result = await updateTargets({
+    const result = await updateTargets(phil, {
       calorieTarget: 1000,
       proteinTargetG: 50,
       goalWeightKg: 60,
@@ -95,7 +95,7 @@ describe('profile', () => {
 
 describe('contexts', () => {
   it('seeds the four cities with Home active', async () => {
-    const contexts = await listContexts();
+    const contexts = await listContexts(phil);
 
     expect(contexts.map((context) => context.name)).toEqual([
       'Home',
@@ -103,50 +103,50 @@ describe('contexts', () => {
       'Mannheim',
       'Leipzig',
     ]);
-    expect((await activeContext())?.name).toBe('Home');
+    expect((await activeContext(phil))?.name).toBe('Home');
   });
 
   it('carries the food profile that makes Home different', async () => {
-    const home = (await listContexts()).find((context) => context.name === 'Home');
+    const home = (await listContexts(phil)).find((context) => context.name === 'Home');
 
     expect(home?.foodProfile).toEqual({ dinner: 'moms_food_half_plus_protein' });
   });
 
   it('switching city leaves exactly one active, never two and never none', async () => {
-    const contexts = await activateContext(await contextIdByName('Leipzig'));
+    const contexts = await activateContext(phil, await contextIdByName('Leipzig'));
 
     expect(contexts.filter((context) => context.isActive).map((c) => c.name)).toEqual(['Leipzig']);
   });
 
   it('404s on a city that does not exist, leaving the active one alone', async () => {
-    await expect(activateContext(9999)).rejects.toMatchObject({ statusCode: 404 });
-    expect((await activeContext())?.name).toBe('Home');
+    await expect(activateContext(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
+    expect((await activeContext(phil))?.name).toBe('Home');
   });
 });
 
 describe('rules', () => {
   it('seeds the three tiers', async () => {
-    const tiers = new Set((await listRules()).map((rule) => rule.tier));
+    const tiers = new Set((await listRules(phil)).map((rule) => rule.tier));
 
     expect([...tiers].sort()).toEqual(['hard', 'never', 'soft']);
   });
 
   it('gives the mechanically checkable rules a code', async () => {
-    const skyr = (await listRules()).find((rule) => rule.code === 'breakfast_skyr');
+    const skyr = (await listRules(phil)).find((rule) => rule.code === 'breakfast_skyr');
 
     expect(skyr?.tier).toBe('hard');
     expect(skyr?.text).toContain('Skyr');
   });
 
   it('adds a rule and says plainly that it cannot be enforced', async () => {
-    const result = await addRule({ tier: 'soft', text: 'Prefer oat milk in coffee' });
+    const result = await addRule(phil, { tier: 'soft', text: 'Prefer oat milk in coffee' });
 
     expect(result.rule.code).toBeNull();
     expect(result.enforceable).toBe(false);
   });
 
   it('scopes a rule to one city when asked', async () => {
-    const result = await addRule({ tier: 'soft', text: 'Gym closes at 22:00', scope: 'Leipzig' });
+    const result = await addRule(phil, { tier: 'soft', text: 'Gym closes at 22:00', scope: 'Leipzig' });
 
     expect(result.rule.scope).toBe('Leipzig');
   });
@@ -155,26 +155,26 @@ describe('rules', () => {
     ['an unknown tier', { tier: 'medium' as 'soft' }, 'tier must be hard, soft or never'],
     ['blank text', { text: '   ' }, 'A rule needs text'],
   ])('rejects %s', async (_label, override, message) => {
-    await expect(addRule({ tier: 'soft', text: 'something', ...override })).rejects.toThrow(message);
+    await expect(addRule(phil, { tier: 'soft', text: 'something', ...override })).rejects.toThrow(message);
   });
 
   it('deactivates rather than deletes', async () => {
-    const added = await addRule({ tier: 'soft', text: 'Prefer oat milk' });
+    const added = await addRule(phil, { tier: 'soft', text: 'Prefer oat milk' });
 
-    const after = await deactivateRule(added.rule.id);
+    const after = await deactivateRule(phil, added.rule.id);
 
     expect(after.active).toBe(false);
-    expect((await listRules()).some((rule) => rule.id === added.rule.id)).toBe(true);
+    expect((await listRules(phil)).some((rule) => rule.id === added.rule.id)).toBe(true);
   });
 
   it('404s deactivating a rule that is not there', async () => {
-    await expect(deactivateRule(9999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(deactivateRule(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('edits wording without restating the rest', async () => {
-    const added = await addRule({ tier: 'soft', text: 'Prefer oat milk', scope: 'Leipzig' });
+    const added = await addRule(phil, { tier: 'soft', text: 'Prefer oat milk', scope: 'Leipzig' });
 
-    const updated = await updateRule(added.rule.id, { text: 'Prefer oat milk in coffee' });
+    const updated = await updateRule(phil, added.rule.id, { text: 'Prefer oat milk in coffee' });
 
     expect(updated.text).toBe('Prefer oat milk in coffee');
     expect(updated.scope).toBe('Leipzig');
@@ -182,24 +182,24 @@ describe('rules', () => {
   });
 
   it('refuses to downgrade the tier of a rule that is enforced in code', async () => {
-    const enforced = (await listRules()).find((rule) => rule.code === 'min_daily_protein');
+    const enforced = (await listRules(phil)).find((rule) => rule.code === 'min_daily_protein');
 
-    await expect(updateRule(enforced!.id, { tier: 'soft' })).rejects.toThrow(
+    await expect(updateRule(phil, enforced!.id, { tier: 'soft' })).rejects.toThrow(
       'enforced in code',
     );
   });
 
   it('still lets an enforced rule be reworded or turned off', async () => {
-    const enforced = (await listRules()).find((rule) => rule.code === 'min_daily_protein');
+    const enforced = (await listRules(phil)).find((rule) => rule.code === 'min_daily_protein');
 
-    const reworded = await updateRule(enforced!.id, { text: 'Never plan a day under 160g protein' });
+    const reworded = await updateRule(phil, enforced!.id, { text: 'Never plan a day under 160g protein' });
     expect(reworded.text).toBe('Never plan a day under 160g protein');
 
-    expect((await updateRule(enforced!.id, { active: false })).active).toBe(false);
+    expect((await updateRule(phil, enforced!.id, { active: false })).active).toBe(false);
   });
 
   it('404s editing a rule that is not there', async () => {
-    await expect(updateRule(9999, { text: 'x' })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(updateRule(phil, 9999, { text: 'x' })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 

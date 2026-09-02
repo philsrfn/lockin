@@ -1,5 +1,4 @@
-import type { PoolClient } from 'pg';
-import { queryOne, transaction } from '../db';
+import { type Ctx, transactionFor } from '../db';
 import { HttpError, badRequest } from '../errors';
 import type { SyncOp } from '../schemas';
 import { createSession, finishSession } from './sessions';
@@ -21,8 +20,8 @@ export type SyncResult = {
  * the server id.
  */
 async function resolveSessionId(
+  ctx: Ctx,
   reference: { sessionId?: number; sessionClientId?: string },
-  db: PoolClient,
 ): Promise<number> {
   if (reference.sessionId != null) return reference.sessionId;
 
@@ -30,9 +29,10 @@ async function resolveSessionId(
     throw badRequest('Either sessionId or sessionClientId is required');
   }
 
-  const { rows } = await db.query<{ result: { id?: number } }>(
-    `select result from sync_log where client_id = $1 and op = 'create_session'`,
-    [reference.sessionClientId],
+  const { rows } = await ctx.db.query<{ result: { id?: number } }>(
+    `select result from sync_log
+     where user_id = $1 and client_id = $2 and op = 'create_session'`,
+    [ctx.userId, reference.sessionClientId],
   );
 
   const id = rows[0]?.result?.id;
@@ -42,42 +42,44 @@ async function resolveSessionId(
   return id;
 }
 
-async function execute(op: SyncOp, db: PoolClient): Promise<unknown> {
+async function execute(ctx: Ctx, op: SyncOp): Promise<unknown> {
   switch (op.op) {
     case 'create_session':
-      return createSession(op.payload, db);
+      return createSession(ctx, op.payload);
 
     case 'record_set': {
-      const sessionId = await resolveSessionId(op.payload, db);
-      return recordSet({ ...op.payload, sessionId }, db);
+      const sessionId = await resolveSessionId(ctx, op.payload);
+      return recordSet(ctx, { ...op.payload, sessionId });
     }
 
     case 'finish_session': {
-      const sessionId = await resolveSessionId(op.payload, db);
-      return finishSession(sessionId, op.payload, db);
+      const sessionId = await resolveSessionId(ctx, op.payload);
+      return finishSession(ctx, sessionId, op.payload);
     }
 
     case 'log_weight':
-      return logWeight(op.payload, db);
+      return logWeight(ctx, op.payload);
   }
 }
 
-async function applyOne(op: SyncOp): Promise<SyncResult> {
-  const seen = await queryOne<{ result: unknown }>(
-    'select result from sync_log where client_id = $1',
-    [op.clientId],
+async function applyOne(ctx: Ctx, op: SyncOp): Promise<SyncResult> {
+  // Scoped by user: a client uuid is generated on a phone, and two phones
+  // colliding on one must not hand the second person the first one's result.
+  const { rows: seen } = await ctx.db.query<{ result: unknown }>(
+    'select result from sync_log where user_id = $1 and client_id = $2',
+    [ctx.userId, op.clientId],
   );
-  if (seen) {
-    return { clientId: op.clientId, status: 'duplicate', data: seen.result };
+  if (seen[0]) {
+    return { clientId: op.clientId, status: 'duplicate', data: seen[0].result };
   }
 
   try {
-    const data = await transaction(async (db) => {
-      const result = await execute(op, db);
-      await db.query(
-        `insert into sync_log (client_id, op, result) values ($1, $2, $3)
-         on conflict (client_id) do nothing`,
-        [op.clientId, op.op, JSON.stringify(result)],
+    const data = await transactionFor(ctx, async (inner) => {
+      const result = await execute(inner, op);
+      await inner.db.query(
+        `insert into sync_log (user_id, client_id, op, result) values ($1, $2, $3, $4)
+         on conflict (user_id, client_id) do nothing`,
+        [inner.userId, op.clientId, op.op, JSON.stringify(result)],
       );
       return result;
     });
@@ -100,10 +102,10 @@ async function applyOne(op: SyncOp): Promise<SyncResult> {
  * client uuid that has already been applied returns its stored result instead
  * of writing twice.
  */
-export async function drain(ops: SyncOp[]): Promise<SyncResult[]> {
+export async function drain(ctx: Ctx, ops: SyncOp[]): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
   for (const op of ops) {
-    results.push(await applyOne(op));
+    results.push(await applyOne(ctx, op));
   }
   return results;
 }

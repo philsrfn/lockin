@@ -10,6 +10,7 @@ import { LlmError } from './llm/provider';
 import { loggerOptions, requestIdFor, useLogger } from './logging';
 import { registerRoutes } from './routes/index';
 import { exercisesByName } from './services/exercises';
+import { syncRootToken } from './services/users';
 import { jobHandlers } from './jobs/handlers';
 import { startScheduler } from './jobs/scheduler';
 
@@ -83,6 +84,11 @@ async function start(): Promise<void> {
   // Fail at boot, not mid-workout: the training templates reference exercises
   // by name, and this is where a drifted name shows up.
   await exercisesByName();
+
+  // The deployed bearer token is still configured as an env var; mirroring its
+  // hash onto user 1 means authentication has one code path for everybody and
+  // the phone in his pocket keeps working across this change.
+  await syncRootToken(env.bearerToken);
 
   await app.listen({ port: env.port, host: env.host });
 

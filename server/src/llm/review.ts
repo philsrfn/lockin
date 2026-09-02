@@ -11,7 +11,7 @@
  */
 import { LlmError } from './provider';
 import { geminiProvider } from './gemini';
-import { type Queryable, pool } from '../db';
+import type { Ctx } from '../db';
 import { MAX_WEEKLY_LOSS_KG, checkCalorieTarget } from '../domain/safety';
 import { addDays, movingAverage, weeklyChangeKg } from '../domain/trend';
 import { dayIn, daySpanIn } from '../domain/time';
@@ -85,15 +85,15 @@ type Brief = {
 };
 
 /** Assembles the facts. All arithmetic happens here, never in the model. */
-async function buildBrief(db: Queryable): Promise<Brief> {
-  const profile = await getProfile(db);
+async function buildBrief(ctx: Ctx): Promise<Brief> {
+  const profile = await getProfile(ctx);
   const zone = profile.timezone;
   // The week the review is filed under is his week, not the server's.
   const asOf = dayIn(zone);
 
   const [entries, sessions] = await Promise.all([
-    listEntries(35, db, zone),
-    recentSessions(14, db),
+    listEntries(ctx, 35, zone),
+    recentSessions(ctx, 14),
   ]);
 
   const thisWeek = movingAverage(entries, asOf, 7);
@@ -102,14 +102,14 @@ async function buildBrief(db: Queryable): Promise<Brief> {
   const priorChange = weeklyChangeKg(entries, addDays(asOf, -7), 7);
 
   const fortnight = daySpanIn(zone, addDays(asOf, -13), asOf);
-  const { rows: mealRows } = await db.query<{ day: string; kcal: number; protein: number }>(
-    `select to_char(eaten_at at time zone $3, 'YYYY-MM-DD') as day,
+  const { rows: mealRows } = await ctx.db.query<{ day: string; kcal: number; protein: number }>(
+    `select to_char(eaten_at at time zone $4, 'YYYY-MM-DD') as day,
             coalesce(sum(kcal), 0)::int as kcal,
             coalesce(sum(protein_g), 0)::int as protein
      from meals
-     where eaten_at >= $1 and eaten_at < $2
+     where user_id = $1 and eaten_at >= $2 and eaten_at < $3
      group by 1 order by 1`,
-    [fortnight.from, fortnight.until, zone],
+    [ctx.userId, fortnight.from, fortnight.until, zone],
   );
 
   const loggedDays = mealRows.length;
@@ -163,8 +163,8 @@ async function buildBrief(db: Queryable): Promise<Brief> {
   return { weekEnding: asOf, lines, calorieTarget: profile.calorieTarget };
 }
 
-export async function generateWeeklyReview(db: Queryable = pool): Promise<WeeklyReview> {
-  const brief = await buildBrief(db);
+export async function generateWeeklyReview(ctx: Ctx): Promise<WeeklyReview> {
+  const brief = await buildBrief(ctx);
 
   const output = await geminiProvider.generate({
       purpose: 'weekly_review',
@@ -192,9 +192,10 @@ export async function generateWeeklyReview(db: Queryable = pool): Promise<Weekly
   const calorieChanged = calorieTarget !== brief.calorieTarget;
 
   if (calorieChanged) {
-    await db.query('update profile set calorie_target = $1, updated_at = now() where id = 1', [
-      calorieTarget,
-    ]);
+    await ctx.db.query(
+      'update profile set calorie_target = $2, updated_at = now() where user_id = $1',
+      [ctx.userId, calorieTarget],
+    );
   }
 
   const review: WeeklyReview = {
@@ -211,21 +212,30 @@ export async function generateWeeklyReview(db: Queryable = pool): Promise<Weekly
     model: output.model,
   };
 
-  await db.query(
-    `insert into weekly_reviews (week_ending, trend, went_well, one_change, targets_note, model)
-     values ($1, $2, $3, $4, $5, $6)
-     on conflict (week_ending) do update
+  await ctx.db.query(
+    `insert into weekly_reviews
+       (user_id, week_ending, trend, went_well, one_change, targets_note, model)
+     values ($1, $2, $3, $4, $5, $6, $7)
+     on conflict (user_id, week_ending) do update
        set trend = excluded.trend, went_well = excluded.went_well,
            one_change = excluded.one_change, targets_note = excluded.targets_note,
            model = excluded.model, created_at = now()`,
-    [review.weekEnding, review.trend, review.wentWell, review.oneChange, review.targetsNote, review.model],
+    [
+      ctx.userId,
+      review.weekEnding,
+      review.trend,
+      review.wentWell,
+      review.oneChange,
+      review.targetsNote,
+      review.model,
+    ],
   );
 
   return review;
 }
 
-export async function latestReview(db: Queryable = pool): Promise<WeeklyReview | null> {
-  const { rows } = await db.query<{
+export async function latestReview(ctx: Ctx): Promise<WeeklyReview | null> {
+  const { rows } = await ctx.db.query<{
     week_ending: string;
     trend: string;
     went_well: string;
@@ -235,13 +245,15 @@ export async function latestReview(db: Queryable = pool): Promise<WeeklyReview |
   }>(
     `select to_char(week_ending, 'YYYY-MM-DD') as week_ending, trend, went_well, one_change,
             targets_note, model
-     from weekly_reviews order by week_ending desc limit 1`,
+     from weekly_reviews where user_id = $1 order by week_ending desc limit 1`,
+    [ctx.userId],
   );
   const row = rows[0];
   if (!row) return null;
 
-  const { rows: profileRows } = await db.query<{ calorie_target: number }>(
-    'select calorie_target from profile where id = 1',
+  const { rows: profileRows } = await ctx.db.query<{ calorie_target: number }>(
+    'select calorie_target from profile where user_id = $1',
+    [ctx.userId],
   );
 
   return {

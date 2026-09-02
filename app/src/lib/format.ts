@@ -52,3 +52,18 @@ export function performedLine(sets: { weightKg: number; reps: number }[]): strin
   const weight = weights.length === 1 ? `${kg(weights[0])}kg` : `${kg(Math.min(...weights))}–${kg(Math.max(...weights))}kg`;
   return `${reps} @ ${weight}`;
 }
+
+/**
+ * The one line of the interface that speaks to him directly, in German like
+ * the date beside it. It shifts through the day so that seeing it ten times
+ * does not wear the way a fixed "Hello" would.
+ */
+export function greeting(name: string | null, now: Date = new Date()): string {
+  const hour = now.getHours();
+  const who = name ? `, ${name}` : '';
+  if (hour < 5) return `Noch wach${who}?`;
+  if (hour < 11) return `Guten Morgen${who}`;
+  if (hour < 18) return `Hallo${who}`;
+  if (hour < 22) return `Guten Abend${who}`;
+  return `Noch wach${who}?`;
+}

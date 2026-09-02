@@ -17,7 +17,7 @@ import type { Today, Week, WeekDay } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { ContextChip } from '../../src/components/ContextChip';
 import { WeekStrip } from '../../src/components/WeekStrip';
-import { kg, longDate, shortDate, signedKg } from '../../src/lib/format';
+import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { colors, space, type as typo } from '../../src/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -59,7 +59,8 @@ export default function TodayScreen() {
     );
   }
 
-  const { plan, weight, macros, openSession, context, date, completedToday, coach } = today.data;
+  const { plan, weight, macros, openSession, context, date, completedToday, coach, profile } =
+    today.data;
   const inProgress = openSession !== null;
   const doneToday = !inProgress && (completedToday?.length ?? 0) > 0;
   const resting = !!coach && coach.sessionType !== 'strength' && !doneToday && !inProgress;
@@ -86,6 +87,7 @@ export default function TodayScreen() {
         }
       >
         <View style={styles.masthead}>
+          <Text style={styles.greeting}>{greeting(profile.name)}</Text>
           <Text style={styles.date}>{longDate(date)}</Text>
           <View style={styles.mastheadRow}>
             <ContextChip context={context} onChanged={today.reload} />
@@ -193,12 +195,15 @@ export default function TodayScreen() {
 function DayDetail({ day, target }: { day: WeekDay; target: number }) {
   return (
     <>
-      <View style={styles.heroRow}>
-        <Text style={styles.hero}>{day.proteinPct === null ? '—' : day.proteinG}</Text>
-        <Text style={styles.heroUnit}>
-          {day.proteinPct === null ? 'nothing logged' : `g of ${target}`}
-        </Text>
-      </View>
+      {/* An em-dash at 62pt reads as a stray rule, not as "no data". */}
+      {day.proteinPct === null ? (
+        <Text style={styles.empty}>Nothing logged this day.</Text>
+      ) : (
+        <View style={styles.heroRow}>
+          <Text style={styles.hero}>{day.proteinG}</Text>
+          <Text style={styles.heroUnit}>g of {target}</Text>
+        </View>
+      )}
       <View style={styles.facts}>
         <Fact
           value={day.lifted ? `Day ${day.template ?? '?'}` : '—'}
@@ -220,7 +225,15 @@ function Fact({
   label: string;
   tone?: 'default' | 'signal' | 'alert';
 }) {
-  const color = tone === 'signal' ? colors.accent : tone === 'alert' ? colors.danger : colors.text;
+  // A bone-coloured dash looks like a hairline. Absent values recede.
+  const absent = value === '—';
+  const color = absent
+    ? colors.textFaint
+    : tone === 'signal'
+      ? colors.accent
+      : tone === 'alert'
+        ? colors.danger
+        : colors.text;
   return (
     <View style={styles.fact}>
       <Text style={[styles.factValue, { color }]}>{value}</Text>
@@ -235,8 +248,9 @@ const styles = StyleSheet.create({
   page: { paddingHorizontal: space.lg, gap: space.lg, paddingBottom: space.md },
   centre: { alignItems: 'center', justifyContent: 'center', gap: space.lg, padding: space.lg },
 
-  masthead: { gap: space.md },
-  date: { fontSize: 15, color: colors.textDim, letterSpacing: 0.3 },
+  masthead: { gap: space.sm },
+  greeting: { fontSize: 26, fontWeight: '300', color: colors.text, letterSpacing: -0.6 },
+  date: { fontSize: 14, color: colors.textFaint, letterSpacing: 0.3, marginBottom: space.xs },
   mastheadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   links: { flexDirection: 'row', gap: space.lg },
   link: { ...typo.label, color: colors.textFaint },
@@ -277,4 +291,5 @@ const styles = StyleSheet.create({
 
   alert: { fontSize: 13, color: colors.danger, lineHeight: 19 },
   placeholder: { ...typo.body, color: colors.textDim },
+  empty: { fontSize: 17, color: colors.textFaint, paddingVertical: space.lg },
 });

@@ -6,6 +6,7 @@
 export type TemplateId = 'A' | 'B' | 'C';
 
 export type Profile = {
+  name: string | null;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;

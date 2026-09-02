@@ -3,6 +3,7 @@ import type { MacroTargets } from '../domain/macros';
 import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
 
 export type Profile = {
+  name: string | null;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;
@@ -13,6 +14,7 @@ export type Profile = {
 
 export async function getProfile(db: Queryable = pool): Promise<Profile> {
   const { rows } = await db.query<{
+    name: string | null;
     height_cm: number;
     birth_year: number | null;
     goal_weight_kg: number | null;
@@ -20,7 +22,7 @@ export async function getProfile(db: Queryable = pool): Promise<Profile> {
     protein_target_g: number;
     fat_floor_g: number;
   }>(
-    `select height_cm, birth_year, goal_weight_kg, calorie_target, protein_target_g, fat_floor_g
+    `select name, height_cm, birth_year, goal_weight_kg, calorie_target, protein_target_g, fat_floor_g
      from profile where id = 1`,
   );
 
@@ -28,6 +30,7 @@ export async function getProfile(db: Queryable = pool): Promise<Profile> {
   if (!row) throw new Error('Profile row is missing — did the seed migration run?');
 
   return {
+    name: row.name,
     heightCm: row.height_cm,
     birthYear: row.birth_year,
     goalWeightKg: row.goal_weight_kg,

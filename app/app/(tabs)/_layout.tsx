@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { t } from '../../src/lib/locale';
 import { StyleSheet } from 'react-native';
 import { colors } from '../../src/theme';
 
@@ -22,10 +23,10 @@ export default function TabsLayout() {
         tabBarItemStyle: { paddingTop: 10 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'TODAY' }} />
-      <Tabs.Screen name="chat" options={{ title: 'TRAINER' }} />
-      <Tabs.Screen name="food" options={{ title: 'FOOD' }} />
-      <Tabs.Screen name="weight" options={{ title: 'WEIGHT' }} />
+      <Tabs.Screen name="index" options={{ title: t('tabToday') }} />
+      <Tabs.Screen name="chat" options={{ title: t('tabTrainer') }} />
+      <Tabs.Screen name="food" options={{ title: t('tabFood') }} />
+      <Tabs.Screen name="weight" options={{ title: t('tabWeight') }} />
     </Tabs>
   );
 }

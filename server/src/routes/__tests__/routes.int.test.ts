@@ -254,6 +254,41 @@ describe('the routes themselves', () => {
     expect(response.json().profile.timezone).toBe('America/New_York');
   });
 
+  it('changes the language without touching the timezone', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/profile',
+      headers: auth,
+      payload: { locale: 'en-GB' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().profile.locale).toBe('en-GB');
+    expect(response.json().profile.timezone).toBe('Europe/Berlin');
+  });
+
+  it('lets the language fall back to the device', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/profile',
+      headers: auth,
+      payload: { locale: null },
+    });
+
+    expect(response.json().profile.locale).toBeNull();
+  });
+
+  it('refuses something that is not a language tag', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/profile',
+      headers: auth,
+      payload: { locale: 'Deutsch bitte' },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it('refuses a timezone the server does not know', async () => {
     const response = await app.inject({
       method: 'PATCH',

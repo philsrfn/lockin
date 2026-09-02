@@ -43,6 +43,8 @@ export type OnboardingInput = {
   /** Desired kg per week. Clamped by the §7 rate limits. */
   weeklyRateKg?: number;
   timezone?: string;
+  /** BCP 47, from the device. The athlete can change it later. */
+  locale?: string;
 };
 
 export type OnboardingResult = {
@@ -153,6 +155,7 @@ export async function completeOnboarding(
            protein_target_g = $12,
            fat_floor_g = $13,
            timezone = coalesce($14, timezone),
+           locale = coalesce($15, locale),
            onboarded_at = now(),
            updated_at = now()
        where user_id = $1`,
@@ -171,6 +174,7 @@ export async function completeOnboarding(
         protein.value,
         computed.fatFloorG,
         input.timezone ?? null,
+        input.locale ?? null,
       ],
     );
 

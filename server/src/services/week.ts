@@ -15,7 +15,11 @@ import { getProfile } from './profile';
 
 export type WeekDay = {
   date: string;
-  /** Two letters, German — Mo, Di, Mi. The strip is read at a glance. */
+  /**
+   * @deprecated German, and therefore not the client's to trust. The app
+   * derives its own label from `date` in the reader's locale. Still sent so
+   * the build already on his phone keeps rendering; remove once that is gone.
+   */
   weekday: string;
   isToday: boolean;
   isFuture: boolean;

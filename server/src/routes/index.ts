@@ -28,7 +28,7 @@ import {
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
-import { getProfile, setTimezone } from '../services/profile';
+import { getProfile, setLocale, setTimezone } from '../services/profile';
 import { completeOnboarding } from '../services/onboarding';
 import {
   createSession,
@@ -89,7 +89,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    */
   app.patch('/profile', async (request) => {
     const body = UpdateProfileSchema.parse(request.body);
-    return { profile: await setTimezone(request.ctx, body.timezone) };
+    if (body.timezone !== undefined) await setTimezone(request.ctx, body.timezone);
+    if (body.locale !== undefined) await setLocale(request.ctx, body.locale);
+    return { profile: await getProfile(request.ctx) };
   });
 
   app.get('/contexts', async (request) => ({ contexts: await listContexts(request.ctx) }));

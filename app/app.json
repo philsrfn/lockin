@@ -10,7 +10,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "de.dotspiro.lockin",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": [
+          "en",
+          "de"
+        ]
       }
     },
     "android": {

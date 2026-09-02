@@ -1,3 +1,5 @@
+import { deviceLocale, greetingWords } from './locale';
+
 /** Display formatting. The domain returns full precision; rounding happens here. */
 
 export function kg(value: number | null | undefined, decimals = 1): string {
@@ -13,23 +15,36 @@ export function signedKg(value: number | null | undefined, decimals = 1): string
 }
 
 /**
- * The masthead date, in German. His app, his language — and it is the one
- * moment of the interface that should feel like it belongs to a person rather
- * than to a product.
+ * The masthead date, in the reader's own language. It is the one moment of the
+ * interface that should feel like it belongs to a person rather than to a
+ * product — which is precisely why it cannot be hardcoded to somebody else's.
+ *
+ * Intl orders the day and the month: German writes "2. September", British
+ * English "2 September", American English "September 2". Assembling that by
+ * hand would only get it wrong somewhere.
  */
 export function longDate(iso: string): string {
   const date = new Date(`${iso}T12:00:00`);
-  const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
-  const day = date.getDate();
-  const month = date.toLocaleDateString('de-DE', { month: 'long' });
-  return `${weekday} · ${day}. ${month}`;
+  const locale = deviceLocale();
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date);
+  const dayMonth = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(date);
+  return `${weekday} · ${dayMonth}`;
+}
+
+/** Two letters, for the week strip. Derived from the date, not from the server. */
+export function weekdayShort(iso: string): string {
+  const date = new Date(`${iso}T12:00:00`);
+  return new Intl.DateTimeFormat(deviceLocale(), { weekday: 'short' })
+    .format(date)
+    .replace(/[.,]/g, '')
+    .slice(0, 2);
 }
 
 export function shortDate(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', {
+  return new Intl.DateTimeFormat(deviceLocale(), {
     day: 'numeric',
     month: 'short',
-  });
+  }).format(new Date(`${iso}T12:00:00`));
 }
 
 export function clock(totalSeconds: number): string {
@@ -54,16 +69,12 @@ export function performedLine(sets: { weightKg: number; reps: number }[]): strin
 }
 
 /**
- * The one line of the interface that speaks to him directly, in German like
- * the date beside it. It shifts through the day so that seeing it ten times
- * does not wear the way a fixed "Hello" would.
+ * The one line of the interface that speaks to the reader directly. It shifts
+ * through the day so that seeing it ten times does not wear the way a fixed
+ * "Hello" would.
  */
 export function greeting(name: string | null, now: Date = new Date()): string {
-  const hour = now.getHours();
+  const { text, question } = greetingWords(now);
   const who = name ? `, ${name}` : '';
-  if (hour < 5) return `Noch wach${who}?`;
-  if (hour < 11) return `Guten Morgen${who}`;
-  if (hour < 18) return `Hallo${who}`;
-  if (hour < 22) return `Guten Abend${who}`;
-  return `Noch wach${who}?`;
+  return `${text}${who}${question ? '?' : ''}`;
 }

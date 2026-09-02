@@ -13,6 +13,7 @@
  * backend does not require a new TestFlight build.
  */
 import * as SecureStore from 'expo-secure-store';
+import { setPreferredLocale } from '../lib/locale';
 
 const TOKEN_KEY = 'lockin.apiToken';
 const URL_KEY = 'lockin.apiUrl';
@@ -28,6 +29,9 @@ const URL_KEY = 'lockin.apiUrl';
  * never seen it.
  */
 const ONBOARDED_KEY = 'lockin.onboarded.v2';
+/** The athlete's language, mirrored from the profile so a cold start is
+ *  already in it rather than flickering into it once /today answers. */
+const LOCALE_KEY = 'lockin.locale';
 
 const BUILT_IN_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 const BUILT_IN_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
@@ -39,6 +43,7 @@ const normalise = (url: string) => url.trim().replace(/\/+$/, '');
 
 /** Reads the keychain once at startup. Returns false when setup is needed. */
 export async function loadConfig(): Promise<boolean> {
+  setPreferredLocale(await SecureStore.getItemAsync(LOCALE_KEY));
   token = await SecureStore.getItemAsync(TOKEN_KEY);
   baseUrl = (await SecureStore.getItemAsync(URL_KEY)) ?? '';
 
@@ -71,6 +76,17 @@ export async function clearConfig(): Promise<void> {
   baseUrl = '';
   await SecureStore.deleteItemAsync(TOKEN_KEY);
   await SecureStore.deleteItemAsync(URL_KEY);
+}
+
+/**
+ * Remembers the athlete's language. Called whenever a profile arrives, which
+ * is every time the Today screen loads — so a change made on another device
+ * follows them here without a sign-out.
+ */
+export async function rememberLocale(locale: string | null): Promise<void> {
+  setPreferredLocale(locale);
+  if (locale) await SecureStore.setItemAsync(LOCALE_KEY, locale);
+  else await SecureStore.deleteItemAsync(LOCALE_KEY);
 }
 
 export async function isOnboardedLocally(): Promise<boolean> {

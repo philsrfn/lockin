@@ -15,6 +15,7 @@ import type { Ctx } from '../db';
 import { MAX_WEEKLY_LOSS_KG, checkCalorieTarget } from '../domain/safety';
 import { addDays, movingAverage, weeklyChangeKg } from '../domain/trend';
 import { dayIn, daySpanIn } from '../domain/time';
+import { languageInstruction } from '../domain/language';
 import { listEntries } from '../services/bodyweight';
 import { athleteFacts, getProfile } from '../services/profile';
 import { recentSessions } from '../services/sessions';
@@ -131,6 +132,7 @@ async function buildBrief(ctx: Ctx): Promise<Brief> {
   const rpes = finished.map((session) => session.rpe).filter((rpe): rpe is number => rpe != null);
 
   const lines = [
+    languageInstruction(profile.locale),
     `Height ${profile.heightCm}cm. Goal ${profile.goalWeightKg ?? '—'}kg.`,
     `Current daily targets: ${profile.calorieTarget} kcal, ${profile.proteinTargetG}g protein, ${profile.fatFloorG}g fat floor.`,
     thisWeek

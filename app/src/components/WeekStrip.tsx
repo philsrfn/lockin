@@ -1,5 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { WeekDay } from '../api/types';
+// Derived here rather than taken from the server's `weekday`, which is German.
+// The date is the fact; the label is a rendering of it.
+import { weekdayShort } from '../lib/format';
 import { colors, space, type as typo } from '../theme';
 
 const TRACK = 84;
@@ -71,7 +74,7 @@ export function WeekStrip({
                 isSelected && styles.daySelected,
               ]}
             >
-              {day.weekday}
+              {weekdayShort(day.date)}
             </Text>
             <View style={[styles.marker, isSelected && styles.markerOn]} />
           </Pressable>

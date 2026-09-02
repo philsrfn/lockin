@@ -18,7 +18,9 @@ import { Button } from '../../src/components/Button';
 import { ContextChip } from '../../src/components/ContextChip';
 import { WeekStrip } from '../../src/components/WeekStrip';
 import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
-import { colors, space, type as typo } from '../../src/theme';
+import { rememberLocale } from '../../src/api/config';
+import { t } from '../../src/lib/locale';
+import { caps, colors, space, type as typo } from '../../src/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -47,6 +49,15 @@ export default function TodayScreen() {
   useEffect(() => {
     if (today.data && !selected) setSelected(today.data.date);
   }, [today.data, selected]);
+
+  /**
+   * The language follows the athlete, not the handset. This is the one screen
+   * that always loads and always carries the profile, so it is where the
+   * choice is picked up — including a change made on another device.
+   */
+  useEffect(() => {
+    if (today.data) void rememberLocale(today.data.profile.locale);
+  }, [today.data]);
 
   if (!today.data) {
     return (
@@ -93,10 +104,10 @@ export default function TodayScreen() {
             <ContextChip context={context} onChanged={today.reload} />
             <View style={styles.links}>
               <Pressable onPress={() => router.push('/progress')} hitSlop={12}>
-                <Text style={styles.link}>PROGRESS</Text>
+                <Text style={styles.link}>{t('progress')}</Text>
               </Pressable>
               <Pressable onPress={() => router.push('/rules')} hitSlop={12}>
-                <Text style={styles.link}>RULES</Text>
+                <Text style={styles.link}>{t('rules')}</Text>
               </Pressable>
             </View>
           </View>
@@ -127,11 +138,11 @@ export default function TodayScreen() {
         {/* The week: the subject of the screen and its navigation. */}
         <View style={styles.section}>
           <View style={styles.sectionHead}>
-            <Text style={styles.label}>DIESE WOCHE</Text>
+            <Text style={styles.label}>{caps(t('thisWeek'))}</Text>
             {week.data ? (
               <Text style={styles.tally}>
-                {week.data.strength.done}/{week.data.strength.target} lifts ·{' '}
-                {week.data.weighIns.done}/7 weigh-ins
+                {week.data.strength.done}/{week.data.strength.target} {t('lifts')} ·{' '}
+                {week.data.weighIns.done}/7 {t('weighIns')}
               </Text>
             ) : null}
           </View>
@@ -145,24 +156,24 @@ export default function TodayScreen() {
         {/* Driven by the strip. Today by default, any day on tap. */}
         <View style={styles.section}>
           <Text style={styles.label}>
-            {isToday ? 'HEUTE' : shortDate(active!.date).toUpperCase()}
+            {isToday ? caps(t('today')) : shortDate(active!.date).toUpperCase()}
           </Text>
 
           {isToday ? (
             <>
               <View style={styles.heroRow}>
                 <Text style={styles.hero}>{macros.remaining.proteinG}</Text>
-                <Text style={styles.heroUnit}>g protein left</Text>
+                <Text style={styles.heroUnit}>{t('proteinLeft')}</Text>
               </View>
               <View style={styles.facts}>
-                <Fact value={`${macros.remaining.kcal}`} label="KCAL LEFT" />
+                <Fact value={`${macros.remaining.kcal}`} label={t('kcalLeft')} />
                 <Fact
                   value={weight.average7 ? kg(weight.average7.avgKg) : '—'}
-                  label="7-DAY AVG"
+                  label={t('sevenDayAvg')}
                 />
                 <Fact
                   value={signedKg(weight.changeKg)}
-                  label="THIS WEEK"
+                  label={t('thisWeekShort')}
                   tone={(weight.changeKg ?? 0) <= 0 ? 'signal' : 'alert'}
                 />
               </View>
@@ -176,13 +187,13 @@ export default function TodayScreen() {
       <View style={styles.footer}>
         {!isToday ? (
           <Pressable onPress={() => setSelected(date)} hitSlop={10} style={styles.backToToday}>
-            <Text style={styles.backText}>BACK TO TODAY</Text>
+            <Text style={styles.backText}>{t('backToToday')}</Text>
           </Pressable>
         ) : null}
         <Button
-          title={
-            inProgress ? 'Resume' : doneToday ? 'Train again' : resting ? 'Lift anyway' : 'Start'
-          }
+          title={t(
+            inProgress ? 'resume' : doneToday ? 'trainAgain' : resting ? 'liftAnyway' : 'start',
+          )}
           variant={!inProgress && (doneToday || resting) ? 'secondary' : 'primary'}
           onPress={() => router.push('/workout')}
         />

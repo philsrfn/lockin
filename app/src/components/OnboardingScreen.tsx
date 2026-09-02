@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import type { Goal, OnboardingAnswers, OnboardingResult, Sex } from '../api/types';
 import { Button } from './Button';
+import { systemLocale } from '../lib/locale';
 import { caps, colors, space, type as typo } from '../theme';
 
 /**
@@ -74,6 +75,8 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
         trainingDaysPerWeek: days,
         // The server measures every "today" against this. The phone knows it.
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // A starting point, not a verdict — changeable later.
+        locale: systemLocale(),
       };
 
       setResult(await api<OnboardingResult>('/onboarding', { method: 'POST', body: answers, timeoutMs: 15_000 }));

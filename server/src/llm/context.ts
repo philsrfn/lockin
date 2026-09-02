@@ -19,6 +19,7 @@ import { planFor, upcomingTemplate } from '../services/workouts';
 import { openSession } from '../services/sessions';
 import { activeRulesFor } from '../rules/schema';
 import { dayIn } from '../domain/time';
+import { languageInstruction } from '../domain/language';
 import type { Ctx } from '../db';
 
 const kg = (value: number | null | undefined, dp = 1) =>
@@ -105,7 +106,10 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
       new Date(session.performedAt).getTime() > Date.now() - 7 * 86_400_000,
   ).length;
 
-  return `ATHLETE
+  return `LANGUAGE
+${languageInstruction(profile.locale)}
+
+ATHLETE
 - ${profile.heightCm}cm, goal ${kg(profile.goalWeightKg, 0)}kg
 - latest weigh-in: ${entries.length ? `${kg(entries[entries.length - 1]!.weightKg)}kg` : 'none yet'}
 - 7-day average: ${average7 ? `${kg(average7.avgKg)}kg from ${average7.sampleCount}/7 days` : 'not enough weigh-ins'}

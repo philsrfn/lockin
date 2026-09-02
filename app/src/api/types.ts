@@ -9,6 +9,8 @@ export type Profile = {
   name: string | null;
   /** IANA zone. The server measures every "today" against this, not the device. */
   timezone: string;
+  /** BCP 47, or null to follow the device. The athlete's choice, not the phone's. */
+  locale: string | null;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;
@@ -39,6 +41,7 @@ export type OnboardingAnswers = {
   goalWeightKg?: number | null;
   trainingDaysPerWeek: number;
   timezone?: string;
+  locale?: string;
 };
 
 export type OnboardingResult = {
@@ -220,6 +223,7 @@ export type Progress = {
 
 export type WeekDay = {
   date: string;
+  /** @deprecated German. Use `weekdayShort(date)` — see lib/locale.ts. */
   weekday: string;
   isToday: boolean;
   isFuture: boolean;

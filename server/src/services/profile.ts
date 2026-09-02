@@ -15,6 +15,11 @@ export type Profile = {
   name: string | null;
   /** IANA zone. Decides when his day starts, which is most of what "today" means. */
   timezone: string;
+  /**
+   * BCP 47 language tag, or null to follow the device. The athlete's choice,
+   * not the phone's: a German speaker on an English handset still wants German.
+   */
+  locale: string | null;
   heightCm: number;
   birthYear: number | null;
   goalWeightKg: number | null;
@@ -39,6 +44,7 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
   const { rows } = await ctx.db.query<{
     name: string | null;
     timezone: string;
+    locale: string | null;
     height_cm: number;
     birth_year: number | null;
     goal_weight_kg: number | null;
@@ -52,7 +58,7 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
     weekly_rate_kg: number | null;
     onboarded_at: Date | null;
   }>(
-    `select name, timezone, height_cm, birth_year, goal_weight_kg,
+    `select name, timezone, locale, height_cm, birth_year, goal_weight_kg,
             calorie_target, protein_target_g, fat_floor_g,
             sex, activity_level, goal, training_days_per_week, weekly_rate_kg,
             onboarded_at
@@ -66,6 +72,7 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
   return {
     name: row.name,
     timezone: row.timezone,
+    locale: row.locale,
     heightCm: row.height_cm,
     birthYear: row.birth_year,
     goalWeightKg: row.goal_weight_kg,
@@ -163,6 +170,21 @@ export async function setTimezone(ctx: Ctx, zone: string): Promise<Profile> {
   await ctx.db.query(
     'update profile set timezone = $2, updated_at = now() where user_id = $1',
     [ctx.userId, zone],
+  );
+  return getProfile(ctx);
+}
+
+/** A BCP 47 tag like 'de' or 'en-GB'. Loose on purpose: the app knows what it
+ *  can render, and an unknown tag falls back rather than failing. */
+const LOCALE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+
+export async function setLocale(ctx: Ctx, locale: string | null): Promise<Profile> {
+  if (locale !== null && !LOCALE_TAG.test(locale)) {
+    throw badRequest(`${locale} is not a language tag`);
+  }
+  await ctx.db.query(
+    'update profile set locale = $2, updated_at = now() where user_id = $1',
+    [ctx.userId, locale],
   );
   return getProfile(ctx);
 }

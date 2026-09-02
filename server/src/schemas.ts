@@ -86,9 +86,15 @@ export type SyncOp = z.infer<typeof SyncOpSchema>;
  * editable from a form, because §7's floors have to sit between any change and
  * the database.
  */
-export const UpdateProfileSchema = z.object({
-  timezone: z.string().min(1).max(64),
-});
+export const UpdateProfileSchema = z
+  .object({
+    timezone: z.string().min(1).max(64).optional(),
+    /** null follows the device. */
+    locale: z.string().min(2).max(35).nullish(),
+  })
+  .refine((body) => body.timezone !== undefined || body.locale !== undefined, {
+    message: 'Nothing to change',
+  });
 
 /**
  * The questionnaire. Targets are computed from these in code (§1) — the body
@@ -106,6 +112,7 @@ export const OnboardingSchema = z.object({
   activity: z.enum(['sedentary', 'light', 'moderate', 'active']).optional(),
   weeklyRateKg: z.number().min(0).max(2).optional(),
   timezone: z.string().min(1).max(64).optional(),
+  locale: z.string().min(2).max(35).optional(),
 });
 
 export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);

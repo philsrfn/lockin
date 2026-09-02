@@ -127,6 +127,23 @@ describe('completeOnboarding', () => {
     ).toContain('160g');
   });
 
+  it('records the language she reads, and leaves it to the device when she does not say', async () => {
+    expect((await getProfile(sam)).locale).toBeNull();
+
+    const withLocale = await completeOnboarding(sam, { ...SMALL, locale: 'en-GB' });
+    expect(withLocale.profile.locale).toBe('en-GB');
+
+    // Answering again without a locale must not wipe the one she has.
+    const again = await completeOnboarding(sam, SMALL);
+    expect(again.profile.locale).toBe('en-GB');
+  });
+
+  it('leaves Phil reading German', async () => {
+    // Every row that predates onboarding is his, and his app has always been
+    // in German. Detecting the device instead would have switched it on him.
+    expect((await getProfile(phil)).locale).toBe('de');
+  });
+
   it('moves her to the timezone she gave', async () => {
     const { profile } = await completeOnboarding(sam, { ...SMALL, timezone: 'America/New_York' });
 

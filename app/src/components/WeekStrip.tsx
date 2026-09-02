@@ -3,7 +3,6 @@ import type { WeekDay } from '../api/types';
 import { colors, space, type as typo } from '../theme';
 
 const TRACK = 84;
-const BAR = 5;
 
 /**
  * The week, as one object.
@@ -89,10 +88,10 @@ const styles = StyleSheet.create({
   letter: { fontSize: 12, color: colors.text, height: 16, lineHeight: 16, letterSpacing: 0.5 },
   letterEmpty: { color: colors.textFaint },
 
-  // A thin column, centred. Full-width blocks turned a quiet strip into a bar
-  // chart that shouted over everything else on the screen.
-  track: { height: TRACK, width: BAR, justifyContent: 'flex-end' },
-  fill: { width: BAR },
+  // Full-width columns. Thin bars were more restrained but read as a
+  // sparkline; these read as a week, which is the point of the screen.
+  track: { height: TRACK, width: '100%', justifyContent: 'flex-end' },
+  fill: { width: '100%' },
 
   day: { fontSize: 11, letterSpacing: 0.6, color: colors.textFaint },
   dayToday: { color: colors.text },

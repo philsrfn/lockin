@@ -221,7 +221,7 @@ function ExerciseCard({ exercise }: { exercise: ExerciseProgress }) {
 const styles = StyleSheet.create({
   header: { gap: space.xs },
   back: { ...typo.body, color: colors.textDim, marginBottom: space.sm },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text },
+  title: { fontSize: 30, fontWeight: '300', color: colors.text },
 
   rangeRow: { flexDirection: 'row', gap: space.sm },
   rangeChip: {
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    backgroundColor: colors.bg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   rangeChipActive: { backgroundColor: colors.surfaceHigh, borderColor: colors.text },
@@ -241,11 +241,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   alignEnd: { alignItems: 'flex-end' },
   numeral: { ...typo.numeral, ...typo.mono, color: colors.text },
-  change: { fontSize: 19, fontWeight: '700', ...typo.mono },
+  change: { fontSize: 19, fontWeight: '400', ...typo.mono },
 
   statRow: { flexDirection: 'row', gap: space.sm },
   stat: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: 24, fontWeight: '800', color: colors.text, ...typo.mono },
+  statValue: { fontSize: 24, fontWeight: '300', color: colors.text, ...typo.mono },
   statLabel: { fontSize: 12, color: colors.textFaint },
 
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', gap: 4, height: 72 },
@@ -256,6 +256,6 @@ const styles = StyleSheet.create({
   reviewBlock: { gap: space.xs },
   reviewLabel: { ...typo.label, color: colors.textFaint },
   reviewBody: { ...typo.body, color: colors.text, lineHeight: 22 },
-  reviewChange: { fontWeight: '700' },
+  reviewChange: { fontWeight: '400' },
   error: { color: colors.danger, fontSize: 14 },
 });

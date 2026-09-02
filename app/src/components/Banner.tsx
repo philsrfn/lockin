@@ -22,11 +22,11 @@ export function Banner({ tone, title, body }: { tone: Tone; title: string; body?
 const styles = StyleSheet.create({
   banner: {
     borderRadius: radius.md,
-    borderLeftWidth: 3,
+    borderLeftWidth: StyleSheet.hairlineWidth,
     paddingVertical: space.md,
     paddingHorizontal: space.lg,
     gap: space.xs,
   },
-  title: { fontSize: 15, fontWeight: '700' },
+  title: { fontSize: 15, fontWeight: '400' },
   body: { fontSize: 14, color: colors.text, opacity: 0.85, lineHeight: 20 },
 });

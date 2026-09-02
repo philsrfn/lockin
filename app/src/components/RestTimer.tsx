@@ -46,29 +46,30 @@ export function RestTimer({
 
 const styles = StyleSheet.create({
   bar: {
-    height: 56,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: 52,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
     overflow: 'hidden',
     justifyContent: 'center',
   },
+  // The rest fills a rule along the top rather than shading a whole block:
+  // it should be readable at a glance and invisible otherwise.
   fill: {
     position: 'absolute',
     left: 0,
     top: 0,
-    bottom: 0,
-    backgroundColor: colors.surfaceHigh,
+    height: 2,
+    backgroundColor: colors.textFaint,
   },
-  fillDone: { backgroundColor: colors.accentDeep },
+  fillDone: { backgroundColor: colors.accent },
   content: {
+    paddingTop: space.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.lg,
   },
-  label: { ...typo.label, color: colors.textDim },
+  label: { ...typo.label, color: colors.textFaint },
   labelDone: { color: colors.accent },
-  time: { fontSize: 22, fontWeight: '700', color: colors.text, ...typo.mono },
+  time: { fontSize: 24, fontWeight: '300', color: colors.text, ...typo.mono },
 });

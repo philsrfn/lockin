@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   centred: { flex: 1, padding: space.lg, gap: space.lg },
 
   back: { ...typo.body, color: colors.textDim },
-  title: { fontSize: 28, fontWeight: '800', color: colors.text },
+  title: { fontSize: 28, fontWeight: '300', color: colors.text },
   body: { ...typo.bodyDim, color: colors.textDim, lineHeight: 21 },
   hint: {
     ...typo.body,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 46,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
     paddingHorizontal: space.md,
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
   remove: { width: 28, alignItems: 'center' },
   removeText: { color: colors.textFaint, fontSize: 16 },
 
-  mealName: { fontSize: 19, fontWeight: '700', color: colors.text },
+  mealName: { fontSize: 19, fontWeight: '400', color: colors.text },
   macroRow: { gap: 2 },
-  macroHero: { fontSize: 17, fontWeight: '700', color: colors.accent },
+  macroHero: { fontSize: 17, fontWeight: '400', color: colors.accent },
   macroDim: { fontSize: 13, color: colors.textDim },
   method: { ...typo.bodyDim, color: colors.text, lineHeight: 21 },
   uses: { fontSize: 13, color: colors.textFaint },

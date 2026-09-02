@@ -224,13 +224,13 @@ function RuleSheet({
 const styles = StyleSheet.create({
   header: { gap: space.xs },
   back: { ...typo.body, color: colors.textDim, marginBottom: space.sm },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text },
+  title: { fontSize: 30, fontWeight: '300', color: colors.text },
   subtitle: { ...typo.bodyDim, color: colors.textDim },
   blurb: { fontSize: 13, color: colors.textFaint, marginTop: -space.xs },
 
   ruleRow: { flexDirection: 'row', gap: space.md, paddingVertical: space.sm },
   check: { width: 28, alignItems: 'center', paddingTop: 2 },
-  checkMark: { fontSize: 18, color: colors.accent, fontWeight: '700' },
+  checkMark: { fontSize: 18, color: colors.accent, fontWeight: '400' },
   checkOff: { color: colors.textFaint },
   ruleBody: { flex: 1, gap: space.xs },
   ruleText: { ...typo.body, color: colors.text, lineHeight: 21 },
@@ -245,10 +245,10 @@ const styles = StyleSheet.create({
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: space.lg,
     paddingBottom: space.xxl + space.lg,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 52,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
     paddingHorizontal: space.lg,

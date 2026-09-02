@@ -89,11 +89,11 @@ export default function WorkoutScreen() {
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
-          <Text style={styles.headerAction}>Close</Text>
+          <Text style={styles.headerAction}>CLOSE</Text>
         </Pressable>
         <Text style={styles.headerTitle}>DAY {workout.plan?.template}</Text>
         <Pressable onPress={() => setFinishing(true)} hitSlop={12} style={styles.headerButton}>
-          <Text style={[styles.headerAction, styles.headerFinish]}>Finish</Text>
+          <Text style={[styles.headerAction, styles.headerFinish]}>FINISH</Text>
         </Pressable>
       </View>
 
@@ -164,6 +164,7 @@ export default function WorkoutScreen() {
           unit="reps"
           step={1}
           min={1}
+          max={100}
           onChange={(reps) => updateDraft({ reps })}
         />
 
@@ -390,57 +391,47 @@ const styles = StyleSheet.create({
   },
   headerButton: { minWidth: 64, minHeight: 32, justifyContent: 'center' },
   headerTitle: { ...typo.label, color: colors.textDim },
-  headerAction: { fontSize: 16, fontWeight: '600', color: colors.textDim },
-  headerFinish: { color: colors.accent, textAlign: 'right' },
+  headerAction: { ...typo.label, color: colors.textFaint },
+  headerFinish: { color: colors.text, textAlign: 'right' },
 
   pillsRow: { flexGrow: 0, flexShrink: 0 },
   pills: { paddingHorizontal: space.lg, gap: space.sm, paddingBottom: space.md },
   pill: {
-    paddingHorizontal: space.md,
-    height: 36,
+    paddingHorizontal: space.sm,
+    height: 34,
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
     maxWidth: 190,
   },
-  pillActive: { borderColor: colors.text, backgroundColor: colors.surfaceHigh },
-  pillDone: { borderColor: colors.accent },
-  pillText: { fontSize: 14, fontWeight: '600', color: colors.textFaint },
+  pillActive: { borderBottomColor: colors.text },
+  pillDone: {},
+  pillText: { fontSize: 14, fontWeight: '400', color: colors.textFaint },
   pillTextActive: { color: colors.text },
   pillTextDone: { color: colors.accent },
 
   body: { paddingHorizontal: space.lg, gap: space.md },
   titleBlock: { gap: space.xs, marginBottom: space.xs },
-  exerciseName: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
+  exerciseName: { fontSize: 30, fontWeight: '300', color: colors.text, letterSpacing: -1 },
   target: { ...typo.body, color: colors.textDim },
   lastLine: { fontSize: 14, color: colors.textFaint },
 
   loggedBlock: {
     gap: space.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: space.md,
   },
   loggedRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   loggedIndex: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.accentDeep,
-    color: colors.accent,
-    textAlign: 'center',
-    lineHeight: 24,
-    fontSize: 13,
-    fontWeight: '700',
-    overflow: 'hidden',
+    width: 18,
+    color: colors.textFaint,
+    fontSize: 12,
+    ...typo.mono,
   },
-  loggedText: { ...typo.body, ...typo.mono, color: colors.text, flex: 1 },
-  pending: { fontSize: 12, fontWeight: '600', color: colors.warn },
-  failed: { fontSize: 12, fontWeight: '700', color: colors.danger },
+  loggedText: { fontSize: 15, ...typo.mono, color: colors.text, flex: 1 },
+  pending: { fontSize: 10, fontWeight: '600', letterSpacing: 1, color: colors.accent },
+  failed: { fontSize: 12, fontWeight: '400', color: colors.danger },
   failedNotice: { fontSize: 13, color: colors.danger, lineHeight: 19 },
   undo: { fontSize: 14, color: colors.textFaint, paddingTop: space.xs },
 
@@ -453,7 +444,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: space.lg,
     paddingBottom: space.xxl + space.lg,
@@ -461,7 +452,7 @@ const styles = StyleSheet.create({
   },
   sheetLabel: { ...typo.label, color: colors.textFaint },
   sheetOption: { minHeight: 56, justifyContent: 'center', paddingHorizontal: space.md },
-  sheetOptionText: { fontSize: 18, fontWeight: '600', color: colors.text },
+  sheetOptionText: { fontSize: 17, fontWeight: '400', color: colors.text },
   pressed: { opacity: 0.7 },
 
   rpeRow: { flexDirection: 'row', gap: space.sm },
@@ -470,33 +461,30 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  rpeChipActive: { backgroundColor: colors.accentDeep, borderColor: colors.accent },
-  rpeText: { fontSize: 20, fontWeight: '700', color: colors.textDim },
+  rpeChipActive: { borderBottomColor: colors.accent, borderBottomWidth: 2 },
+  rpeText: { fontSize: 22, fontWeight: '300', color: colors.textFaint },
   rpeTextActive: { color: colors.accent },
   rpeHint: { fontSize: 14, color: colors.textFaint, marginTop: -space.sm },
 
   toggle: {
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    backgroundColor: colors.surfaceHigh,
-    padding: space.lg,
+    paddingVertical: space.md,
     gap: 2,
   },
-  toggleActive: { borderColor: colors.danger, backgroundColor: colors.dangerDeep },
-  toggleText: { fontSize: 17, fontWeight: '700', color: colors.textDim },
+  toggleActive: { borderColor: colors.danger },
+  toggleText: { fontSize: 16, fontWeight: '400', color: colors.textDim },
   toggleTextActive: { color: colors.danger },
   toggleHint: { fontSize: 13, color: colors.textFaint },
 
   notes: {
     minHeight: 72,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
     padding: space.md,

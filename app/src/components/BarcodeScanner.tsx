@@ -80,7 +80,7 @@ export function BarcodeScanner({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
   centred: { flex: 1, padding: space.lg, gap: space.lg },
-  title: { fontSize: 24, fontWeight: '800', color: colors.text },
+  title: { fontSize: 24, fontWeight: '300', color: colors.text },
   body: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
 
   overlay: { flex: 1, justifyContent: 'space-between', alignItems: 'center' },
@@ -110,5 +110,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  cancelText: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  cancelText: { fontSize: 17, fontWeight: '400', color: '#fff' },
 });

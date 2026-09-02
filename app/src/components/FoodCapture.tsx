@@ -284,10 +284,10 @@ const styles = StyleSheet.create({
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' },
   sheetScroll: { maxHeight: '88%', flexGrow: 0 },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: space.lg,
     paddingBottom: space.xxl + space.lg,
@@ -295,12 +295,12 @@ const styles = StyleSheet.create({
   },
   label: { ...typo.label, color: colors.textFaint },
   help: { fontSize: 14, color: colors.textDim, lineHeight: 20 },
-  draftName: { fontSize: 20, fontWeight: '700', color: colors.text },
+  draftName: { fontSize: 20, fontWeight: '400', color: colors.text },
 
   input: {
     minHeight: 52,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
     paddingHorizontal: space.lg,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 88, paddingTop: space.md, textAlignVertical: 'top' },
 
   gramsRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  grams: { width: 110, textAlign: 'center', fontSize: 20, fontWeight: '700' },
+  grams: { width: 110, textAlign: 'center', fontSize: 20, fontWeight: '400' },
   gramsLabel: { ...typo.body, color: colors.textDim },
 
   macroRow: { flexDirection: 'row', gap: space.sm },
@@ -320,10 +320,10 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  macroValue: { fontSize: 19, fontWeight: '700', color: colors.text, ...typo.mono },
+  macroValue: { fontSize: 19, fontWeight: '400', color: colors.text, ...typo.mono },
   macroHero: { color: colors.accent, fontSize: 22 },
   macroLabel: { fontSize: 11, color: colors.textFaint, marginTop: 2 },
 
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.md,
     backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   slotChipActive: { backgroundColor: colors.accentDeep, borderColor: colors.accent },

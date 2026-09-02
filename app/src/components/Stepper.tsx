@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, space, type as typo } from '../theme';
 
 /**
@@ -11,6 +11,7 @@ export function Stepper({
   unit,
   step,
   min = 0,
+  max = 1000,
   decimals = 0,
   onChange,
 }: {
@@ -18,9 +19,14 @@ export function Stepper({
   unit: string;
   step: number;
   min?: number;
+  max?: number;
   decimals?: number;
   onChange: (next: number) => void;
 }) {
+  // Tap the number to type it. Stepping from an empty bar to 90kg is a hold;
+  // going straight to a weight he already knows is four keystrokes.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
   const held = useRef<ReturnType<typeof setInterval> | null>(null);
   const latest = useRef(value);
   latest.current = value;
@@ -54,6 +60,18 @@ export function Stepper({
 
   useEffect(() => stopHold, []);
 
+  /** Snap what he typed onto the plate grid, so the log stays loadable. */
+  function commit() {
+    setEditing(false);
+    // Tapping in and tapping away again should change nothing.
+    if (draft.trim() === '') return;
+    const parsed = Number(draft.replace(',', '.'));
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.min(max, Math.max(min, parsed));
+    const snapped = Math.round(clamped / step) * step;
+    onChange(Number(snapped.toFixed(2)));
+  }
+
   return (
     <View style={styles.row}>
       <Pressable
@@ -67,10 +85,35 @@ export function Stepper({
         <Text style={styles.symbol}>−</Text>
       </Pressable>
 
-      <View style={styles.readout}>
-        <Text style={styles.value}>{value.toFixed(decimals)}</Text>
-        <Text style={styles.unit}>{unit}</Text>
-      </View>
+      {editing ? (
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          // Starts empty with the current value behind it. selectTextOnFocus is
+          // unreliable alongside autoFocus, and appending to the old number
+          // means deleting four characters before every entry.
+          placeholder={value.toFixed(decimals)}
+          placeholderTextColor={colors.textFaint}
+          keyboardType={decimals > 0 ? 'decimal-pad' : 'number-pad'}
+          autoFocus
+          returnKeyType="done"
+          onBlur={commit}
+          onSubmitEditing={commit}
+          style={[styles.readout, styles.value, styles.input]}
+        />
+      ) : (
+        <Pressable
+          onPress={() => {
+            setDraft('');
+            setEditing(true);
+          }}
+          style={styles.readout}
+          hitSlop={8}
+        >
+          <Text style={styles.value}>{value.toFixed(decimals)}</Text>
+          <Text style={styles.unit}>{unit}</Text>
+        </Pressable>
+      )}
 
       <Pressable
         onPress={() => adjust(1)}
@@ -90,21 +133,18 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    overflow: 'hidden',
   },
   button: {
-    width: 76,
-    height: 68,
+    width: 80,
+    height: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceHigh,
   },
-  pressed: { backgroundColor: colors.border },
-  symbol: { fontSize: 30, fontWeight: '600', color: colors.text, marginTop: -2 },
+  pressed: { opacity: 0.45 },
+  symbol: { fontSize: 30, fontWeight: '300', color: colors.textDim, marginTop: -2 },
   readout: {
     flex: 1,
     flexDirection: 'row',
@@ -112,6 +152,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.xs,
   },
-  value: { fontSize: 32, fontWeight: '700', color: colors.text, ...typo.mono },
-  unit: { fontSize: 15, fontWeight: '600', color: colors.textDim },
+  value: { fontSize: 40, fontWeight: '300', color: colors.text, letterSpacing: -1.5, ...typo.mono },
+  input: { textAlign: 'center', paddingVertical: 0, height: 76 },
+  unit: { fontSize: 13, fontWeight: '400', color: colors.textFaint, letterSpacing: 0.6 },
 });

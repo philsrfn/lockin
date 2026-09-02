@@ -30,7 +30,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
       const status = (caught as { status?: number }).status;
       setError(
         status === 401
-          ? 'That token was rejected. Check it matches APP_BEARER_TOKEN on the server.'
+          ? 'That token was rejected. Check it against the one you were given.'
           : status === 0
             ? 'Could not reach that address. Check the URL and that the server is up.'
             : `Something went wrong (${status ?? '?'}).`,

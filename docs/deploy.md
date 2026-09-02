@@ -126,3 +126,25 @@ NEW=$(openssl rand -hex 32)
 
 Then re-enter it on the phone. No rebuild needed — that is the point of keeping
 it in the keychain rather than the binary.
+
+## Adding a friend
+
+Every athlete has their own token, their own profile, timezone, contexts, rules
+and notification schedule. Adding one is a command on the box, not an endpoint —
+"first friends" needs no public signup surface to attack.
+
+```sh
+ssh root@YOUR_IP
+cd /opt/lockin/deploy
+docker compose -f docker-compose.prod.yml exec api npm run user:create -- --name Sam --timezone Europe/Berlin
+```
+
+It prints their token once and stores only its hash. Send it the way you would
+send a password. They install the same TestFlight build, and on first launch
+enter `https://YOUR_DOMAIN` and that token.
+
+They start with a single "Home" context and the enforceable rules — deliberately
+not your four German cities or your Skyr breakfast. Those are yours.
+
+`APP_BEARER_TOKEN` is still your own token: it is mirrored onto user 1 at every
+boot, so rotating it in `deploy/.env` works exactly as described above.

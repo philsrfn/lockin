@@ -13,12 +13,14 @@ import { HttpError } from '../errors';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
+import { type CardioKind, logCardio } from '../services/cardio';
 import { logMeal } from '../services/meals';
 import { getProfile, updateTargets } from '../services/profile';
 import { addRule, deactivateRule, listRules } from '../services/rules';
 import { createSession, finishSession, listSessions, openSession } from '../services/sessions';
 import { recordSet } from '../services/sets';
 import { getToday } from '../services/today';
+import { getWeek } from '../services/week';
 import { prescribeExercise, upcomingTemplate } from '../services/workouts';
 import type { ToolCall } from './provider';
 
@@ -151,6 +153,27 @@ const HANDLERS: Record<
       consumedToday: result.today,
       proteinRemaining: profile.proteinTargetG - result.today.proteinG,
       kcalRemaining: profile.calorieTarget - result.today.kcal,
+    };
+  },
+
+  async log_cardio(ctx, args) {
+    const session = await logCardio(ctx, {
+      kind: String(args.kind) as CardioKind,
+      minutes: Number(args.minutes),
+      description: args.description === undefined ? null : String(args.description),
+      distanceKm: args.distanceKm === undefined ? null : Number(args.distanceKm),
+      avgHr: args.avgHr === undefined ? null : Number(args.avgHr),
+      rpe: args.rpe === undefined ? null : Number(args.rpe),
+    });
+
+    const week = await getWeek(ctx);
+    return {
+      ok: true,
+      session,
+      // §6: the write returns the resulting state, so the next turn is talking
+      // about the week as it now is.
+      cardioThisWeek: week.cardio,
+      countedTowardsTheWeek: session.counts,
     };
   },
 

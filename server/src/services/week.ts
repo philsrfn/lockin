@@ -6,11 +6,14 @@
  * week: what he lifted, whether he stepped on the scale, whether protein
  * landed.
  *
- * Cardio is deliberately absent. There is nowhere to log it yet, and showing a
- * "0 of 2 zone-2" he has no way to satisfy would be inventing a failure.
+ * Cardio used to be deliberately absent: there was nowhere to log it, and
+ * showing a "0 of 2 zone-2" he had no way to satisfy would have been inventing
+ * a failure. There is somewhere now, so it counts.
  */
 import type { Ctx } from '../db';
 import { addDays, dayIn, daySpanIn, weekdayOf } from '../domain/time';
+import { WEEKLY_TARGETS } from '../domain/program';
+import { cardioByDay } from './cardio';
 import { getProfile } from './profile';
 
 export type WeekDay = {
@@ -27,6 +30,10 @@ export type WeekDay = {
   template: string | null;
   sets: number;
   weightKg: number | null;
+  /** Minutes of cardio, of any kind. */
+  cardioMinutes: number;
+  /** Sessions that move the weekly tally — a walk to the shops does not. */
+  cardioSessions: number;
   proteinG: number;
   kcal: number;
   /** Null when nothing was logged: absent is not the same as zero. */
@@ -36,6 +43,7 @@ export type WeekDay = {
 export type Week = {
   days: WeekDay[];
   strength: { done: number; target: number };
+  cardio: { done: number; target: number; minutes: number };
   weighIns: { done: number; target: number };
   proteinTargetG: number;
   /** Average over days he actually logged, not over seven. */
@@ -54,7 +62,7 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
   // Timestamps are bucketed into days in his zone. `performed_at::date` would
   // read the database session's timezone instead, and a late session would slide
   // into the wrong column of the strip.
-  const [sessions, weights, meals] = await Promise.all([
+  const [sessions, weights, meals, cardio] = await Promise.all([
     ctx.db.query<{ day: string; template: string | null; sets: number }>(
       `select to_char(s.performed_at at time zone $4, 'YYYY-MM-DD') as day,
               max(s.template) as template,
@@ -79,6 +87,7 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
        group by 1`,
       [ctx.userId, span.from, span.until, profile.timezone],
     ),
+    cardioByDay(ctx, firstDay, asOf, profile.timezone),
   ]);
 
   const byDaySession = new Map(sessions.rows.map((row) => [row.day, row]));
@@ -101,6 +110,8 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
       template: session?.template ?? null,
       sets: session?.sets ?? 0,
       weightKg: byDayWeight.get(date) ?? null,
+      cardioMinutes: cardio.get(date)?.minutes ?? 0,
+      cardioSessions: cardio.get(date)?.counted ?? 0,
       proteinG: protein,
       kcal: meal?.kcal ?? 0,
       proteinPct: meal ? Math.round((protein / profile.proteinTargetG) * 100) : null,
@@ -112,6 +123,11 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
   return {
     days,
     strength: { done: days.filter((day) => day.lifted).length, target: 3 },
+    cardio: {
+      done: days.reduce((sum, day) => sum + day.cardioSessions, 0),
+      target: WEEKLY_TARGETS.zone2Sessions,
+      minutes: days.reduce((sum, day) => sum + day.cardioMinutes, 0),
+    },
     weighIns: { done: days.filter((day) => day.weightKg !== null).length, target: 7 },
     proteinTargetG: profile.proteinTargetG,
     avgProteinG: logged.length

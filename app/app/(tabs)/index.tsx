@@ -16,6 +16,7 @@ import { useResource } from '../../src/api/hooks';
 import type { Today, Week, WeekDay } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { ContextChip } from '../../src/components/ContextChip';
+import { CardioSheet } from '../../src/components/CardioSheet';
 import { WeekStrip } from '../../src/components/WeekStrip';
 import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
@@ -44,6 +45,7 @@ export default function TodayScreen() {
   const week = useResource<Week>('/week');
   const [selected, setSelected] = useState<string | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [cardioOpen, setCardioOpen] = useState(false);
 
   // Follow the day over midnight rather than stranding the selection.
   useEffect(() => {
@@ -142,6 +144,7 @@ export default function TodayScreen() {
             {week.data ? (
               <Text style={styles.tally}>
                 {week.data.strength.done}/{week.data.strength.target} {t('lifts')} ·{' '}
+                {week.data.cardio.done}/{week.data.cardio.target} {t('cardioTally')} ·{' '}
                 {week.data.weighIns.done}/7 {t('weighIns')}
               </Text>
             ) : null}
@@ -196,8 +199,29 @@ export default function TodayScreen() {
           )}
           variant={!inProgress && (doneToday || resting) ? 'secondary' : 'primary'}
           onPress={() => router.push('/workout')}
+          style={styles.primaryAction}
         />
+        {/*
+          §11 expects two actions here. The second used to be food, which has
+          its own tab; the one with nowhere to go was cardio — the coach
+          prescribed it and had no way to know whether it happened.
+        */}
+        <Pressable
+          onPress={() => setCardioOpen(true)}
+          style={({ pressed }) => [styles.cardioAction, pressed && styles.cardioActionOn]}
+        >
+          <Text style={styles.cardioActionText}>{t('cardio')}</Text>
+        </Pressable>
       </View>
+
+      <CardioSheet
+        visible={cardioOpen}
+        onClose={() => setCardioOpen(false)}
+        onLogged={() => {
+          void today.reload();
+          void week.reload();
+        }}
+      />
     </View>
   );
 }
@@ -289,7 +313,20 @@ const styles = StyleSheet.create({
   factValue: { fontSize: 18, color: colors.text, ...typo.mono },
   factLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: colors.textFaint },
 
+  primaryAction: { flex: 1 },
+  cardioAction: {
+    minHeight: 56,
+    paddingHorizontal: space.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cardioActionOn: { borderColor: colors.text },
+  cardioActionText: { ...typo.label, color: colors.textDim },
   footer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.md,

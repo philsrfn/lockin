@@ -15,6 +15,7 @@ import {
   MealPlanSchema,
   OnboardingSchema,
   ChooseProgramSchema,
+  LogCardioSchema,
   SaveContextSchema,
   UpdateContextSchema,
   LogFoodSchema,
@@ -58,6 +59,7 @@ import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
 import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
+import { deleteCardio, logCardio, recentCardio } from '../services/cardio';
 import { deleteMeal, logMeal, mealsToday } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
@@ -218,6 +220,27 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/sets/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     return { session: await deleteSet(request.ctx, id) };
+  });
+
+  /**
+   * Cardio. §4's week is three strength sessions and two zone-2 — the second
+   * half had nowhere to be logged, so the weekly tally silently dropped it.
+   */
+  app.get('/cardio', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(365).default(14) })
+      .parse(request.query);
+    return { sessions: await recentCardio(request.ctx, query.days) };
+  });
+
+  app.post('/cardio', async (request, reply) => {
+    const body = LogCardioSchema.parse(request.body);
+    return reply.code(201).send({ session: await logCardio(request.ctx, body) });
+  });
+
+  app.delete('/cardio/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    await deleteCardio(request.ctx, id);
+    return { deleted: true };
   });
 
   app.get('/bodyweight', async (request) => {

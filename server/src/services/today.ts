@@ -6,6 +6,7 @@ import { type Profile, getProfile, macroTargets } from './profile';
 import { type Session, openSession, recentSessions, sessionsToday } from './sessions';
 import { type WeightSummary, summary as weightSummary } from './bodyweight';
 import { dayIn } from '../domain/time';
+import { type CardioSession, cardioToday } from './cardio';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
@@ -28,8 +29,11 @@ export type Today = {
     /** What he has actually logged today. Added in phase 4. */
     meals: Meal[];
   };
+  /** Cardio logged today. The screen stops offering what he has already done. */
+  cardioToday: CardioSession[];
   week: {
     strengthSessions: { done: number; target: number };
+    cardioSessions: { done: number; target: number; minutes: number };
   };
   /**
    * The trainer's read on today. null when it has not been generated yet —
@@ -50,7 +54,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
   const zone = profile.timezone;
   const today = dayIn(zone);
 
-  const [context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week] =
+  const [context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week, cardio] =
     await Promise.all([
     activeContext(ctx),
     openSession(ctx),
@@ -62,6 +66,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     mealsToday(ctx, zone),
     sessionsToday(ctx, zone),
     getWeek(ctx),
+    cardioToday(ctx, zone),
   ]);
 
   // Mid-workout, today's plan is the session he is already in — and it must not
@@ -80,12 +85,14 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     plan,
     weight,
     macros: { targets, consumed, remaining: remaining(targets, consumed), meals },
+    cardioToday: cardio,
     week: {
       // Same source as the week strip, so the two can never disagree.
       strengthSessions: {
         done: week.strength.done,
         target: WEEKLY_TARGETS.strengthSessions,
       },
+      cardioSessions: week.cardio,
     },
     coach,
   };

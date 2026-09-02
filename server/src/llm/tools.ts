@@ -116,6 +116,31 @@ export const TOOLS: ToolDeclaration[] = [
     },
   },
   {
+    name: 'log_cardio',
+    description:
+      'Record cardio: a zone-2 treadmill session, intervals, football, a run, ' +
+      'a walk. Minutes is the only number that matters — distance and heart ' +
+      'rate go in when he happens to have them.',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['zone2', 'intervals', 'sport', 'walk', 'other'],
+          description:
+            'zone2 = steady and conversational, intervals = hard, sport = football ' +
+            'or similar, walk = does not count towards the weekly target',
+        },
+        minutes: int('How long, in minutes'),
+        description: str('What it was, in his words'),
+        distanceKm: int('Kilometres, if he said'),
+        avgHr: int('Average heart rate, if he said'),
+        rpe: int('How hard it felt, 1-10, if he said'),
+      },
+      required: ['kind', 'minutes'],
+    },
+  },
+  {
     name: 'swap_exercise',
     description:
       'Replace one exercise in today\'s session with a substitute in the same ' +

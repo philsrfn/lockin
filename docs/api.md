@@ -41,6 +41,10 @@ from the body, in code (§1).
 
 ## Training
 
+`kind` is one of `zone2`, `intervals`, `sport`, `walk`, `other`. A session
+counts towards the weekly target when it is not a walk and runs at least 20
+minutes — the minutes of a walk are still recorded, they just do not tick a box.
+
 Substitutes are filtered by what the active place has. A context whose
 `equipment.available` lists what is there — `["dumbbell", "bodyweight"]` for a
 hotel room — only gets substitutes it can actually do; one that says nothing
@@ -71,6 +75,9 @@ which is a separate question and lives on the profile.
 | DELETE | `/sets/:id` | — | `{session}` |
 | GET | `/bodyweight` | `?days=30` | latest, 7-day average, week change, series |
 | POST | `/bodyweight` | `{weightKg, measuredOn?}` | `{entry, summary}` — 201 |
+| GET | `/cardio` | `?days=14` | `{sessions}` newest first |
+| POST | `/cardio` | `{kind, minutes, description?, distanceKm?, avgHr?, rpe?, performedAt?}` | `{session}` — 201 |
+| DELETE | `/cardio/:id` | — | `{deleted}` |
 | POST | `/sync` | `{ops:[…]}` | `{results:[…]}` — see [offline-sync.md](offline-sync.md) |
 
 ## Food

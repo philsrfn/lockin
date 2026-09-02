@@ -21,28 +21,41 @@ export async function anotherAthlete(name = 'Sam'): Promise<Ctx> {
 }
 
 /**
- * Tables the tests write to. Reference data (profile, contexts, exercises,
- * rules) is left alone: it comes from the seed migration, and a test that needs
- * it changed should change it and say so.
+ * Per-athlete configuration rather than per-athlete data: seeded when a user is
+ * provisioned, and restored by the helpers below rather than truncated.
+ * Everything else with a user_id is something a test wrote.
  */
-const TRANSACTIONAL_TABLES = [
-  'sets',
-  'sessions',
-  'bodyweight',
-  'meals',
-  'foods',
-  'fridge_inventory',
-  'chat_messages',
-  'sync_log',
-  'coach_notes',
-  'job_runs',
-  'push_tokens',
-  'weekly_reviews',
+const CONFIGURATION = [
+  'profile',
+  'contexts',
+  'rules',
+  'job_schedule',
+  // The programme catalogue: shared rows whose user_id is null, plus anything
+  // an athlete owns. Truncating it would take the training programme with it.
+  'programs',
 ];
+
+/**
+ * Derived from the schema rather than listed by hand, so a table added in a
+ * later migration is cleaned up without anybody remembering to come back here.
+ * That list went stale exactly once, and the symptom was rows from a previous
+ * test showing up in the next one's assertions.
+ */
+async function transactionalTables(): Promise<string[]> {
+  const { rows } = await pool.query<{ table_name: string }>(
+    `select table_name from information_schema.columns
+     where table_schema = 'public' and column_name = 'user_id'
+       and table_name <> all($1::text[])
+     order by table_name`,
+    [CONFIGURATION],
+  );
+  return rows.map((row) => row.table_name);
+}
 
 /** Between tests. Keeps ids predictable by restarting the sequences. */
 export async function resetData(): Promise<void> {
-  await pool.query(`truncate ${TRANSACTIONAL_TABLES.join(', ')} restart identity cascade`);
+  const tables = await transactionalTables();
+  await pool.query(`truncate ${tables.join(', ')} restart identity cascade`);
   // Athletes provisioned by a test, and the rows that came with them. User 1 is
   // the seed and stays.
   await pool.query('delete from users where id <> 1');

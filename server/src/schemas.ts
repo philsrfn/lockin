@@ -134,6 +134,18 @@ export const UpdateContextSchema = SaveContextSchema.partial().refine(
   { message: 'Nothing to change' },
 );
 
+export const CardioKindSchema = z.enum(['zone2', 'intervals', 'sport', 'walk', 'other']);
+
+export const LogCardioSchema = z.object({
+  kind: CardioKindSchema,
+  minutes: z.number().int().min(1).max(600),
+  description: z.string().max(200).nullish(),
+  distanceKm: z.number().min(0).max(500).nullish(),
+  avgHr: z.number().int().min(30).max(240).nullish(),
+  rpe: z.number().int().min(1).max(10).nullish(),
+  performedAt: z.string().datetime({ offset: true }).optional(),
+});
+
 export const ChooseProgramSchema = z.object({
   programId: z.number().int().positive(),
 });

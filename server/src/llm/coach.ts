@@ -220,7 +220,9 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
           // with two — contradicting the strip directly beside it, and
           // breaking §1 for exactly the reason §1 exists.
           `Strength sessions finished so far this week: ${strengthThisWeek} of ` +
-          `${WEEKLY_TARGETS.strengthSessions}. Use this number; do not count them yourself.\n\n` +
+          `${WEEKLY_TARGETS.strengthSessions}. Cardio sessions: ${week.cardio.done} of ` +
+          `${week.cardio.target}, ${week.cardio.minutes} minutes logged. ` +
+          'Use these numbers; do not count them yourself.\n\n' +
           `He is running ${program.name}: ` +
           `${program.days.map((day) => `${day.code} (${day.name})`).join(', ')}.\n\n` +
           'Decide what today is.',

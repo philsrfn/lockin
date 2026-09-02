@@ -80,6 +80,20 @@ const PHRASES = {
 
   whereAreYou: { de: 'WO BIST DU', en: 'WHERE ARE YOU' },
   addPlace: { de: 'Ort hinzufügen', en: 'Add a place' },
+
+  cardio: { de: 'CARDIO', en: 'CARDIO' },
+  cardioTally: { de: 'Cardio', en: 'cardio' },
+  logCardio: { de: 'Cardio eintragen', en: 'Log cardio' },
+  minutes: { de: 'MINUTEN', en: 'MINUTES' },
+  kindZone2: { de: 'Zone 2', en: 'Zone 2' },
+  kindIntervals: { de: 'Intervalle', en: 'Intervals' },
+  kindSport: { de: 'Sport', en: 'Sport' },
+  kindWalk: { de: 'Gehen', en: 'Walk' },
+  walkNote: {
+    de: 'Zählt nicht für die Woche — Schritte sind Schritte.',
+    en: 'Does not count towards the week — steps are steps.',
+  },
+  save: { de: 'Sichern', en: 'Save' },
 } satisfies Record<string, Phrase>;
 
 export function t(key: keyof typeof PHRASES): string {

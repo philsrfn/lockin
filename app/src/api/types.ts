@@ -243,6 +243,22 @@ export type Progress = {
   exercises: ExerciseProgress[];
 };
 
+export type CardioKind = 'zone2' | 'intervals' | 'sport' | 'walk' | 'other';
+
+export type CardioSession = {
+  id: number;
+  performedAt: string;
+  kind: CardioKind;
+  minutes: number;
+  description: string | null;
+  distanceKm: number | null;
+  avgHr: number | null;
+  rpe: number | null;
+  contextName: string | null;
+  /** Whether this one moves the weekly tally. A walk does not. */
+  counts: boolean;
+};
+
 export type WeekDay = {
   date: string;
   /** @deprecated German. Use `weekdayShort(date)` — see lib/locale.ts. */
@@ -253,6 +269,8 @@ export type WeekDay = {
   template: string | null;
   sets: number;
   weightKg: number | null;
+  cardioMinutes: number;
+  cardioSessions: number;
   proteinG: number;
   kcal: number;
   proteinPct: number | null;
@@ -261,6 +279,7 @@ export type WeekDay = {
 export type Week = {
   days: WeekDay[];
   strength: { done: number; target: number };
+  cardio: { done: number; target: number; minutes: number };
   weighIns: { done: number; target: number };
   proteinTargetG: number;
   avgProteinG: number | null;
@@ -329,6 +348,10 @@ export type Today = {
     };
     meals: Meal[];
   };
-  week: { strengthSessions: { done: number; target: number } };
+  cardioToday: CardioSession[];
+  week: {
+    strengthSessions: { done: number; target: number };
+    cardioSessions: { done: number; target: number; minutes: number };
+  };
   coach: CoachNote | null;
 };

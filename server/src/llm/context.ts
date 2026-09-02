@@ -10,6 +10,7 @@ import { movingAverage, weeklyChangeKg } from '../domain/trend';
 import { WEEKLY_TARGETS } from '../domain/program';
 import { jointPainGate, rampIn } from '../domain/progression';
 import { listEntries } from '../services/bodyweight';
+import { recentCardio } from '../services/cardio';
 import { activeContext } from '../services/contexts';
 import { macrosToday, mealsToday } from '../services/meals';
 import { getProfile, macroTargets } from '../services/profile';
@@ -17,6 +18,7 @@ import { listRules } from '../services/rules';
 import { firstSessionAt, recentSessions } from '../services/sessions';
 import { planFor, upcomingTemplate } from '../services/workouts';
 import { openSession } from '../services/sessions';
+import { getWeek } from '../services/week';
 import { activeRulesFor } from '../rules/schema';
 import { dayIn } from '../domain/time';
 import { languageInstruction } from '../domain/language';
@@ -45,7 +47,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
   const zone = profile.timezone;
   const asOf = dayIn(zone);
 
-  const [context, rules, sessions, entries, meals, consumed, firstAt, open] =
+  const [context, rules, sessions, entries, meals, consumed, firstAt, open, week, cardio] =
     await Promise.all([
       activeContext(ctx),
       listRules(ctx),
@@ -55,6 +57,8 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
       macrosToday(ctx, zone),
       firstSessionAt(ctx),
       openSession(ctx),
+      getWeek(ctx),
+      recentCardio(ctx, 14),
     ]);
 
   const average7 = movingAverage(entries, asOf);
@@ -74,6 +78,19 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
   const scoped = activeRulesFor(rules, context?.name ?? null);
   const byTier = (tier: string) =>
     scoped.filter((rule) => rule.tier === tier).map((rule) => `- ${rule.text}`).join('\n') || '- none';
+
+  const cardioLines =
+    cardio.length === 0
+      ? '- none logged'
+      : cardio
+          .slice(0, 8)
+          .map(
+            (entry) =>
+              `- ${dayIn(zone, new Date(entry.performedAt))}: ${entry.kind} ${entry.minutes}min` +
+              `${entry.description ? ` (${entry.description})` : ''}` +
+              `${entry.counts ? '' : ' [does not count towards the week]'}`,
+          )
+          .join('\n');
 
   const recentLines =
     sessions.length === 0
@@ -144,10 +161,13 @@ ${byTier('soft')}
 TRAINING STATE
 - ramp-in: ${ramp.active ? `ACTIVE — cap ${ramp.maxWorkingSets} working sets, keep ${ramp.minRir}+ reps in reserve` : 'over'}
 - joint pain: ${gate.consecutiveFlags} consecutive flagged session(s)${gate.recommendDoctor ? ' — LOAD CUT AND HE MUST SEE A DOCTOR' : gate.holdLoad ? ' — hold load, do not add weight' : ''}
-- this week: ${strengthThisWeek} of ${WEEKLY_TARGETS.strengthSessions} strength sessions
+- this week: ${strengthThisWeek} of ${WEEKLY_TARGETS.strengthSessions} strength sessions, ${week.cardio.done} of ${week.cardio.target} cardio sessions (${week.cardio.minutes} min logged)
 
 RECENT (last 14 days)
 ${recentLines}
+
+CARDIO (last 14 days)
+${cardioLines}
 
 TODAY (${asOf})
 - session in progress: ${open ? `yes, day ${open.template}, ${open.sets.length} sets logged` : 'no'}

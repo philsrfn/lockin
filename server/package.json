@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:demo": "tsx --env-file=../.env src/seed-demo.ts"
+    "seed:demo": "tsx --env-file=../.env src/seed-demo.ts",
+    "test:unit": "vitest run --project unit",
+    "test:int": "vitest run --project integration"
   },
   "dependencies": {
     "@google/genai": "^2.20.0",

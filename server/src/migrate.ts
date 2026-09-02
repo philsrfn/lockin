@@ -5,12 +5,17 @@
 import { readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 import { pool } from './db';
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
-export async function migrate(): Promise<string[]> {
-  const client = await pool.connect();
+/**
+ * `db` is injectable so the test harness can build a fresh schema in a scratch
+ * database without pointing the whole process at it.
+ */
+export async function migrate(db: pg.Pool = pool): Promise<string[]> {
+  const client = await db.connect();
   const applied: string[] = [];
 
   try {

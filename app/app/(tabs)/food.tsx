@@ -17,6 +17,7 @@ import { ApiError, api } from '../../src/api/client';
 import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { FoodCapture } from '../../src/components/FoodCapture';
+import { FoodEditor } from '../../src/components/FoodEditor';
 import { colors, radius, space, type as typo } from '../../src/theme';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -35,6 +36,7 @@ export default function FoodScreen() {
   const [error, setError] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
+  const [editing, setEditing] = useState<Food | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -134,6 +136,8 @@ export default function FoodScreen() {
                 <Pressable
                   key={food.id}
                   onPress={() => logFood(food)}
+                  onLongPress={() => setEditing(food)}
+                  delayLongPress={450}
                   disabled={busy !== null}
                   style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
                 >
@@ -186,10 +190,13 @@ export default function FoodScreen() {
           <>
             <Text style={styles.section}>MY FOODS</Text>
             <View style={styles.card}>
+              <Text style={styles.hint}>Tap to log · hold to edit</Text>
               {rest.map((food) => (
                 <Pressable
                   key={food.id}
                   onPress={() => logFood(food)}
+                  onLongPress={() => setEditing(food)}
+                  delayLongPress={450}
                   disabled={busy !== null}
                   style={({ pressed }) => [styles.libraryRow, pressed && styles.pressed]}
                 >
@@ -216,6 +223,15 @@ export default function FoodScreen() {
         </View>
         <Button title="Enter by hand" variant="ghost" onPress={() => setManualOpen(true)} />
       </ScrollView>
+
+      <FoodEditor
+        food={editing}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null);
+          await load();
+        }}
+      />
 
       <FoodCapture
         mode={capture}

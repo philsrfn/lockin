@@ -1,0 +1,248 @@
+import { useEffect, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { ApiError, api } from '../api/client';
+import type { Food, MealSlot } from '../api/types';
+import { Button } from './Button';
+import { colors, radius, space, type as typo } from '../theme';
+
+const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+/**
+ * Editing a saved food. The seeded macros are estimates and the barcode ones
+ * are crowd-sourced, so being able to correct them is what turns the library
+ * from a guess into his own data.
+ *
+ * Removing archives rather than deletes: meals already logged against a food
+ * keep pointing at it, and his history stays intact.
+ */
+export function FoodEditor({
+  food,
+  onClose,
+  onSaved,
+}: {
+  food: Food | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [kcal, setKcal] = useState('');
+  const [protein, setProtein] = useState('');
+  const [fat, setFat] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [slot, setSlot] = useState<MealSlot | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  // Re-seed the form whenever a different food is opened.
+  useEffect(() => {
+    if (!food) return;
+    setName(food.name);
+    setKcal(String(food.kcal));
+    setProtein(String(food.proteinG));
+    setFat(food.fatG == null ? '' : String(food.fatG));
+    setCarbs(food.carbsG == null ? '' : String(food.carbsG));
+    setQuickAdd(food.quickAdd);
+    setSlot(food.defaultSlot);
+    setError(null);
+    setConfirmRemove(false);
+  }, [food]);
+
+  const valid = name.trim().length > 0 && kcal !== '' && protein !== '';
+
+  async function save() {
+    if (!food || !valid) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/foods/${food.id}`, {
+        method: 'PATCH',
+        body: {
+          name: name.trim(),
+          kcal: Number(kcal),
+          proteinG: Number(protein),
+          fatG: fat === '' ? null : Number(fat),
+          carbsG: carbs === '' ? null : Number(carbs),
+          quickAdd,
+          defaultSlot: slot,
+        },
+      });
+      onSaved();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not save that');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!food) return;
+    setBusy(true);
+    try {
+      await api(`/foods/${food.id}`, { method: 'DELETE' });
+      onSaved();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not remove that');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal visible={food !== null} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={styles.backdropFill} onPress={onClose} />
+        <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheet}>
+          <Text style={styles.label}>EDIT FOOD</Text>
+
+          <TextInput value={name} onChangeText={setName} style={styles.input} />
+
+          <View style={styles.numberRow}>
+            <Field label="protein" value={protein} onChange={setProtein} />
+            <Field label="kcal" value={kcal} onChange={setKcal} />
+            <Field label="fat" value={fat} onChange={setFat} />
+            <Field label="carbs" value={carbs} onChange={setCarbs} />
+          </View>
+
+          <Pressable onPress={() => setQuickAdd((v) => !v)} style={styles.toggle}>
+            <Text style={[styles.toggleText, quickAdd && styles.toggleOn]}>
+              {quickAdd ? '✓  Show as a one-tap tile' : 'Show as a one-tap tile'}
+            </Text>
+            <Text style={styles.toggleHint}>Tiles sit at the top of the food screen.</Text>
+          </Pressable>
+
+          <Text style={styles.label}>USUAL MEAL</Text>
+          <View style={styles.slotRow}>
+            {SLOTS.map((option) => (
+              <Pressable
+                key={option}
+                // Tapping the active one clears it — some foods are any-time.
+                onPress={() => setSlot(slot === option ? null : option)}
+                style={[styles.slotChip, slot === option && styles.slotChipActive]}
+              >
+                <Text style={[styles.slotText, slot === option && styles.slotTextActive]}>
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Button title={busy ? 'Saving…' : 'Save'} onPress={save} disabled={!valid || busy} />
+
+          {confirmRemove ? (
+            <>
+              <Text style={styles.warn}>
+                Remove it from the list? Meals you already logged with it stay in your history.
+              </Text>
+              <Button title="Yes, remove it" variant="secondary" onPress={remove} disabled={busy} />
+              <Button title="Keep it" variant="ghost" onPress={() => setConfirmRemove(false)} />
+            </>
+          ) : (
+            <Button title="Remove from my foods" variant="ghost" onPress={() => setConfirmRemove(true)} />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <View style={styles.field}>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        keyboardType="number-pad"
+        placeholder="—"
+        placeholderTextColor={colors.textFaint}
+        style={[styles.input, styles.fieldInput]}
+      />
+      <Text style={styles.fieldLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheetScroll: { maxHeight: '88%', flexGrow: 0 },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    padding: space.lg,
+    paddingBottom: space.xxl + space.lg,
+    gap: space.md,
+  },
+  label: { ...typo.label, color: colors.textFaint },
+  input: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceHigh,
+    paddingHorizontal: space.lg,
+    color: colors.text,
+    fontSize: 16,
+  },
+  numberRow: { flexDirection: 'row', gap: space.sm },
+  field: { flex: 1, gap: 4 },
+  fieldInput: { paddingHorizontal: space.sm, textAlign: 'center', fontWeight: '700' },
+  fieldLabel: { fontSize: 11, color: colors.textFaint, textAlign: 'center' },
+
+  toggle: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceHigh,
+    padding: space.lg,
+    gap: 2,
+  },
+  toggleText: { fontSize: 16, fontWeight: '700', color: colors.textDim },
+  toggleOn: { color: colors.accent },
+  toggleHint: { fontSize: 12, color: colors.textFaint },
+
+  slotRow: { flexDirection: 'row', gap: space.sm },
+  slotChip: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  slotChipActive: { backgroundColor: colors.accentDeep, borderColor: colors.accent },
+  slotText: { fontSize: 13, fontWeight: '600', color: colors.textDim, textTransform: 'capitalize' },
+  slotTextActive: { color: colors.accent },
+
+  error: { color: colors.danger, fontSize: 14 },
+  warn: { color: colors.warn, fontSize: 14, lineHeight: 20 },
+});

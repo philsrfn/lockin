@@ -269,6 +269,8 @@ export type WeekDay = {
   template: string | null;
   sets: number;
   weightKg: number | null;
+  /** From Apple Health. Null means unknown, which is not the same as zero. */
+  steps: number | null;
   cardioMinutes: number;
   cardioSessions: number;
   proteinG: number;
@@ -280,6 +282,7 @@ export type Week = {
   days: WeekDay[];
   strength: { done: number; target: number };
   cardio: { done: number; target: number; minutes: number };
+  steps: { average: number | null; target: number; daysKnown: number };
   weighIns: { done: number; target: number };
   proteinTargetG: number;
   avgProteinG: number | null;
@@ -349,9 +352,18 @@ export type Today = {
     meals: Meal[];
   };
   cardioToday: CardioSession[];
+  /** From Apple Health, when the phone has shared it. Null means unknown. */
+  health: {
+    day: string;
+    steps: number | null;
+    sleepMinutes: number | null;
+    restingHr: number | null;
+    activeKcal: number | null;
+  } | null;
   week: {
     strengthSessions: { done: number; target: number };
     cardioSessions: { done: number; target: number; minutes: number };
+    steps: { average: number | null; target: number; daysKnown: number };
   };
   coach: CoachNote | null;
 };

@@ -244,6 +244,26 @@ async function main() {
       );
     }
 
+    // --- Apple Health: steps, sleep and a resting heart rate that drifts up
+    // through the block and settles after the light week. The fixture exists
+    // so the recovery signals have something to say.
+    for (let day = totalDays; day >= 0; day -= 1) {
+      if (day % 13 === 5) continue; // days the phone was off
+      const weeksIn = Math.floor((totalDays - day) / 7);
+      await client.query(
+        `insert into daily_health (user_id, day, steps, sleep_minutes, resting_hr)
+         values ($1, $2::date, $3, $4, $5)
+         on conflict (user_id, day) do nothing`,
+        [
+          ATHLETE,
+          dateOnly(day),
+          Math.round(9200 + wobble(day, 2600)),
+          Math.round(430 + wobble(day + 3, 45)),
+          Math.round(53 + Math.min(weeksIn, 8) * 0.4 + wobble(day + 7, 1.5)),
+        ],
+      );
+    }
+
     await client.query('update contexts set is_active = (id = $1) where user_id = $2', [
       homeId,
       ATHLETE,

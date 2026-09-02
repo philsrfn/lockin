@@ -32,6 +32,13 @@ const ONBOARDED_KEY = 'lockin.onboarded.v2';
 /** The athlete's language, mirrored from the profile so a cold start is
  *  already in it rather than flickering into it once /today answers. */
 const LOCALE_KEY = 'lockin.locale';
+/**
+ * Whether the athlete has connected Apple Health. iOS never reports read
+ * permission back — by design, so an app cannot infer what somebody declined —
+ * so this records that they said yes to us, not that HealthKit said yes to
+ * anything. An empty sync is the honest signal that nothing was shared.
+ */
+const HEALTH_KEY = 'lockin.health';
 
 const BUILT_IN_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 const BUILT_IN_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
@@ -64,8 +71,9 @@ export async function loadConfig(): Promise<boolean> {
 export async function saveConfig(url: string, apiToken: string): Promise<void> {
   baseUrl = normalise(url);
   // A new token is a new athlete: whatever this device remembered about
-  // onboarding belonged to the last one.
+  // onboarding — or about sharing their health data — belonged to the last one.
   await SecureStore.deleteItemAsync(ONBOARDED_KEY);
+  await SecureStore.deleteItemAsync(HEALTH_KEY);
   token = apiToken.trim();
   await SecureStore.setItemAsync(URL_KEY, baseUrl);
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -87,6 +95,15 @@ export async function rememberLocale(locale: string | null): Promise<void> {
   setPreferredLocale(locale);
   if (locale) await SecureStore.setItemAsync(LOCALE_KEY, locale);
   else await SecureStore.deleteItemAsync(LOCALE_KEY);
+}
+
+export async function isHealthConnected(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(HEALTH_KEY)) === 'yes';
+}
+
+export async function setHealthConnected(on: boolean): Promise<void> {
+  if (on) await SecureStore.setItemAsync(HEALTH_KEY, 'yes');
+  else await SecureStore.deleteItemAsync(HEALTH_KEY);
 }
 
 export async function isOnboardedLocally(): Promise<boolean> {

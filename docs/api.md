@@ -75,6 +75,8 @@ which is a separate question and lives on the profile.
 | DELETE | `/sets/:id` | — | `{session}` |
 | GET | `/bodyweight` | `?days=30` | latest, 7-day average, week change, series |
 | POST | `/bodyweight` | `{weightKg, measuredOn?}` | `{entry, summary}` — 201 |
+| POST | `/vitals/sync` | `{days?, workouts?, weights?}` | `{result}` — see [health.md](health.md). Idempotent. |
+| GET | `/vitals` | — | `{signals}` — steps, sleep, resting heart rate and its trend |
 | GET | `/measurements` | `?days=180` | `{measurements}` newest first |
 | POST | `/measurements` | `{measuredOn?, waistCm?, hipCm?, chestCm?, armCm?, thighCm?, notes?}` | `{measurement}` — 201. One row per day; fields merge. |
 | DELETE | `/measurements/:date` | — | `{deleted}` |

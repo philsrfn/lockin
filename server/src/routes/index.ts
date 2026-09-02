@@ -15,6 +15,7 @@ import {
   MealPlanSchema,
   OnboardingSchema,
   ChooseProgramSchema,
+  HealthSyncSchema,
   LogCardioSchema,
   LogMeasurementSchema,
   SetDeloadSchema,
@@ -63,6 +64,7 @@ import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
 import { deleteCardio, logCardio, recentCardio } from '../services/cardio';
 import { currentDeload, setDeloadEvery } from '../services/deloads';
+import { recoverySignals, syncHealth } from '../services/health';
 import { usageToday } from '../services/usage';
 import {
   deleteMeasurement,
@@ -274,6 +276,20 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     await deleteMeasurement(request.ctx, date);
     return { deleted: true };
   });
+
+  /**
+   * Apple Health. Idempotent by design — the phone sends a window on every
+   * foreground rather than tracking what it has already sent.
+   *
+   * Deliberately not under /health: that is the unauthenticated liveness probe,
+   * and a prefix match added there one day would make this public.
+   */
+  app.post('/vitals/sync', async (request) => ({
+    result: await syncHealth(request.ctx, HealthSyncSchema.parse(request.body)),
+  }));
+
+  /** Steps, sleep and resting heart rate, as the coach reads them. */
+  app.get('/vitals', async (request) => ({ signals: await recoverySignals(request.ctx) }));
 
   /** Scheduled light weeks. 0 turns them off. */
   app.get('/deload', async (request) => ({ deload: await currentDeload(request.ctx) }));

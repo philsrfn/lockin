@@ -3,6 +3,10 @@ import { useRouter } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
 import type { Program, Rule, RuleTier } from '../src/api/types';
+import { isHealthConnected, setHealthConnected } from '../src/api/config';
+import { isSupported, requestPermission } from '../src/health';
+import { syncNow } from '../src/health/sync';
+import { t } from '../src/lib/locale';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
@@ -31,6 +35,8 @@ export default function RulesScreen() {
   const [loading, setLoading] = useState(true);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [current, setCurrent] = useState<Program | null>(null);
+  const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
+  const [healthNote, setHealthNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -62,6 +68,33 @@ export default function RulesScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isSupported()) return setHealth('unsupported');
+    void isHealthConnected().then((on) => setHealth(on ? 'on' : 'off'));
+  }, []);
+
+  async function connectHealth() {
+    const state = await requestPermission();
+    if (state === 'unavailable') return setHealth('unsupported');
+
+    await setHealthConnected(true);
+    setHealth('on');
+    try {
+      await syncNow();
+      setHealthNote(null);
+    } catch {
+      // iOS never says what was declined, so an empty first sync is the only
+      // signal we get — and the Health app is where it is actually changed.
+      setHealthNote(t('healthNothing'));
+    }
+  }
+
+  async function disconnectHealth() {
+    await setHealthConnected(false);
+    setHealth('off');
+    setHealthNote(null);
+  }
 
   async function toggle(rule: Rule) {
     await api(`/rules/${rule.id}`, { method: 'PATCH', body: { active: !rule.active } });
@@ -115,6 +148,26 @@ export default function RulesScreen() {
           })}
         </Card>
       ) : null}
+
+      {/*
+        Passive data is the antidote to logging fatigue, which is the main
+        reason fitness apps are deleted in week three.
+      */}
+      <Card label={t('appleHealth')}>
+        <Text style={styles.blurb}>{t('healthBlurb')}</Text>
+        {health === 'unsupported' ? (
+          <Text style={styles.dim}>{t('healthUnsupported')}</Text>
+        ) : (
+          <>
+            {healthNote ? <Text style={styles.dim}>{healthNote}</Text> : null}
+            <Button
+              title={health === 'on' ? t('healthDisconnect') : t('healthConnect')}
+              variant="secondary"
+              onPress={() => void (health === 'on' ? disconnectHealth() : connectHealth())}
+            />
+          </>
+        )}
+      </Card>
 
       {TIERS.map(({ tier, title, blurb }) => {
         const mine = rules.filter((rule) => rule.tier === tier);

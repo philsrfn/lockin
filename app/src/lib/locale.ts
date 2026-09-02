@@ -61,8 +61,10 @@ const PHRASES = {
   weighIns: { de: 'Wiegen', en: 'weigh-ins' },
   proteinLeft: { de: 'g Protein übrig', en: 'g protein left' },
   kcalLeft: { de: 'KCAL ÜBRIG', en: 'KCAL LEFT' },
-  sevenDayAvg: { de: '7-TAGE-SCHNITT', en: '7-DAY AVG' },
-  thisWeekShort: { de: 'DIESE WOCHE', en: 'THIS WEEK' },
+  // Short enough to sit on one line beside three others. German compounds are
+  // long, and a label that wraps turns a calm row of numbers into a paragraph.
+  sevenDayAvg: { de: 'Ø 7 TAGE', en: '7-DAY AVG' },
+  thisWeekShort: { de: 'WOCHE', en: 'WEEK' },
 
   tabToday: { de: 'HEUTE', en: 'TODAY' },
   tabTrainer: { de: 'TRAINER', en: 'TRAINER' },
@@ -94,6 +96,24 @@ const PHRASES = {
     en: 'Does not count towards the week — steps are steps.',
   },
   save: { de: 'Sichern', en: 'Save' },
+
+  appleHealth: { de: 'APPLE HEALTH', en: 'APPLE HEALTH' },
+  healthBlurb: {
+    de: 'Schritte, Schlaf, Ruhepuls und das Gewicht von einer Waage — damit du sie nicht eintippen musst.',
+    en: 'Steps, sleep, resting heart rate and weight from a scale — so you do not type them in.',
+  },
+  healthConnect: { de: 'Verbinden', en: 'Connect' },
+  healthConnected: { de: 'Verbunden', en: 'Connected' },
+  healthDisconnect: { de: 'Trennen', en: 'Disconnect' },
+  healthUnsupported: {
+    de: 'Auf diesem Gerät nicht verfügbar.',
+    en: 'Not available on this device.',
+  },
+  healthNothing: {
+    de: 'Noch nichts geteilt. In der Health-App kannst du festlegen, was lockin lesen darf.',
+    en: 'Nothing shared yet. The Health app is where you choose what lockin may read.',
+  },
+  steps: { de: 'SCHRITTE', en: 'STEPS' },
 } satisfies Record<string, Phrase>;
 
 export function t(key: keyof typeof PHRASES): string {

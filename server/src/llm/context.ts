@@ -12,6 +12,7 @@ import { jointPainGate, rampIn } from '../domain/progression';
 import { listEntries } from '../services/bodyweight';
 import { recentCardio } from '../services/cardio';
 import { activeContext } from '../services/contexts';
+import { recoverySignals } from '../services/health';
 import { macrosToday, mealsToday } from '../services/meals';
 import { getProfile, macroTargets } from '../services/profile';
 import { listRules } from '../services/rules';
@@ -47,7 +48,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
   const zone = profile.timezone;
   const asOf = dayIn(zone);
 
-  const [context, rules, sessions, entries, meals, consumed, firstAt, open, week, cardio] =
+  const [context, rules, sessions, entries, meals, consumed, firstAt, open, week, cardio, recovery] =
     await Promise.all([
       activeContext(ctx),
       listRules(ctx),
@@ -59,6 +60,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
       openSession(ctx),
       getWeek(ctx),
       recentCardio(ctx, 14),
+      recoverySignals(ctx, zone),
     ]);
 
   const average7 = movingAverage(entries, asOf);
@@ -78,6 +80,26 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
   const scoped = activeRulesFor(rules, context?.name ?? null);
   const byTier = (tier: string) =>
     scoped.filter((rule) => rule.tier === tier).map((rule) => `- ${rule.text}`).join('\n') || '- none';
+
+  // Read rather than asked about. Resting heart rate drifting up over a block
+  // is the signal that arrives before he feels it.
+  const recoveryLines = [
+    recovery.avgSteps == null
+      ? '- steps: not shared'
+      : `- steps: ${recovery.avgSteps}/day average over ${recovery.daysWithSteps} day(s), target ${WEEKLY_TARGETS.stepsPerDay}`,
+    recovery.lastNightSleepMinutes == null
+      ? '- sleep: not shared'
+      : `- sleep last night: ${Math.floor(recovery.lastNightSleepMinutes / 60)}h${String(recovery.lastNightSleepMinutes % 60).padStart(2, '0')}`,
+    recovery.restingHr == null
+      ? '- resting heart rate: not shared'
+      : `- resting heart rate: ${recovery.restingHr}${
+          recovery.restingHrTrend == null
+            ? ''
+            : ` (${recovery.restingHrTrend >= 0 ? '+' : ''}${recovery.restingHrTrend} vs the fortnight before${
+                recovery.restingHrTrend >= 3 ? ' — that is a real rise, ask how he feels' : ''
+              })`
+        }`,
+  ].join('\n');
 
   const cardioLines =
     cardio.length === 0
@@ -168,6 +190,9 @@ ${recentLines}
 
 CARDIO (last 14 days)
 ${cardioLines}
+
+RECOVERY
+${recoveryLines}
 
 TODAY (${asOf})
 - session in progress: ${open ? `yes, day ${open.template}, ${open.sets.length} sets logged` : 'no'}

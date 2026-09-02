@@ -27,7 +27,9 @@ athlete's language. Substitutes are filtered by what the place actually has.
 
 **Phase 3 — the gaps in "all-in".** Cardio you can log, counted in the weekly
 targets. Planned deloads on top of the reactive one. Waist and the rest of the
-tape.
+tape. Apple Health, read — steps, sleep, resting heart rate, workouts and a
+smart scale, with the recovery signals the coach used to have to ask about.
+See [health.md](health.md); it needs a development build to exercise.
 
 **Phase 4 — safety.** Floors derived from the body rather than from one man's.
 Onboarding refuses a deficit to somebody already underweight or still growing,
@@ -56,7 +58,7 @@ storage, not base64 through a JSON body, which means a bucket and credentials.
 | | What it needs |
 |---|---|
 | **Sign in with Apple** | An Apple Developer key and capability, and the App Store requires it wherever another social login exists. The token scheme underneath it does not change — it already resolves to a row. |
-| **Apple Health** | A native module, entitlements, and a physical device to test on. Passive data is the antidote to logging fatigue, which is the main reason fitness apps get deleted in week three. |
+| **A HealthKit build** | The code is in. The App ID needs the HealthKit capability, which EAS syncs only during an interactive Apple login — the same dance push needed. Nothing can be exercised in Expo Go. |
 | **Object storage** | For photos, and later for anything else with a file in it. |
 | **Billing** | Whether this is free for friends, and what happens after. |
 | **A second process** | The rate limiter's buckets are in memory. That is honest for one box and wrong for two. |

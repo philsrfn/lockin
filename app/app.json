@@ -41,6 +41,14 @@
         {
           "color": "#4ADE80"
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "So your coach can see your steps, sleep and resting heart rate without you having to type them in.",
+          "NSHealthUpdateUsageDescription": "So the sessions you log here appear in Apple Health alongside everything else.",
+          "background": false
+        }
       ]
     ],
     "extra": {

@@ -170,6 +170,49 @@ export const SetDeloadSchema = z.object({
   everyWeeks: z.number().int().min(0).max(52),
 });
 
+/**
+ * A batch from Apple Health. The phone sends a window on every foreground and
+ * lets the server work out what is new — a phone that has to remember what it
+ * already sent is a phone that loses a week when it is reinstalled.
+ */
+export const HealthSyncSchema = z.object({
+  days: z
+    .array(
+      z.object({
+        day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        steps: z.number().nullish(),
+        sleepMinutes: z.number().nullish(),
+        restingHr: z.number().nullish(),
+        activeKcal: z.number().nullish(),
+      }),
+    )
+    .max(400)
+    .optional(),
+  workouts: z
+    .array(
+      z.object({
+        externalId: z.string().min(1).max(100),
+        startedAt: z.string().datetime({ offset: true }),
+        minutes: z.number(),
+        kind: CardioKindSchema,
+        description: z.string().max(200).nullish(),
+        distanceKm: z.number().nullish(),
+        avgHr: z.number().nullish(),
+      }),
+    )
+    .max(500)
+    .optional(),
+  weights: z
+    .array(
+      z.object({
+        measuredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        weightKg: z.number(),
+      }),
+    )
+    .max(400)
+    .optional(),
+});
+
 export const ChooseProgramSchema = z.object({
   programId: z.number().int().positive(),
 });

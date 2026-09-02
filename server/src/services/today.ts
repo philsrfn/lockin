@@ -8,6 +8,7 @@ import { type WeightSummary, summary as weightSummary } from './bodyweight';
 import { dayIn } from '../domain/time';
 import { type CardioSession, cardioToday } from './cardio';
 import { ensureDeload } from './deloads';
+import { type DailyHealth, healthToday } from './health';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
 import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
@@ -32,9 +33,12 @@ export type Today = {
   };
   /** Cardio logged today. The screen stops offering what he has already done. */
   cardioToday: CardioSession[];
+  /** Steps, sleep and resting heart rate, when the phone has synced. */
+  health: DailyHealth | null;
   week: {
     strengthSessions: { done: number; target: number };
     cardioSessions: { done: number; target: number; minutes: number };
+    steps: { average: number | null; target: number; daysKnown: number };
   };
   /**
    * The trainer's read on today. null when it has not been generated yet —
@@ -55,8 +59,19 @@ export async function getToday(ctx: Ctx): Promise<Today> {
   const zone = profile.timezone;
   const today = dayIn(zone);
 
-  const [context, open, weight, consumed, lastWeek, coach, meals, todaySessions, week, cardio] =
-    await Promise.all([
+  const [
+    context,
+    open,
+    weight,
+    consumed,
+    lastWeek,
+    coach,
+    meals,
+    todaySessions,
+    week,
+    cardio,
+    health,
+  ] = await Promise.all([
     activeContext(ctx),
     openSession(ctx),
     weightSummary(ctx, 30, zone),
@@ -68,6 +83,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     sessionsToday(ctx, zone),
     getWeek(ctx),
     cardioToday(ctx, zone),
+    healthToday(ctx, zone),
   ]);
 
   // Recorded here rather than by a job: this payload is fetched every time he
@@ -91,6 +107,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     weight,
     macros: { targets, consumed, remaining: remaining(targets, consumed), meals },
     cardioToday: cardio,
+    health,
     week: {
       // Same source as the week strip, so the two can never disagree.
       strengthSessions: {
@@ -98,6 +115,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
         target: WEEKLY_TARGETS.strengthSessions,
       },
       cardioSessions: week.cardio,
+      steps: week.steps,
     },
     coach,
   };

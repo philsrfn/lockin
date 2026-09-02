@@ -6,7 +6,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/api/client';
 import type { Profile } from '../src/api/types';
-import { isOnboardedLocally, loadConfig, markOnboardedLocally } from '../src/api/config';
+import { isHealthConnected, isOnboardedLocally, loadConfig, markOnboardedLocally } from '../src/api/config';
+import { startHealthSync } from '../src/health/sync';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { SetupScreen } from '../src/components/SetupScreen';
 import { startAutoDrain } from '../src/sync/queue';
@@ -50,6 +51,20 @@ export default function RootLayout() {
     if (configured) return startAutoDrain();
     return undefined;
   }, [configured]);
+
+  /**
+   * Apple Health, on foreground. A window rather than a diff — the server
+   * works out what is new, so a reinstalled app does not lose a fortnight.
+   * A no-op in Expo Go, where the native module does not exist.
+   */
+  useEffect(() => {
+    if (!configured || !onboarded) return undefined;
+    let stop: (() => void) | undefined;
+    void isHealthConnected().then((on) => {
+      if (on) stop = startHealthSync();
+    });
+    return () => stop?.();
+  }, [configured, onboarded]);
 
   // Only once the token is in hand — registering posts to the API. A no-op on
   // simulators and in Expo Go, neither of which can receive remote push.

@@ -179,6 +179,14 @@ export default function TodayScreen() {
                   label={t('thisWeekShort')}
                   tone={(weight.changeKg ?? 0) <= 0 ? 'signal' : 'alert'}
                 />
+                {/* Only once the phone shares them. A zero here would be a
+                    claim we cannot make. */}
+                {today.data.health?.steps != null ? (
+                  <Fact
+                    value={`${(today.data.health.steps / 1000).toFixed(1)}k`}
+                    label={t('steps')}
+                  />
+                ) : null}
               </View>
             </>
           ) : (
@@ -272,7 +280,11 @@ function Fact({
   return (
     <View style={styles.fact}>
       <Text style={[styles.factValue, { color }]}>{value}</Text>
-      <Text style={styles.factLabel}>{label}</Text>
+      {/* One line, always. A wrapping label turns a calm row of numbers into
+          a paragraph — which is what four facts in German did. */}
+      <Text style={styles.factLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        {label}
+      </Text>
     </View>
   );
 }

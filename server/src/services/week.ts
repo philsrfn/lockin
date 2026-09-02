@@ -14,6 +14,7 @@ import type { Ctx } from '../db';
 import { addDays, dayIn, daySpanIn, weekdayOf } from '../domain/time';
 import { WEEKLY_TARGETS } from '../domain/program';
 import { cardioByDay } from './cardio';
+import { healthByDay } from './health';
 import { getProfile } from './profile';
 
 export type WeekDay = {
@@ -30,6 +31,8 @@ export type WeekDay = {
   template: string | null;
   sets: number;
   weightKg: number | null;
+  /** From Apple Health, when the phone has synced. Null means unknown. */
+  steps: number | null;
   /** Minutes of cardio, of any kind. */
   cardioMinutes: number;
   /** Sessions that move the weekly tally — a walk to the shops does not. */
@@ -44,6 +47,8 @@ export type Week = {
   days: WeekDay[];
   strength: { done: number; target: number };
   cardio: { done: number; target: number; minutes: number };
+  /** §4's 9-10k a day. Averaged over the days that have a number. */
+  steps: { average: number | null; target: number; daysKnown: number };
   weighIns: { done: number; target: number };
   proteinTargetG: number;
   /** Average over days he actually logged, not over seven. */
@@ -62,7 +67,7 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
   // Timestamps are bucketed into days in his zone. `performed_at::date` would
   // read the database session's timezone instead, and a late session would slide
   // into the wrong column of the strip.
-  const [sessions, weights, meals, cardio] = await Promise.all([
+  const [sessions, weights, meals, cardio, health] = await Promise.all([
     ctx.db.query<{ day: string; template: string | null; sets: number }>(
       `select to_char(s.performed_at at time zone $4, 'YYYY-MM-DD') as day,
               max(s.template) as template,
@@ -88,6 +93,7 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
       [ctx.userId, span.from, span.until, profile.timezone],
     ),
     cardioByDay(ctx, firstDay, asOf, profile.timezone),
+    healthByDay(ctx, firstDay, asOf),
   ]);
 
   const byDaySession = new Map(sessions.rows.map((row) => [row.day, row]));
@@ -110,6 +116,7 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
       template: session?.template ?? null,
       sets: session?.sets ?? 0,
       weightKg: byDayWeight.get(date) ?? null,
+      steps: health.get(date)?.steps ?? null,
       cardioMinutes: cardio.get(date)?.minutes ?? 0,
       cardioSessions: cardio.get(date)?.counted ?? 0,
       proteinG: protein,
@@ -128,6 +135,18 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
       target: WEEKLY_TARGETS.zone2Sessions,
       minutes: days.reduce((sum, day) => sum + day.cardioMinutes, 0),
     },
+    steps: (() => {
+      // Averaged over the days that have a number. A phone that synced on
+      // Tuesday should not drag the week down with five zeroes.
+      const known = days.filter((day) => day.steps !== null);
+      return {
+        average: known.length
+          ? Math.round(known.reduce((sum, day) => sum + day.steps!, 0) / known.length)
+          : null,
+        target: WEEKLY_TARGETS.stepsPerDay,
+        daysKnown: known.length,
+      };
+    })(),
     weighIns: { done: days.filter((day) => day.weightKg !== null).length, target: 7 },
     proteinTargetG: profile.proteinTargetG,
     avgProteinG: logged.length

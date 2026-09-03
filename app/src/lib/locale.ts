@@ -239,6 +239,51 @@ const PHRASES = {
   },
   deleteAccountAction: { de: 'Alles löschen', en: 'Delete everything' },
 
+  fridgePhotograph: { de: 'Foto vom Kühlschrank', en: 'Photograph the fridge' },
+  fridgeBlurb: {
+    de: 'lockin liest, was drin ist, und plant darum herum. Das Foto wird gelesen und dann verworfen — nichts wird gespeichert.',
+    en: 'lockin reads what is in there and plans around it. The photo is sent to be read and then discarded — nothing is stored.',
+  },
+  allowCamera: { de: 'Kamera erlauben', en: 'Allow camera' },
+  back: { de: 'Zurück', en: 'Back' },
+  fridgeHint: {
+    de: 'Tür auf, die Fächer ins Bild',
+    en: 'Open the door, get the shelves in frame',
+  },
+  takeThePhoto: { de: 'Foto aufnehmen', en: 'Take the photo' },
+  reading: { de: 'Lesen…', en: 'Reading…' },
+  couldNotReadPhoto: {
+    de: 'Das Foto konnte nicht gelesen werden',
+    en: 'Could not read that photo',
+  },
+  whatItSaw: { de: 'Was es gesehen hat', en: 'What it saw' },
+  fridgeConfirmBlurb: {
+    de: 'Korrigier alles Falsche, bevor geplant wird. Eine falsche Zutat hier wird zu einem Gericht, das du nicht kochen kannst.',
+    en: 'Fix anything wrong before planning. A wrong ingredient here becomes a meal you cannot cook.',
+  },
+  inTheFridge: { de: 'IM KÜHLSCHRANK', en: 'IN THE FRIDGE' },
+  addMissed: { de: 'Etwas ergänzen, das fehlt', en: 'Add something it missed' },
+  planFromThis: { de: 'Daraus planen', en: 'Plan from this' },
+  planning: { de: 'Planen…', en: 'Planning…' },
+  retakePhoto: { de: 'Neues Foto', en: 'Retake the photo' },
+  couldNotPlan: { de: 'Daraus ließ sich nichts planen', en: 'Could not plan from that' },
+  whatToCook: { de: 'Was du kochen kannst', en: 'What to cook' },
+  restOfTodayOnly: {
+    de: 'Für den Rest des Tages, nicht für einen ganzen.',
+    en: 'For what is left of today, not a whole day.',
+  },
+  done: { de: 'FERTIG', en: 'DONE' },
+  nothingLeftToCook: {
+    de: 'Alles eingetragen. Nichts mehr zu kochen.',
+    en: 'Everything logged. Nothing left to cook.',
+  },
+  protein: { de: 'g Protein', en: 'g protein' },
+  fat: { de: 'g Fett', en: 'g fat' },
+  carbs: { de: 'g Kohlenhydrate', en: 'g carbs' },
+  uses: { de: 'Nutzt', en: 'Uses' },
+  logThis: { de: 'Eintragen', en: 'Log this' },
+  startOver: { de: 'Von vorn', en: 'Start over' },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

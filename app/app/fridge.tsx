@@ -59,7 +59,7 @@ export default function FridgeScreen() {
       setItems(result.items);
       setStage('confirm');
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not read that photo');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotReadPhoto'));
     } finally {
       setBusy(false);
     }
@@ -77,7 +77,7 @@ export default function FridgeScreen() {
       setPlan(result.plan);
       setStage('plan');
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not plan from that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotPlan'));
     } finally {
       setBusy(false);
     }
@@ -105,24 +105,25 @@ export default function FridgeScreen() {
       <View style={styles.cameraRoot}>
         {!permission?.granted ? (
           <View style={[styles.centred, { paddingTop: insets.top + space.xxl }]}>
-            <Text style={styles.title}>Photograph the fridge</Text>
-            <Text style={styles.body}>
-              lockin reads what is in there and plans around it. The photo is sent to be read and
-              then discarded — nothing is stored.
-            </Text>
-            <Button title="Allow camera" onPress={requestPermission} />
-            <Button title="Back" variant="ghost" onPress={() => router.back()} />
+            <Text style={styles.title}>{t('fridgePhotograph')}</Text>
+            <Text style={styles.body}>{t('fridgeBlurb')}</Text>
+            <Button title={t('allowCamera')} onPress={requestPermission} />
+            <Button title={t('back')} variant="ghost" onPress={() => router.back()} />
           </View>
         ) : (
           <>
             <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" />
             <View style={[styles.cameraOverlay, { paddingBottom: insets.bottom + space.lg, paddingTop: insets.top + space.md }]}>
-              <Text style={styles.hint}>Open the door, get the shelves in frame</Text>
+              <Text style={styles.hint}>{t('fridgeHint')}</Text>
               <View style={{ gap: space.sm }}>
                 {error ? <Text style={styles.errorLight}>{error}</Text> : null}
-                <Button title={busy ? 'Reading…' : 'Take the photo'} onPress={capture} disabled={busy} />
+                <Button
+                  title={busy ? t('reading') : t('takeThePhoto')}
+                  onPress={capture}
+                  disabled={busy}
+                />
                 <Pressable onPress={() => router.back()} style={styles.cancel}>
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelText}>{t('cancel')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -147,13 +148,10 @@ export default function FridgeScreen() {
 
         {stage === 'confirm' ? (
           <>
-            <Text style={styles.title}>What it saw</Text>
-            <Text style={styles.body}>
-              Fix anything wrong before planning. A wrong ingredient here becomes a meal you cannot
-              cook.
-            </Text>
+            <Text style={styles.title}>{t('whatItSaw')}</Text>
+            <Text style={styles.body}>{t('fridgeConfirmBlurb')}</Text>
 
-            <Card label="IN THE FRIDGE">
+            <Card label={t('inTheFridge')}>
               {items.map((item, index) => (
                 <View key={index} style={styles.itemRow}>
                   <TextInput
@@ -180,7 +178,7 @@ export default function FridgeScreen() {
                 </View>
               ))}
               <Button
-                title="Add something it missed"
+                title={t('addMissed')}
                 variant="ghost"
                 onPress={() =>
                   setItems([...items, { name: '', estimatedQty: '', confidence: 'high' }])
@@ -190,44 +188,51 @@ export default function FridgeScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Button
-              title={busy ? 'Planning…' : 'Plan from this'}
+              title={busy ? t('planning') : t('planFromThis')}
               onPress={makePlan}
               disabled={busy || items.length === 0}
             />
-            <Button title="Retake the photo" variant="ghost" onPress={() => setStage('camera')} />
+            <Button title={t('retakePhoto')} variant="ghost" onPress={() => setStage('camera')} />
           </>
         ) : null}
 
         {stage === 'plan' && plan ? (
           <>
-            <Text style={styles.title}>What to cook</Text>
-            <Text style={styles.body}>For what is left of today, not a whole day.</Text>
+            <Text style={styles.title}>{t('whatToCook')}</Text>
+            <Text style={styles.body}>{t('restOfTodayOnly')}</Text>
 
             {plan.meals.length === 0 ? (
-              <Card label="DONE">
-                <Text style={styles.body}>Everything logged. Nothing left to cook.</Text>
+              <Card label={t('done')}>
+                <Text style={styles.body}>{t('nothingLeftToCook')}</Text>
               </Card>
             ) : (
               plan.meals.map((meal, index) => (
                 <Card key={index} label={meal.slot.toUpperCase()}>
                   <Text style={styles.mealName}>{meal.name}</Text>
                   <View style={styles.macroRow}>
-                    <Text style={styles.macroHero}>{meal.proteinG}g protein</Text>
+                    <Text style={styles.macroHero}>
+                      {meal.proteinG}
+                      {t('protein')}
+                    </Text>
                     <Text style={styles.macroDim}>
-                      {meal.kcal} kcal · {meal.fatG}g fat · {meal.carbsG}g carbs
+                      {meal.kcal} kcal · {meal.fatG}
+                      {t('fat')} · {meal.carbsG}
+                      {t('carbs')}
                     </Text>
                   </View>
                   <Text style={styles.method}>{meal.method}</Text>
                   {meal.usesFromFridge.length > 0 ? (
-                    <Text style={styles.uses}>Uses: {meal.usesFromFridge.join(', ')}</Text>
+                    <Text style={styles.uses}>
+                      {t('uses')}: {meal.usesFromFridge.join(', ')}
+                    </Text>
                   ) : null}
-                  <Button title="Log this" variant="secondary" onPress={() => logMeal(index)} />
+                  <Button title={t('logThis')} variant="secondary" onPress={() => logMeal(index)} />
                 </Card>
               ))
             )}
 
             {plan.note ? <Text style={styles.footnote}>{plan.note}</Text> : null}
-            <Button title="Start over" variant="ghost" onPress={() => setStage('camera')} />
+            <Button title={t('startOver')} variant="ghost" onPress={() => setStage('camera')} />
           </>
         ) : null}
 
@@ -255,6 +260,8 @@ const styles = StyleSheet.create({
     ...typo.body,
     color: '#fff',
     alignSelf: 'center',
+    maxWidth: '100%',
+    textAlign: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,

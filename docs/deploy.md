@@ -129,9 +129,20 @@ it in the keychain rather than the binary.
 
 ## Adding a friend
 
-Every athlete has their own token, their own profile, timezone, contexts, rules
-and notification schedule. Adding one is a command on the box, not an endpoint —
-"first friends" needs no public signup surface to attack.
+Every athlete has their own profile, timezone, contexts, rules and notification
+schedule. There are two ways to become one.
+
+**They sign in with Apple.** Install the TestFlight build, tap the button,
+done — the account is created on first sign-in. Nothing to send, nothing to
+type. This is the normal path, and the only one worth explaining to somebody
+who is not you.
+
+The build has to be a real one for this to work: Expo Go ships the module's
+JavaScript but not its native view, and a simulator has to be signed into an
+Apple ID. In both of those the app falls back to the token form below.
+
+**You hand them a token.** Still there, for a build pointed at a different
+backend, and for anyone who would rather not involve Apple.
 
 ```sh
 ssh root@YOUR_IP
@@ -140,11 +151,17 @@ docker compose -f docker-compose.prod.yml exec api npm run user:create -- --name
 ```
 
 It prints their token once and stores only its hash. Send it the way you would
-send a password. They install the same TestFlight build, and on first launch
-enter `https://YOUR_DOMAIN` and that token.
+send a password. On first launch they open "I have a server token" and enter
+`https://YOUR_DOMAIN` and that token.
 
-They start with a single "Home" context and the enforceable rules — deliberately
-not your four German cities or your Skyr breakfast. Those are yours.
+Either way they start with a single "Home" context and the enforceable rules —
+deliberately not your four German cities or your Skyr breakfast. Those are
+yours.
+
+An athlete who signed in with Apple can delete their own account from the rules
+screen, which cascades to every row they own. One provisioned by the command
+above cannot: that token is yours to withdraw, and a delete button on your own
+account would be one tap between you and a year of training.
 
 `APP_BEARER_TOKEN` is still your own token: it is mirrored onto user 1 at every
 boot, so rotating it in `deploy/.env` works exactly as described above.

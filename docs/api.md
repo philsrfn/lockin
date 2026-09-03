@@ -1,11 +1,40 @@
 # API
 
-Every request except `GET /health` needs `Authorization: Bearer <token>`.
+Every request except `GET /health` and the two sign-in routes needs
+`Authorization: Bearer <token>`.
 
 The token identifies an athlete: it is matched by its sha256 against
-`users.token_hash`, and everything the request touches is scoped to the row it
-resolves to. There is no session handling and no signup flow — see
-[tenancy.md](tenancy.md).
+`users.token_hash` or `sessions_tokens.token_hash`, and everything the request
+touches is scoped to the row it resolves to. There is no refresh, no expiry and
+no password — see [tenancy.md](tenancy.md).
+
+Two things issue a token. `users.token_hash` is one per person, provisioned by
+whoever runs the server; `sessions_tokens` is one per device, minted by signing
+in with Apple. Both resolve to the same kind of row, and nothing downstream
+knows which was used.
+
+## Signing in
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/auth/apple/nonce` | — | `{nonce}`. Unauthenticated, rate limited to 20/hour per address. Single-use, expires after 10 minutes. |
+| POST | `/auth/apple` | `{identityToken, nonce, name?, timezone?, locale?, device?}` | `{token, user, isNew, onboarded}`. Unauthenticated. |
+| POST | `/auth/signout` | — | `{signedOut}`. Revokes the calling device's token and no other. |
+| GET | `/account` | — | `{user, kind}` where kind is `apple` or `root`. |
+| DELETE | `/account` | — | `{deleted}`. Cascades to every owned row. 400 on a `root` account. |
+
+The identity token is verified against Apple's JWKS in
+`server/src/auth/appleIdentity.ts`: RS256 only, issuer `appleid.apple.com`,
+audience equal to `APPLE_BUNDLE_ID`, expiry with a five-minute skew, and the
+nonce claim matched against the one this server issued. The nonce is what stops
+a captured token being replayed, which is why it cannot come from the app.
+
+Accounts key on Apple's `sub`. The email arrives only on the very first
+authorisation and may be a private relay address that changes, so keying on it
+would hand somebody a new account every time they signed in.
+
+Deletion is refused on a `root` account: that token was provisioned by the
+operator rather than by a sign-in, and is theirs to withdraw.
 
 Routes are thin wrappers over `server/src/services/`. The offline sync queue and
 the LLM tool handlers call the same service functions — there is never a second

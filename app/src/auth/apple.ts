@@ -21,6 +21,11 @@ export type SignInResult = {
   token: string;
   isNew: boolean;
   onboarded: boolean;
+  /**
+   * Signing in creates the account; it does not admit it. A new one waits for
+   * whoever runs the server, and until then every other route refuses it.
+   */
+  approved: boolean;
 };
 
 /**

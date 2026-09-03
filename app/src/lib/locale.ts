@@ -284,6 +284,14 @@ const PHRASES = {
   logThis: { de: 'Eintragen', en: 'Log this' },
   startOver: { de: 'Von vorn', en: 'Start over' },
 
+  waitingTitle: { de: 'Fast drin', en: 'Almost in' },
+  waitingBlurb: {
+    de: 'Dein Konto ist angelegt und wartet auf Freigabe. Du musst nichts tun — mach die App einfach später nochmal auf.',
+    en: 'Your account exists and is waiting to be let in. Nothing for you to do — just open the app again later.',
+  },
+  checkAgain: { de: 'Nochmal prüfen', en: 'Check again' },
+  stillWaiting: { de: 'Noch nicht freigegeben.', en: 'Not yet.' },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

@@ -41,7 +41,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     const requestId = request.id;
 
     if (error instanceof HttpError) {
-      return reply.code(error.statusCode).send({ error: error.message, requestId });
+      return reply
+        .code(error.statusCode)
+        .send({ error: error.message, requestId, ...(error.code ? { code: error.code } : {}) });
     }
 
     if (error instanceof LlmError) {

@@ -3,6 +3,11 @@ export class HttpError extends Error {
   constructor(
     readonly statusCode: number,
     message: string,
+    /**
+     * A stable string the app can branch on, when the message alone is not
+     * enough. Prose gets reworded and translated; this does not.
+     */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'HttpError';

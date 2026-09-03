@@ -12,9 +12,15 @@ import { provisionUser } from '../services/users';
  */
 export const phil: Ctx = ctxFor(1);
 
-/** A second athlete, with their own profile, context, rules and schedule. */
+/**
+ * A second athlete, with their own profile, context, rules and schedule.
+ *
+ * Approved, because these stand in for people who are using the app. A test
+ * that is about the approval gate makes its own pending account rather than
+ * expecting this one to be one.
+ */
 export async function anotherAthlete(name = 'Sam'): Promise<Ctx> {
-  const { ctx } = await provisionUser({ name, timezone: 'Europe/Berlin' });
+  const { ctx } = await provisionUser({ name, timezone: 'Europe/Berlin', approved: true });
   // The provisioning transaction has committed; hand back a pooled context
   // rather than one bound to a client that has been released.
   return ctxFor(ctx.userId);

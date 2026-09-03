@@ -36,6 +36,39 @@ would hand somebody a new account every time they signed in.
 Deletion is refused on a `root` account: that token was provisioned by the
 operator rather than by a sign-in, and is theirs to withdraw.
 
+**Signing in is not being let in.** An account created by Apple sign-in starts
+pending, and every route except `/auth/signout` and `/account` answers
+`403 {code: "pending_approval"}` until an admin approves it. `/auth/apple`
+returns `approved` so the app can show a waiting screen rather than an app that
+fails on every tab. An account provisioned by `npm run user:create` is approved
+on the spot — running the command is the approval.
+
+## Admin
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/admin` | — | The panel, as HTML. Unauthenticated: it is a shell with no data in it. |
+| GET | `/admin/data` | — | Everything the panel draws, in one request. |
+| POST | `/admin/users/:id/approval` | `{approved}` | `{athletes}`. Revoking also deletes that athlete's device tokens. |
+| POST | `/admin/users/:id/budget` | `{budget}` | `{athletes}`. Daily token ceiling; `0` is no ceiling. |
+
+Everything but the page requires `users.is_admin`, and answers **404** to
+anybody else — there is no reason to confirm to a signed-in athlete that the
+panel exists.
+
+`is_admin` is set in the database and by no route, so the panel cannot grant
+itself access:
+
+```sql
+update users set is_admin = true where id = 2;
+```
+
+Spend is priced in `server/src/domain/pricing.ts` from the model recorded on
+each `llm_usage` row. Rates are per million tokens and overridable per model —
+`GEMINI_PRICE_GEMINI_3_6_FLASH=0.3/2.5`. Tokens spent on a model with no rate
+are reported as unpriced rather than counted as free, because a dashboard
+reading `$0.00` looks exactly like not having spent anything.
+
 Routes are thin wrappers over `server/src/services/`. The offline sync queue and
 the LLM tool handlers call the same service functions — there is never a second
 code path to a table.

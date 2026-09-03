@@ -12,6 +12,12 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly details?: unknown,
+    /**
+     * A stable string from the server, when the status alone is not enough to
+     * decide what the app should do. `pending_approval` is the one that
+     * matters: a 403 the athlete cannot fix by signing in again.
+     */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -57,6 +63,7 @@ export async function api<T>(
       response.status,
       typeof payload.error === 'string' ? payload.error : `Request failed (${response.status})`,
       payload.details,
+      typeof payload.code === 'string' ? payload.code : undefined,
     );
   }
 

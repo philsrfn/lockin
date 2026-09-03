@@ -20,7 +20,10 @@ export async function generateFor(ctx: Ctx, input: GenerateInput): Promise<Gener
   // Best effort: a failure to write the meter must not lose the answer the
   // athlete is waiting for. It is logged by the provider either way.
   try {
-    await recordUsage(ctx, input.purpose ?? 'unknown', output.usage);
+    // The model that actually answered, not the one that was asked for: a
+    // fallback bills at its own rate, and a total that assumed otherwise
+    // would be wrong in the direction of looking cheaper.
+    await recordUsage(ctx, input.purpose ?? 'unknown', output.usage, output.model);
   } catch {
     // Deliberately swallowed — see above.
   }

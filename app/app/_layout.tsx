@@ -14,7 +14,9 @@ import {
   onSignedOut,
 } from '../src/api/config';
 import { startHealthSync } from '../src/health/sync';
+import { ApiError } from '../src/api/client';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
+import { WaitingScreen } from '../src/components/WaitingScreen';
 import { SignInScreen } from '../src/components/SignInScreen';
 import { startAutoDrain } from '../src/sync/queue';
 import { registerForPush, screenFromNotification } from '../src/push';
@@ -23,6 +25,8 @@ import { colors } from '../src/theme';
 export default function RootLayout() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  /** Signed in, but not yet let in by whoever runs the server. */
+  const [waiting, setWaiting] = useState(false);
   const router = useRouter();
   const registered = useRef(false);
   /** Set the moment sign-in answers, so the cold-start check below skips. */
@@ -48,7 +52,13 @@ export default function RootLayout() {
         const { profile } = await api<{ profile: Profile }>('/profile');
         if (profile.onboarded) await markOnboardedLocally();
         setOnboarded(profile.onboarded);
-      } catch {
+      } catch (caught) {
+        // An account that has not been admitted holds a working token and
+        // reaches nothing with it. Anything else — offline, a flaky gym
+        // connection — opens the app rather than trapping them here.
+        if (caught instanceof ApiError && caught.code === 'pending_approval') {
+          setWaiting(true);
+        }
         setOnboarded(true);
       }
     })();
@@ -63,6 +73,7 @@ export default function RootLayout() {
     () =>
       onSignedOut(() => {
         onboardingKnown.current = false;
+        setWaiting(false);
         setOnboarded(null);
         setConfigured(false);
       }),
@@ -132,6 +143,15 @@ export default function RootLayout() {
             setConfigured(true);
           }}
         />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (waiting) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <WaitingScreen onAdmitted={() => setWaiting(false)} />
       </SafeAreaProvider>
     );
   }

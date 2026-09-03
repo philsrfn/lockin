@@ -81,6 +81,19 @@ async function nonce(): Promise<string> {
   return response.json().nonce as string;
 }
 
+/**
+ * Signing in creates the account; an admin lets it in. Most tests below are
+ * about what a signed-in athlete can do, so they use this — the ones about the
+ * gate itself use signIn directly.
+ */
+async function signInApproved(sub: string, extra: Record<string, unknown> = {}) {
+  const response = await signIn(sub, extra);
+  await pool.query('update users set approved_at = now() where id = $1', [
+    response.json().user.id,
+  ]);
+  return response;
+}
+
 async function signIn(sub: string, extra: Record<string, unknown> = {}) {
   const value = await nonce();
   return app.inject({
@@ -100,7 +113,7 @@ describe('signing in', () => {
   });
 
   it('creates an athlete and hands back a working token', async () => {
-    const response = await signIn('001.new.athlete', { email: 'sam@example.com', name: 'Sam' });
+    const response = await signInApproved('001.new.athlete', { email: 'sam@example.com', name: 'Sam' });
 
     expect(response.statusCode).toBe(200);
     const { token, isNew, onboarded } = response.json();
@@ -125,8 +138,8 @@ describe('signing in', () => {
   });
 
   it('gives each device its own token, so signing in on one does not evict the other', async () => {
-    const phone = (await signIn('001.two.devices')).json().token as string;
-    const tablet = (await signIn('001.two.devices')).json().token as string;
+    const phone = (await signInApproved('001.two.devices')).json().token as string;
+    const tablet = (await signInApproved('001.two.devices')).json().token as string;
 
     expect(phone).not.toBe(tablet);
     for (const token of [phone, tablet]) {
@@ -150,7 +163,7 @@ describe('signing in', () => {
   });
 
   it('starts them with their own everything', async () => {
-    const token = (await signIn('001.fresh')).json().token as string;
+    const token = (await signInApproved('001.fresh')).json().token as string;
     const auth = { authorization: `Bearer ${token}` };
 
     const contexts = await app.inject({ method: 'GET', url: '/contexts', headers: auth });
@@ -160,6 +173,84 @@ describe('signing in', () => {
     expect(rules.json().rules.length).toBeGreaterThan(0);
     // And none of Phil's.
     expect(rules.json().rules.some((r: { text: string }) => r.text.includes('Skyr'))).toBe(false);
+  });
+});
+
+describe('being let in', () => {
+  it('creates the account but does not admit it', async () => {
+    const response = await signIn('001.at.the.door');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().approved).toBe(false);
+    expect(response.json().token).toBeTruthy();
+  });
+
+  it('holds a working token that reaches nothing', async () => {
+    const token = (await signIn('001.waiting')).json().token as string;
+
+    const profile = await app.inject({
+      method: 'GET',
+      url: '/today',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    // 403, not 401: the token is fine. Retrying with another one is not the
+    // answer, and the app has to be able to tell those apart to say so.
+    expect(profile.statusCode).toBe(403);
+    expect(profile.json().code).toBe('pending_approval');
+  });
+
+  it('can still leave without waiting to be let in', async () => {
+    // Somebody who signed up and changed their mind should not have to be
+    // approved first in order to erase the account they just created.
+    const token = (await signIn('001.changed.mind')).json().token as string;
+    const auth = { authorization: `Bearer ${token}` };
+
+    expect((await app.inject({ method: 'GET', url: '/account', headers: auth })).statusCode).toBe(
+      200,
+    );
+    expect(
+      (await app.inject({ method: 'DELETE', url: '/account', headers: auth })).statusCode,
+    ).toBe(200);
+  });
+
+  it('works the moment an admin lets them in', async () => {
+    const response = await signIn('001.let.in');
+    const token = response.json().token as string;
+    const auth = { authorization: `Bearer ${token}` };
+
+    expect((await app.inject({ method: 'GET', url: '/profile', headers: auth })).statusCode).toBe(
+      403,
+    );
+
+    await pool.query('update users set approved_at = now() where id = $1', [
+      response.json().user.id,
+    ]);
+
+    // The same token, no new sign-in.
+    expect((await app.inject({ method: 'GET', url: '/profile', headers: auth })).statusCode).toBe(
+      200,
+    );
+  });
+
+  it('says so on a second sign-in, so a reinstall shows the same screen', async () => {
+    await signIn('001.still.waiting');
+    const again = await signIn('001.still.waiting');
+
+    expect(again.json().isNew).toBe(false);
+    expect(again.json().approved).toBe(false);
+  });
+
+  it('lets Phil in, because he was here first', async () => {
+    // Migration 024 approves everybody who already existed. His token going
+    // dead the moment this shipped would have been the worst possible bug.
+    const response = await app.inject({
+      method: 'GET',
+      url: '/today',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(200);
   });
 });
 
@@ -220,8 +311,8 @@ describe('what it refuses', () => {
 
 describe('signing out', () => {
   it('ends that device and leaves the others alone', async () => {
-    const phone = (await signIn('001.signout')).json().token as string;
-    const tablet = (await signIn('001.signout')).json().token as string;
+    const phone = (await signInApproved('001.signout')).json().token as string;
+    const tablet = (await signInApproved('001.signout')).json().token as string;
 
     await app.inject({
       method: 'POST',
@@ -247,7 +338,7 @@ describe('signing out', () => {
 
 describe('deleting the account', () => {
   it('takes everything with it', async () => {
-    const token = (await signIn('001.leaving')).json().token as string;
+    const token = (await signInApproved('001.leaving')).json().token as string;
     const auth = { authorization: `Bearer ${token}` };
 
     await app.inject({
@@ -285,7 +376,7 @@ describe('deleting the account', () => {
   });
 
   it('says which kind of account this is', async () => {
-    const token = (await signIn('001.kind')).json().token as string;
+    const token = (await signInApproved('001.kind')).json().token as string;
 
     const mine = await app.inject({
       method: 'GET',

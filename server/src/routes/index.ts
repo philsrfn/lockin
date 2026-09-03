@@ -90,12 +90,17 @@ import { noteForToday } from '../llm/coach';
 import { addRule, listRules, updateRule } from '../services/rules';
 import { currentProgram, listPrograms, setProgram } from '../services/programs';
 import { planFor, prescribeExercise, progress, upcomingTemplate } from '../services/workouts';
+import { registerAdminRoutes } from './admin';
 
 /**
  * Routes are deliberately thin. Every write goes through a service, and the
  * sync queue calls the same service — §11: never two code paths to one table.
  */
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
+  // Who is using this, and what it costs. Behind requireAdmin, which answers
+  // 404 to everybody else.
+  registerAdminRoutes(app);
+
   /**
    * Sign in with Apple. Both of these are reachable without a token — they are
    * how a token is obtained — and both are rate limited hard.
@@ -129,8 +134,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const onboarded = await isOnboarded(user.id);
 
     // The token is returned once and stored only as a hash. Everything the app
-    // needs to decide where to send them comes back with it.
-    return { token, user, isNew, onboarded };
+    // needs to decide where to send them comes back with it — including
+    // whether it may go anywhere at all: a new account is created here but not
+    // admitted, and the app shows a waiting screen rather than an app that
+    // 403s on every screen.
+    return { token, user, isNew, onboarded, approved: user.approvedAt !== null };
   });
 
   /** Signing out this device, and only this device. */

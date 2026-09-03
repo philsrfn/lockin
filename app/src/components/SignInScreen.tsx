@@ -31,7 +31,12 @@ const WORDMARK = 40;
  * gets there. It stays folded away, because asking a new athlete for a bearer
  * token is asking them to leave.
  */
-export function SignInScreen({ onDone }: { onDone: (needsOnboarding: boolean) => void }) {
+export function SignInScreen({
+  onDone,
+}: {
+  /** `admitted` is false while the account waits to be let in. */
+  onDone: (needsOnboarding: boolean, admitted: boolean) => void;
+}) {
   const insets = useSafeAreaInsets();
   const [appleReady, setAppleReady] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +56,7 @@ export function SignInScreen({ onDone }: { onDone: (needsOnboarding: boolean) =>
     setError(null);
     try {
       const result = await signInWithApple(url);
-      onDone(!result.onboarded);
+      onDone(!result.onboarded, result.approved);
     } catch (caught) {
       if (caught instanceof SignInCancelled) return;
       const status = (caught as { status?: number }).status;
@@ -71,7 +76,9 @@ export function SignInScreen({ onDone }: { onDone: (needsOnboarding: boolean) =>
       const { profile } = await api<{ profile: { onboarded?: boolean } }>('/profile', {
         timeoutMs: 15_000,
       });
-      onDone(!profile.onboarded);
+      // A token handed over by hand belongs to an account somebody already
+      // let in; if it did not, /profile would have refused it above.
+      onDone(!profile.onboarded, true);
     } catch (caught) {
       const status = (caught as { status?: number }).status;
       setError(

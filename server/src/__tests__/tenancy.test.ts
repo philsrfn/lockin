@@ -54,6 +54,11 @@ const EXEMPT = new Set([
   // DDL, and a local-only fixture that refuses to run against real data.
   'migrate.ts',
   'seed-demo.ts',
+  // The admin panel. Reading across every athlete is its entire job, and it
+  // counts in server time on purpose: the bill arrives in one timezone, not in
+  // each athlete's. The compensating check is at the bottom of this file —
+  // every route that reaches it must be behind requireAdmin.
+  'services/admin.ts',
 ]);
 
 function sourceFiles(dir: string): string[] {
@@ -150,5 +155,37 @@ describe('the owned-table list', () => {
     const inMigration = [...block.matchAll(/'([a-z_]+)'/g)].map((match) => match[1]!);
 
     expect(new Set(inMigration)).toEqual(new Set(OWNED_TABLES));
+  });
+});
+
+
+describe('the admin panel is the exception, and stays behind its guard', () => {
+  // services/admin.ts is exempt from the tenant rule above because crossing
+  // tenants is what it is for. That exemption is only safe while nothing can
+  // reach it without being an admin, so that is checked rather than trusted.
+  const routes = readFileSync(join(root, 'routes', 'admin.ts'), 'utf8');
+
+  it('guards every route it declares', () => {
+    const declared = [...routes.matchAll(/app\.(get|post|patch|delete)\(\s*'([^']+)'/g)];
+    const handlers = routes.split(/app\.(?:get|post|patch|delete)\(/).slice(1);
+
+    expect(declared.length).toBeGreaterThan(3);
+
+    const unguarded = declared
+      .map((match, index) => ({ path: match[2]!, body: handlers[index] ?? '' }))
+      // The page itself is a shell with no data in it; it is public so that a
+      // browser can load it before it has a token to send.
+      .filter(({ path, body }) => path !== '/admin' && !body.includes('requireAdmin'))
+      .map(({ path }) => path);
+
+    expect(unguarded).toEqual([]);
+  });
+
+  it('is the only file importing the admin service', () => {
+    const importers = sourceFiles(root)
+      .map((path) => relative(root, path))
+      .filter((file) => /from '[^']*services\/admin'/.test(readFileSync(join(root, file), 'utf8')));
+
+    expect(importers).toEqual(['routes/admin.ts']);
   });
 });

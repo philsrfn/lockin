@@ -165,15 +165,46 @@ NEW=$(openssl rand -hex 32)
 Then re-enter it on the phone. No rebuild needed — that is the point of keeping
 it in the keychain rather than the binary.
 
+## The admin panel
+
+`https://YOUR_DOMAIN/admin`, in any browser. Paste the admin bearer token once;
+it is kept in that browser and nowhere else.
+
+It shows who is signed up, when they were last seen, what they logged this
+week, and what each of them costs — per day, per athlete, and per purpose, so
+"the bill went up" has an answer. Two levers: let somebody in or revoke them,
+and set a per-athlete daily token ceiling.
+
+The panel needs `users.is_admin`, which is set in the database and by no route.
+User 1 has it; to add another:
+
+```sh
+ssh root@YOUR_IP
+cd /opt/lockin/deploy
+docker compose -f docker-compose.prod.yml exec -T db   psql -U lockin -d lockin -c 'update users set is_admin = true where id = 2'
+```
+
+Prices come from a table in `server/src/domain/pricing.ts`, which is a thing
+that goes stale without telling you. The panel prints the rates it used at the
+bottom of the page; correct one in `deploy/.env` when the provider reprices:
+
+```
+GEMINI_PRICE_GEMINI_3_6_FLASH=0.3/2.5
+```
+
 ## Adding a friend
 
 Every athlete has their own profile, timezone, contexts, rules and notification
 schedule. There are two ways to become one.
 
-**They sign in with Apple.** Install the TestFlight build, tap the button,
-done — the account is created on first sign-in. Nothing to send, nothing to
-type. This is the normal path, and the only one worth explaining to somebody
-who is not you.
+**They sign in with Apple.** Install the TestFlight build, tap the button, and
+they land on a screen saying the account is waiting. You let them in from the
+admin panel, they open the app again, and they are in. Nothing to send and
+nothing for them to type.
+
+Signing in is deliberately not the same as being let in: anybody with the
+TestFlight link can create an account, and every account costs money the moment
+it talks to the trainer.
 
 The build has to be a real one for this to work: Expo Go ships the module's
 JavaScript but not its native view, and a simulator has to be signed into an
@@ -190,7 +221,9 @@ docker compose -f docker-compose.prod.yml exec api npm run user:create -- --name
 
 It prints their token once and stores only its hash. Send it the way you would
 send a password. On first launch they open "I have a server token" and enter
-`https://YOUR_DOMAIN` and that token.
+`https://YOUR_DOMAIN` and that token. An account made this way is approved on
+the spot — running the command is the approval, so they skip the waiting
+screen.
 
 Either way they start with a single "Home" context and the enforceable rules —
 deliberately not your four German cities or your Skyr breakfast. Those are

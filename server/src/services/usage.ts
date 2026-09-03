@@ -58,19 +58,20 @@ export async function recordUsage(
   ctx: Ctx,
   purpose: string,
   usage: Usage,
+  model = '',
   zone?: string,
 ): Promise<void> {
   const day = dayIn(zone ?? (await athleteZone(ctx)));
 
   await ctx.db.query(
-    `insert into llm_usage (user_id, day, purpose, calls, prompt_tokens, output_tokens)
-     values ($1, $2::date, $3, 1, $4, $5)
-     on conflict (user_id, day, purpose) do update set
+    `insert into llm_usage (user_id, day, purpose, model, calls, prompt_tokens, output_tokens)
+     values ($1, $2::date, $3, $4, 1, $5, $6)
+     on conflict (user_id, day, purpose, model) do update set
        calls = llm_usage.calls + 1,
        prompt_tokens = llm_usage.prompt_tokens + excluded.prompt_tokens,
        output_tokens = llm_usage.output_tokens + excluded.output_tokens,
        updated_at = now()`,
-    [ctx.userId, day, purpose, usage.promptTokens, usage.outputTokens],
+    [ctx.userId, day, purpose, model, usage.promptTokens, usage.outputTokens],
   );
 }
 

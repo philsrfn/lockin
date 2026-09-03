@@ -31,7 +31,15 @@ async function main(): Promise<void> {
 
   // 32 bytes of randomness, printed once and stored only as a hash.
   const token = randomBytes(32).toString('base64url');
-  const { user } = await provisionUser({ name, email, token, timezone, heightCm });
+  // Approved on the spot: running this command is the approval.
+  const { user } = await provisionUser({
+    name,
+    email,
+    token,
+    timezone,
+    heightCm,
+    approved: true,
+  });
 
   console.log(`\nCreated user ${user.id} (${user.name}) in ${timezone}.`);
   console.log('\nTheir token — shown once, never recoverable:\n');

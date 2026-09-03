@@ -16,6 +16,10 @@ export type User = {
   id: number;
   name: string | null;
   email: string | null;
+  /** May reach the admin panel. Granted in the database, by no route. */
+  isAdmin: boolean;
+  /** Null means the account exists but has not been let in yet. */
+  approvedAt: Date | null;
 };
 
 /** Tokens are stored hashed. A database dump must not be a set of passwords. */
@@ -33,8 +37,8 @@ export const hashToken = (token: string): string =>
 export async function findUserByToken(token: string, db: Queryable = pool): Promise<User | null> {
   const hash = hashToken(token);
 
-  const { rows } = await db.query<{ id: number; name: string | null; email: string | null }>(
-    `select u.id, u.name, u.email
+  const { rows } = await db.query<User>(
+    `select u.id, u.name, u.email, u.is_admin as "isAdmin", u.approved_at as "approvedAt"
      from users u
      left join sessions_tokens s on s.user_id = u.id and s.token_hash = $1
      where u.token_hash = $1 or s.id is not null
@@ -96,11 +100,17 @@ export type AppleSignIn = {
  * athlete who hid their address would otherwise get a new account every time
  * they signed in.
  */
+/**
+ * Note what is not passed: `approved`. Anybody with the TestFlight link can
+ * reach this, and every account costs money the moment it talks to the
+ * trainer, so an account that let itself in starts pending. One provisioned by
+ * the CLI does not — the operator typing the command is the approval.
+ */
 export async function findOrCreateAppleUser(
   input: AppleSignIn,
 ): Promise<{ user: User; isNew: boolean }> {
-  const existing = await queryOne<{ id: number; name: string | null; email: string | null }>(
-    'select id, name, email from users where apple_sub = $1',
+  const existing = await queryOne<User>(
+    'select id, name, email, is_admin as "isAdmin", approved_at as "approvedAt" from users where apple_sub = $1',
     [input.sub],
   );
 
@@ -127,8 +137,8 @@ export async function findOrCreateAppleUser(
 }
 
 export async function getUser(id: number, db: Queryable = pool): Promise<User> {
-  const { rows } = await db.query<{ id: number; name: string | null; email: string | null }>(
-    'select id, name, email from users where id = $1',
+  const { rows } = await db.query<User>(
+    'select id, name, email, is_admin as "isAdmin", approved_at as "approvedAt" from users where id = $1',
     [id],
   );
   const row = rows[0];
@@ -173,6 +183,12 @@ export type NewUser = {
   token?: string;
   /** Apple's stable id, when they arrived through Sign in with Apple. */
   appleSub?: string | null;
+  /**
+   * Let in immediately. True for an account the operator created by hand —
+   * typing the command is the approval. Left false for anybody who signed
+   * themselves in, who waits for the admin panel.
+   */
+  approved?: boolean;
   locale?: string | null;
   timezone?: string;
   heightCm?: number;
@@ -193,14 +209,16 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
   if (input.email && !input.email.includes('@')) throw badRequest('That is not an email address');
 
   return transaction(async (db) => {
-    const { rows } = await db.query<{ id: number; name: string | null; email: string | null }>(
-      `insert into users (name, email, token_hash, apple_sub) values ($1, $2, $3, $4)
-       returning id, name, email`,
+    const { rows } = await db.query<User>(
+      `insert into users (name, email, token_hash, apple_sub, approved_at)
+       values ($1, $2, $3, $4, $5)
+       returning id, name, email, is_admin as "isAdmin", approved_at as "approvedAt"`,
       [
         input.name ?? null,
         input.email ?? null,
         input.token ? hashToken(input.token) : null,
         input.appleSub ?? null,
+        input.approved ? new Date() : null,
       ],
     );
     const user = rows[0]!;

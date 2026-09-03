@@ -11,7 +11,7 @@ import { ensureDeload } from './deloads';
 import { type DailyHealth, healthToday } from './health';
 import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
-import { type WorkoutPlan, planFor, upcomingTemplate } from './workouts';
+import { type WorkoutPlan, planFor, templateForToday } from './workouts';
 import { type CoachNote, cachedNote } from '../llm/coach';
 
 export type Today = {
@@ -111,7 +111,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
 
   // Mid-workout, today's plan is the session he is already in — and it must not
   // count its own sets as history when prescribing the next load.
-  const template = open?.template ?? (await upcomingTemplate(ctx));
+  const template = await templateForToday(ctx, open?.template ?? null);
   const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
   const targets = macroTargets(profile);

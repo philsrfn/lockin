@@ -20,7 +20,9 @@ import { completeOnboarding } from '../onboarding';
 import { getProfile } from '../profile';
 import { currentProgram, listPrograms, programBySlug, setProgram, slotsFor } from '../programs';
 import { createSession } from '../sessions';
-import { planFor, prescribeExercise, upcomingTemplate } from '../workouts';
+import { planFor, prescribeExercise, templateForToday, upcomingTemplate } from '../workouts';
+import { getToday } from '../today';
+import { recordSet } from '../sets';
 import { pool } from '../../db';
 
 let sam: Ctx;
@@ -263,5 +265,75 @@ describe('slots', () => {
     const ppl = (await programBySlug(pool, 'push_pull_legs'))!;
 
     expect(await slotsFor(phil, ppl.id, 'Nope')).toEqual([]);
+  });
+});
+
+describe('switching programmes with a session still open', () => {
+  /**
+   * The bug this exists for: Phil switched from Full body to PPL with an
+   * unfinished "B" open. Today asked PPL for a day called B, PPL has none, and
+   * the 404 took the entire payload with it — home screen, trainer context and
+   * every screen depending on either. The app stopped, and switching back was
+   * the only way out.
+   */
+  async function switchTo(slug: string) {
+    const programs = await listPrograms(phil);
+    const target = programs.find((program) => program.slug === slug);
+    if (!target) throw new Error(`No seeded programme ${slug}`);
+    return setProgram(phil, target.id);
+  }
+
+  it('does not ask the new programme for a day it has never had', async () => {
+    const open = await createSession(phil, { template: 'B' });
+    expect(open.template).toBe('B');
+
+    const ppl = await switchTo('push_pull_legs');
+    expect(ppl.days.some((day) => day.code === 'B')).toBe(false);
+
+    const template = await templateForToday(phil, 'B');
+
+    expect(ppl.days.map((day) => day.code)).toContain(template);
+  });
+
+  it('keeps Today answering at all', async () => {
+    await createSession(phil, { template: 'B' });
+    await switchTo('push_pull_legs');
+
+    const today = await getToday(phil);
+
+    expect(today.plan.exercises.length).toBeGreaterThan(0);
+    expect(today.profile.name).toBe('Phil');
+  });
+
+  it('still follows the open session when it belongs to this programme', async () => {
+    // The fallback must not throw away a session he is actually mid-way
+    // through: that would re-prescribe the wrong day between sets.
+    const programs = await listPrograms(phil);
+    const current = programs.find((program) => program.slug === 'full_body_3')!;
+    await setProgram(phil, current.id);
+
+    const code = current.days[1]!.code;
+    const template = await templateForToday(phil, code);
+
+    expect(template).toBe(code);
+  });
+
+  it('leaves the sets already logged on that session alone', async () => {
+    const open = await createSession(phil, { template: 'B' });
+    await recordSet(phil, {
+      sessionId: open.id,
+      exerciseId: await exerciseIdByName('Back Squat'),
+      setIndex: 1,
+      weightKg: 90,
+      reps: 8,
+      rir: 2,
+    });
+
+    await switchTo('push_pull_legs');
+
+    const { rows } = await pool.query('select count(*)::int as n from sets where session_id = $1', [
+      open.id,
+    ]);
+    expect(rows[0].n).toBe(1);
   });
 });

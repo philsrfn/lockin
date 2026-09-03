@@ -17,7 +17,7 @@ import { macrosToday, mealsToday } from '../services/meals';
 import { getProfile, macroTargets } from '../services/profile';
 import { listRules } from '../services/rules';
 import { firstSessionAt, recentSessions } from '../services/sessions';
-import { planFor, upcomingTemplate } from '../services/workouts';
+import { planFor, templateForToday } from '../services/workouts';
 import { openSession } from '../services/sessions';
 import { getWeek } from '../services/week';
 import { activeRulesFor } from '../rules/schema';
@@ -74,7 +74,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
   const gate = jointPainGate(finished);
   const ramp = rampIn(firstAt, new Date());
 
-  const template = open?.template ?? (await upcomingTemplate(ctx));
+  const template = await templateForToday(ctx, open?.template ?? null);
   const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
   const scoped = activeRulesFor(rules, context?.name ?? null);

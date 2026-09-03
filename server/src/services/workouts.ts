@@ -120,6 +120,33 @@ async function finishedSessions(ctx: Ctx) {
   return rows.map((row) => ({ performedAt: row.performed_at, jointPain: row.joint_pain }));
 }
 
+/**
+ * The day today's plan should be built from.
+ *
+ * A session in progress decides it — except when that session belongs to a
+ * programme the athlete has since left. Switching from Full body to PPL with
+ * an unfinished "B" open asked PPL for a day called B, which it does not have,
+ * and the 404 took the whole Today payload with it: the home screen, the
+ * trainer's context and every screen that depends on either. The app simply
+ * stopped, and the only way out was to switch back.
+ *
+ * An open session from an abandoned programme is history, not a plan. The
+ * sets already logged on it stay exactly where they are.
+ */
+export async function templateForToday(
+  ctx: Ctx,
+  openTemplate: DayCode | null,
+  program?: Program,
+): Promise<DayCode> {
+  const chosen = program ?? (await currentProgram(ctx));
+
+  if (openTemplate && chosen.days.some((day) => day.code === openTemplate)) {
+    return openTemplate;
+  }
+
+  return upcomingTemplate(ctx, chosen);
+}
+
 /** Which day comes next: A → B → C → A, off the last session he logged. */
 export async function upcomingTemplate(ctx: Ctx, program?: Program): Promise<DayCode> {
   const chosen = program ?? (await currentProgram(ctx));

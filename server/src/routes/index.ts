@@ -92,7 +92,12 @@ import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
 import { addRule, listRules, updateRule } from '../services/rules';
 import { currentProgram, listPrograms, setProgram } from '../services/programs';
-import { planFor, prescribeExercise, progress, upcomingTemplate } from '../services/workouts';
+import {
+  planFor,
+  prescribeExercise,
+  progress,
+  templateForToday,
+} from '../services/workouts';
 import { registerAdminRoutes } from './admin';
 
 /**
@@ -291,8 +296,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/workouts/next', async (request) => {
     const query = z.object({ template: TemplateIdSchema.optional() }).parse(request.query);
-    const template = query.template ?? (await upcomingTemplate(request.ctx));
     const open = await openSession(request.ctx);
+    // An explicit template is the caller's business; without one, the same
+    // resolution Today uses, so a session left open under an old programme
+    // cannot 404 the workout screen either.
+    const template = query.template ?? (await templateForToday(request.ctx, open?.template ?? null));
     return planFor(request.ctx, template, { excludeSessionId: open?.id });
   });
 

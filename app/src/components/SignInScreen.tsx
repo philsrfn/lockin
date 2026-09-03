@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -94,6 +95,14 @@ export function SignInScreen({ onDone }: { onDone: (needsOnboarding: boolean) =>
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.masthead}>
+          {/* The app icon's mark, reused rather than redrawn — the padlock whose
+              keyhole is a dumbbell. This is the screen where it has to explain
+              itself, so it is given room above the name. */}
+          <Image
+            source={require('../../assets/splash-icon.png')}
+            style={styles.mark}
+            resizeMode="contain"
+          />
           <Text style={styles.wordmark}>lockin</Text>
           <Text style={styles.blurb}>{t('signInBlurb')}</Text>
         </View>
@@ -194,6 +203,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { padding: space.lg, gap: space.lg, paddingTop: space.xxl },
   masthead: { gap: space.md, marginBottom: space.md },
+  mark: { width: 68, height: 68, marginBottom: space.xs },
   wordmark: { fontSize: 40, fontWeight: '300', color: colors.text, letterSpacing: -1.5 },
   blurb: { fontSize: 16, color: colors.textDim, lineHeight: 24 },
   body: { fontSize: 15, color: colors.textDim, lineHeight: 22 },

@@ -263,3 +263,35 @@ export async function listUserIds(db: Queryable = pool): Promise<number[]> {
   const { rows } = await db.query<{ id: number }>('select id from users order by id');
   return rows.map((row) => row.id);
 }
+
+/**
+ * How this account was created, which decides whether the app offers to delete
+ * it. An account made by signing in with Apple is that person's to remove —
+ * the App Store requires it be removable from inside the app. A root token was
+ * provisioned by whoever runs the server, and is theirs to withdraw; a delete
+ * button on it would be one tap between Phil and every session he has logged.
+ */
+export async function accountKind(userId: number, db: Queryable = pool): Promise<'apple' | 'root'> {
+  const { rows } = await db.query<{ apple: boolean }>(
+    'select apple_sub is not null and token_hash is null as apple from users where id = $1',
+    [userId],
+  );
+  return rows[0]?.apple ? 'apple' : 'root';
+}
+
+/**
+ * Erases an athlete. Every owned table declares `on delete cascade`, so this
+ * one statement takes the sessions, sets, weigh-ins, meals, chat and tokens
+ * with it. There is no soft delete and no grace period: somebody asking to be
+ * forgotten should be forgotten.
+ */
+export async function deleteAccount(userId: number, db: Queryable = pool): Promise<void> {
+  if ((await accountKind(userId, db)) !== 'apple') {
+    throw badRequest(
+      'This account was provisioned with a server token rather than by signing in. ' +
+        'Whoever runs the server removes it.',
+    );
+  }
+
+  await db.query('delete from users where id = $1', [userId]);
+}

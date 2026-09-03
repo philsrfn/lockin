@@ -190,6 +190,55 @@ const PHRASES = {
   },
   thinking: { de: 'denkt nach', en: 'thinking' },
 
+  signInBlurb: {
+    de: 'Ein Trainer, der deine Woche kennt — dein Training, dein Essen, dein Gewicht, an einem Ort.',
+    en: 'A trainer who knows your week — your training, your food, your weight, in one place.',
+  },
+  signInPrivacy: {
+    de: 'Apple teilt deinen Namen und deine E-Mail nur einmal, und nur mit dieser App. Du kannst beides verbergen.',
+    en: 'Apple shares your name and email once, and only with this app. You can hide both.',
+  },
+  signingIn: { de: 'Anmelden…', en: 'Signing in…' },
+  useServerToken: { de: 'Ich habe ein Server-Token', en: 'I have a server token' },
+  serverUrl: { de: 'SERVER-ADRESSE', en: 'SERVER URL' },
+  bearerToken: { de: 'TOKEN', en: 'BEARER TOKEN' },
+  connect: { de: 'Verbinden', en: 'Connect' },
+  checking: { de: 'Prüfen…', en: 'Checking…' },
+  signInFailed: {
+    de: 'Die Anmeldung hat nicht geklappt. Versuch es nochmal.',
+    en: 'That sign-in did not go through. Try again.',
+  },
+  signInOffline: {
+    de: 'Der Server war nicht erreichbar. Prüf deine Verbindung.',
+    en: 'Could not reach the server. Check your connection.',
+  },
+  signInUnavailable: {
+    de: 'Anmelden mit Apple geht auf diesem Gerät nicht. Nimm das Server-Token.',
+    en: 'Sign in with Apple is not available on this device. Use a server token.',
+  },
+  tokenRejected: {
+    de: 'Das Token wurde abgelehnt. Vergleich es mit dem, das du bekommen hast.',
+    en: 'That token was rejected. Check it against the one you were given.',
+  },
+  serverUnreachable: {
+    de: 'Diese Adresse war nicht erreichbar. Prüf die URL und ob der Server läuft.',
+    en: 'Could not reach that address. Check the URL and that the server is up.',
+  },
+
+  account: { de: 'KONTO', en: 'ACCOUNT' },
+  signOut: { de: 'Abmelden', en: 'Sign out' },
+  signOutConfirm: {
+    de: 'Auf diesem Gerät abmelden? Deine Daten bleiben auf dem Server.',
+    en: 'Sign out on this device? Your data stays on the server.',
+  },
+  cancel: { de: 'Abbrechen', en: 'Cancel' },
+  deleteAccount: { de: 'Konto löschen', en: 'Delete account' },
+  deleteAccountConfirm: {
+    de: 'Alles löschen — Training, Essen, Gewicht, Verlauf. Das lässt sich nicht rückgängig machen.',
+    en: 'Delete everything — training, food, weight, history. This cannot be undone.',
+  },
+  deleteAccountAction: { de: 'Alles löschen', en: 'Delete everything' },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

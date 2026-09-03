@@ -79,11 +79,27 @@ export async function saveConfig(url: string, apiToken: string): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
+/**
+ * Signing out happens on the rules screen, four routes deep, and the thing that
+ * has to react to it is the root layout. One listener rather than a state
+ * library: there is exactly one event and exactly one subscriber.
+ */
+const signOutListeners = new Set<() => void>();
+
+export function onSignedOut(listener: () => void): () => void {
+  signOutListeners.add(listener);
+  return () => signOutListeners.delete(listener);
+}
+
 export async function clearConfig(): Promise<void> {
   token = null;
-  baseUrl = '';
+  // The address is kept. It is not a credential, and forgetting it would make
+  // the next person to sign in on this phone type a host name.
   await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(URL_KEY);
+  // Whatever this device remembered belonged to whoever just left.
+  await SecureStore.deleteItemAsync(ONBOARDED_KEY);
+  await SecureStore.deleteItemAsync(HEALTH_KEY);
+  for (const listener of signOutListeners) listener();
 }
 
 /**

@@ -245,6 +245,64 @@ describe('signing out', () => {
   });
 });
 
+describe('deleting the account', () => {
+  it('takes everything with it', async () => {
+    const token = (await signIn('001.leaving')).json().token as string;
+    const auth = { authorization: `Bearer ${token}` };
+
+    await app.inject({
+      method: 'POST',
+      url: '/bodyweight',
+      headers: auth,
+      payload: { weightKg: 82.4, measuredOn: '2026-09-01' },
+    });
+
+    const gone = await app.inject({ method: 'DELETE', url: '/account', headers: auth });
+    expect(gone.statusCode).toBe(200);
+
+    // The token no longer resolves to anybody, and neither does the weigh-in.
+    expect((await app.inject({ method: 'GET', url: '/profile', headers: auth })).statusCode).toBe(
+      401,
+    );
+    const { rows } = await pool.query(
+      "select count(*)::int as n from bodyweight where measured_on = '2026-09-01'",
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  it('refuses on an account the operator provisioned', async () => {
+    // Phil's token is not his to delete from inside the app — one tap would
+    // take a year of training with it.
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/account',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const { rows } = await pool.query('select count(*)::int as n from users where id = 1');
+    expect(rows[0].n).toBe(1);
+  });
+
+  it('says which kind of account this is', async () => {
+    const token = (await signIn('001.kind')).json().token as string;
+
+    const mine = await app.inject({
+      method: 'GET',
+      url: '/account',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const phils = await app.inject({
+      method: 'GET',
+      url: '/account',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+
+    expect(mine.json().kind).toBe('apple');
+    expect(phils.json().kind).toBe('root');
+  });
+});
+
 describe('the token Phil already has', () => {
   it('still works, untouched by any of this', async () => {
     const response = await app.inject({

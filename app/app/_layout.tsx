@@ -6,10 +6,16 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/api/client';
 import type { Profile } from '../src/api/types';
-import { isHealthConnected, isOnboardedLocally, loadConfig, markOnboardedLocally } from '../src/api/config';
+import {
+  isHealthConnected,
+  isOnboardedLocally,
+  loadConfig,
+  markOnboardedLocally,
+  onSignedOut,
+} from '../src/api/config';
 import { startHealthSync } from '../src/health/sync';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
-import { SetupScreen } from '../src/components/SetupScreen';
+import { SignInScreen } from '../src/components/SignInScreen';
 import { startAutoDrain } from '../src/sync/queue';
 import { registerForPush, screenFromNotification } from '../src/push';
 import { colors } from '../src/theme';
@@ -19,6 +25,8 @@ export default function RootLayout() {
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const router = useRouter();
   const registered = useRef(false);
+  /** Set the moment sign-in answers, so the cold-start check below skips. */
+  const onboardingKnown = useRef(false);
 
   // The token lives in the keychain, so nothing can talk to the API until it
   // has been read back.
@@ -33,7 +41,7 @@ export default function RootLayout() {
    * in a form they may already have filled in.
    */
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || onboardingKnown.current) return;
     void (async () => {
       if (await isOnboardedLocally()) return setOnboarded(true);
       try {
@@ -45,6 +53,21 @@ export default function RootLayout() {
       }
     })();
   }, [configured]);
+
+  /**
+   * Signing out happens four routes deep, on the rules screen. This is what
+   * puts the sign-in screen back in front — and the onboarding answer with it,
+   * because the next person to sign in on this phone may be somebody else.
+   */
+  useEffect(
+    () =>
+      onSignedOut(() => {
+        onboardingKnown.current = false;
+        setOnboarded(null);
+        setConfigured(false);
+      }),
+    [],
+  );
 
   // Drains on foreground, and on a slow heartbeat while anything is waiting.
   useEffect(() => {
@@ -99,7 +122,16 @@ export default function RootLayout() {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <SetupScreen onDone={() => setConfigured(true)} />
+        <SignInScreen
+          onDone={(needsOnboarding) => {
+            // Sign-in already asked the server whether the questionnaire is
+            // outstanding, so the effect below has nothing left to find out.
+            onboardingKnown.current = true;
+            if (!needsOnboarding) void markOnboardedLocally();
+            setOnboarded(!needsOnboarding);
+            setConfigured(true);
+          }}
+        />
       </SafeAreaProvider>
     );
   }

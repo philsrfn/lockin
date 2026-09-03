@@ -15,7 +15,8 @@
           "en",
           "de"
         ]
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +31,7 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
+      "expo-apple-authentication",
       [
         "expo-camera",
         {

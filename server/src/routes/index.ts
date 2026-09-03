@@ -45,7 +45,14 @@ import { listExercises } from '../services/exercises';
 import { getProfile, isOnboarded, setLocale, setTimezone } from '../services/profile';
 import { verifyAppleIdentityToken } from '../auth/appleIdentity';
 import { consumeNonce, issueNonce } from '../auth/nonce';
-import { findOrCreateAppleUser, issueToken, revokeToken } from '../services/users';
+import {
+  accountKind,
+  deleteAccount,
+  findOrCreateAppleUser,
+  getUser,
+  issueToken,
+  revokeToken,
+} from '../services/users';
 import { env } from '../env';
 import { unauthorized } from '../errors';
 import { completeOnboarding } from '../services/onboarding';
@@ -131,6 +138,21 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const header = request.headers.authorization ?? '';
     if (header.startsWith('Bearer ')) await revokeToken(header.slice('Bearer '.length));
     return { signedOut: true };
+  });
+
+  /**
+   * Who is signed in, and whether this app may offer to delete them. The App
+   * Store requires an account made with Sign in with Apple to be removable
+   * from inside the app; a root token is the operator's to withdraw.
+   */
+  app.get('/account', async (request) => ({
+    user: await getUser(request.ctx.userId),
+    kind: await accountKind(request.ctx.userId),
+  }));
+
+  app.delete('/account', async (request) => {
+    await deleteAccount(request.ctx.userId);
+    return { deleted: true };
   });
 
   app.get('/health', async (_request, reply) => {

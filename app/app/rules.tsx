@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
 import type { Program, Rule, RuleTier } from '../src/api/types';
 import { isHealthConnected, setHealthConnected } from '../src/api/config';
+import { type Account, deleteAccount, loadAccount, signOut } from '../src/auth/session';
 import { isSupported, requestPermission } from '../src/health';
 import { syncNow } from '../src/health/sync';
 import { t } from '../src/lib/locale';
@@ -37,6 +38,7 @@ export default function RulesScreen() {
   const [current, setCurrent] = useState<Program | null>(null);
   const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
   const [healthNote, setHealthNote] = useState<string | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +50,9 @@ export default function RulesScreen() {
       setPrograms(programResult.programs);
       setCurrent(programResult.current);
       setError(null);
+      // Its own request, and allowed to fail quietly: not knowing which kind of
+      // account this is should not put an error across the rules.
+      void loadAccount().then(setAccount).catch(() => undefined);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load your rules');
     } finally {
@@ -214,6 +219,49 @@ export default function RulesScreen() {
         );
       })}
 
+      {account ? (
+        <Card label={t('account')}>
+          <Text style={styles.accountName}>
+            {account.user.name ?? account.user.email ?? 'Signed in'}
+          </Text>
+          {account.user.name && account.user.email ? (
+            <Text style={styles.blurb}>{account.user.email}</Text>
+          ) : null}
+          <Button
+            title={t('signOut')}
+            variant="secondary"
+            onPress={() =>
+              Alert.alert(t('signOut'), t('signOutConfirm'), [
+                { text: t('cancel'), style: 'cancel' },
+                { text: t('signOut'), style: 'destructive', onPress: () => void signOut() },
+              ])
+            }
+          />
+          {/*
+            Required of any app that offers Sign in with Apple, and right
+            regardless. Offered only where it is this person's to do — a token
+            handed over by whoever runs the server is withdrawn by them.
+          */}
+          {account.kind === 'apple' ? (
+            <Pressable
+              onPress={() =>
+                Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
+                  { text: t('cancel'), style: 'cancel' },
+                  {
+                    text: t('deleteAccountAction'),
+                    style: 'destructive',
+                    onPress: () => void deleteAccount(),
+                  },
+                ])
+              }
+              hitSlop={8}
+            >
+              <Text style={styles.destructive}>{t('deleteAccount')}</Text>
+            </Pressable>
+          ) : null}
+        </Card>
+      ) : null}
+
       <Text style={styles.footnote}>
         "Enforced in code" means a validator checks it and rejects anything that breaks it. Rules
         you add reach the trainer as instructions — it will follow them, but nothing blocks a
@@ -362,6 +410,8 @@ const styles = StyleSheet.create({
   dim: { ...typo.bodyDim, color: colors.textFaint },
   error: { color: colors.danger, fontSize: 14 },
   footnote: { fontSize: 13, color: colors.textFaint, lineHeight: 19 },
+  accountName: { ...typo.body, color: colors.text },
+  destructive: { fontSize: 14, color: colors.danger, paddingVertical: space.sm },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
   sheet: {

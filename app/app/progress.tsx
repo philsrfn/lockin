@@ -7,6 +7,7 @@ import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
 import { Sparkline } from '../src/components/Sparkline';
 import { kg, shortDate, signedKg } from '../src/lib/format';
+import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
 
 const RANGES = [30, 90, 365] as const;
@@ -35,7 +36,7 @@ export default function ProgressScreen() {
       setReview(r.review);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load your history');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadHistory'));
     } finally {
       setRefreshing(false);
     }
@@ -49,9 +50,9 @@ export default function ProgressScreen() {
     <Screen onRefresh={load} refreshing={refreshing}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>‹ Today</Text>
+          <Text style={styles.back}>{t('backToTodayShort')}</Text>
         </Pressable>
-        <Text style={styles.title}>Progress</Text>
+        <Text style={styles.title}>{t('progressTitle')}</Text>
       </View>
 
       <View style={styles.rangeRow}>
@@ -62,7 +63,7 @@ export default function ProgressScreen() {
             style={[styles.rangeChip, days === option && styles.rangeChipActive]}
           >
             <Text style={[styles.rangeText, days === option && styles.rangeTextActive]}>
-              {option === 365 ? '1 year' : `${option} days`}
+              {option === 365 ? t('oneYear') : `${option} ${t('days')}`}
             </Text>
           </Pressable>
         ))}
@@ -71,30 +72,32 @@ export default function ProgressScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {review ? (
-        <Card label={`REVIEW · WEEK ENDING ${shortDate(review.weekEnding).toUpperCase()}`}>
+        <Card label={`${t('reviewWeekEnding')} ${shortDate(review.weekEnding).toUpperCase()}`}>
           <Text style={styles.reviewBody}>{review.trend}</Text>
           <View style={styles.reviewBlock}>
-            <Text style={styles.reviewLabel}>WENT WELL</Text>
+            <Text style={styles.reviewLabel}>{t('wentWell')}</Text>
             <Text style={styles.reviewBody}>{review.wentWell}</Text>
           </View>
           <View style={styles.reviewBlock}>
-            <Text style={[styles.reviewLabel, { color: colors.accent }]}>THIS WEEK, CHANGE ONE THING</Text>
+            <Text style={[styles.reviewLabel, { color: colors.accent }]}>
+              {t('changeOneThing')}
+            </Text>
             <Text style={[styles.reviewBody, styles.reviewChange]}>{review.oneChange}</Text>
           </View>
           {review.targetsNote ? <Text style={styles.footnote}>{review.targetsNote}</Text> : null}
           <Text style={styles.footnote}>
-            {review.calorieTarget} kcal/day{review.calorieChanged ? ' · changed this week' : ''}
+            {review.calorieTarget} kcal/day{review.calorieChanged ? ` · ${t('changedThisWeek')}` : ''}
           </Text>
         </Card>
       ) : null}
 
-      <Card label="WEIGHT">
+      <Card label={t('weight')}>
         {weight?.average7 ? (
           <>
             <View style={styles.row}>
               <View>
                 <Text style={styles.numeral}>{kg(weight.average7.avgKg)} kg</Text>
-                <Text style={styles.dim}>7-day average</Text>
+                <Text style={styles.dim}>{t('sevenDayAverage')}</Text>
               </View>
               <View style={styles.alignEnd}>
                 <Text
@@ -105,31 +108,31 @@ export default function ProgressScreen() {
                 >
                   {signedKg(weight.changeKg)} kg
                 </Text>
-                <Text style={styles.dim}>this week</Text>
+                <Text style={styles.dim}>{t('thisWeekLower')}</Text>
               </View>
             </View>
             <Sparkline series={weight.series} height={72} />
             {weight.goalWeightKg ? (
               <Text style={styles.footnote}>
-                {kg(weight.average7.avgKg - weight.goalWeightKg)} kg above your {kg(weight.goalWeightKg, 0)}
-                kg goal
+                {kg(weight.average7.avgKg - weight.goalWeightKg)} kg {t('aboveGoal')}{' '}
+                {kg(weight.goalWeightKg, 0)} kg
               </Text>
             ) : null}
           </>
         ) : (
-          <Text style={styles.dim}>Not enough weigh-ins yet.</Text>
+          <Text style={styles.dim}>{t('notEnoughWeighIns')}</Text>
         )}
       </Card>
 
-      <Card label="TRAINING">
+      <Card label={t('training')}>
         <View style={styles.statRow}>
-          <Stat value={String(data?.sessionCount ?? 0)} label="sessions" />
-          <Stat value={String(data?.setCount ?? 0)} label="sets" />
+          <Stat value={String(data?.sessionCount ?? 0)} label={t('sessions')} />
+          <Stat value={String(data?.setCount ?? 0)} label={t('sets')} />
           <Stat
             value={
               data ? `${Math.round(data.totalVolumeKg / 1000)}t` : '0t'
             }
-            label="volume lifted"
+            label={t('volumeLifted')}
           />
         </View>
       </Card>
@@ -137,7 +140,7 @@ export default function ProgressScreen() {
       {data?.exercises.length ? (
         data.exercises.map((exercise) => <ExerciseCard key={exercise.exerciseId} exercise={exercise} />)
       ) : (
-        <Card label="LIFTS">
+        <Card label={t('liftsHeading')}>
           <Text style={styles.dim}>
             Nothing logged in this window yet. Finish a session and it shows up here.
           </Text>
@@ -212,7 +215,7 @@ function ExerciseCard({ exercise }: { exercise: ExerciseProgress }) {
           ))}
         </View>
       ) : (
-        <Text style={styles.footnote}>One session so far — a line needs two.</Text>
+        <Text style={styles.footnote}>{t('oneSessionSoFar')}</Text>
       )}
     </Card>
   );

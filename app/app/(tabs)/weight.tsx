@@ -10,6 +10,7 @@ import { Card } from '../../src/components/Card';
 import { Screen } from '../../src/components/Screen';
 import { Sparkline } from '../../src/components/Sparkline';
 import { kg, shortDate, signedKg } from '../../src/lib/format';
+import { t } from '../../src/lib/locale';
 import { colors, radius, space, type as typo } from '../../src/theme';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'] as const;
@@ -91,46 +92,43 @@ export default function WeightScreen() {
       </View>
 
       {summary.stale ? (
-        <Text style={styles.queued}>Offline — the averages below may be behind.</Text>
+        <Text style={styles.queued}>{t('offlineAverages')}</Text>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {queued ? (
-        <Text style={styles.queued}>Saved on the phone — it will sync when you have signal.</Text>
+        <Text style={styles.queued}>{t('savedOnPhone')}</Text>
       ) : null}
 
       <Button
-        title={saving ? 'Saving…' : "Log today's weight"}
+        title={saving ? t('saving') : t('logWeight')}
         onPress={save}
         disabled={!valid || saving}
       />
 
-      <Card label="THE NUMBER THAT COUNTS">
+      <Card label={t('numberThatCounts')}>
         <View style={styles.row}>
           <View>
             <Text style={styles.numeral}>{kg(data?.average7?.avgKg)} kg</Text>
             <Text style={styles.subtle}>
-              7-day average
-              {data?.average7 ? ` · ${data.average7.sampleCount} of 7 days` : ''}
+              {t('sevenDayAverage')}
+              {data?.average7 ? ` · ${data.average7.sampleCount} ${t('ofSevenDays')}` : ''}
             </Text>
           </View>
           <View style={styles.alignEnd}>
             <Text style={[styles.change, { color: changeColor(data?.changeKg ?? null) }]}>
               {signedKg(data?.changeKg ?? null)} kg
             </Text>
-            <Text style={styles.subtle}>vs last week</Text>
+            <Text style={styles.subtle}>{t('vsLastWeek')}</Text>
           </View>
         </View>
 
         {data ? <Sparkline series={data.series} height={64} /> : null}
 
-        <Text style={styles.footnote}>
-          Day to day is water and salt. The average is the trend — judge progress on this line, not
-          on this morning.
-        </Text>
+        <Text style={styles.footnote}>{t('weightFootnote')}</Text>
       </Card>
 
       {data && data.series.some((point) => point.weightKg != null) ? (
-        <Card label="RECENT">
+        <Card label={t('recent')}>
           {data.series
             .filter((point) => point.weightKg != null)
             .slice(-7)

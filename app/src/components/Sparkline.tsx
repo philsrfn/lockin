@@ -35,10 +35,14 @@ export function Sparkline({ series, height = 56 }: { series: TrendPoint[]; heigh
               styles.bar,
               {
                 height: filled ? Math.max(3, 6 + ratio * (height - 6)) : 2,
+                // textFaint, not surfaceHigh. A surface colour on a near-black
+                // ground reads as texture rather than as data — the whole
+                // trend was invisible at arm's length. The week strip beside
+                // it has always used a text colour for the same reason.
                 backgroundColor: filled
                   ? isLast
                     ? colors.accent
-                    : colors.surfaceHigh
+                    : colors.textFaint
                   : colors.border,
               },
             ]}

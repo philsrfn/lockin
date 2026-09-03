@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '../src/api/client';
 import type { FridgeItem, MealPlan } from '../src/api/types';
 import { Button } from '../src/components/Button';
+import { t } from '../src/lib/locale';
 import { Card } from '../src/components/Card';
 import { colors, radius, space, type as typo } from '../src/theme';
 
@@ -141,7 +142,7 @@ export default function FridgeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>‹ Today</Text>
+          <Text style={styles.back}>{t('backToTodayShort')}</Text>
         </Pressable>
 
         {stage === 'confirm' ? (

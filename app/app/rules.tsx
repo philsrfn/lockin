@@ -105,7 +105,7 @@ export default function RulesScreen() {
     <Screen onRefresh={load} refreshing={false}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>‹ Today</Text>
+          <Text style={styles.back}>{t('backToTodayShort')}</Text>
         </Pressable>
         <Text style={styles.title}>Rules</Text>
         <Text style={styles.subtitle}>

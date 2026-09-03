@@ -114,6 +114,54 @@ const PHRASES = {
     en: 'Nothing shared yet. The Health app is where you choose what lockin may read.',
   },
   steps: { de: 'SCHRITTE', en: 'STEPS' },
+
+  logWeight: { de: 'Heutiges Gewicht sichern', en: "Log today's weight" },
+  saving: { de: 'Sichern…', en: 'Saving…' },
+  numberThatCounts: { de: 'DIE ZAHL, DIE ZÄHLT', en: 'THE NUMBER THAT COUNTS' },
+  sevenDayAverage: { de: '7-Tage-Schnitt', en: '7-day average' },
+  ofSevenDays: { de: 'von 7 Tagen', en: 'of 7 days' },
+  vsLastWeek: { de: 'ggü. letzter Woche', en: 'vs last week' },
+  weightFootnote: {
+    de: 'Tag zu Tag ist Wasser und Salz. Der Schnitt ist der Trend — beurteile den Fortschritt an dieser Linie, nicht an diesem Morgen.',
+    en: 'Day to day is water and salt. The average is the trend — judge progress on this line, not on this morning.',
+  },
+  recent: { de: 'ZULETZT', en: 'RECENT' },
+  offlineAverages: {
+    de: 'Offline — die Schnitte unten können hinterherhinken.',
+    en: 'Offline — the averages below may be behind.',
+  },
+  savedOnPhone: {
+    de: 'Auf dem Handy gesichert — wird synchronisiert, sobald du Empfang hast.',
+    en: 'Saved on the phone — it will sync when you have signal.',
+  },
+
+  progressTitle: { de: 'Fortschritt', en: 'Progress' },
+  days: { de: 'Tage', en: 'days' },
+  oneYear: { de: '1 Jahr', en: '1 year' },
+  reviewWeekEnding: { de: 'RÜCKBLICK · WOCHE BIS', en: 'REVIEW · WEEK ENDING' },
+  wentWell: { de: 'LIEF GUT', en: 'WENT WELL' },
+  changeOneThing: { de: 'DIESE WOCHE: EINE SACHE', en: 'THIS WEEK, CHANGE ONE THING' },
+  changedThisWeek: { de: 'diese Woche geändert', en: 'changed this week' },
+  weight: { de: 'GEWICHT', en: 'WEIGHT' },
+  aboveGoal: { de: 'über deinem Ziel von', en: 'above your goal of' },
+  // A German noun keeps its capital. Lowercasing the shared label produced
+  // "woche" under the number, which reads as a typo rather than as a caption.
+  thisWeekLower: { de: 'Woche', en: 'this week' },
+  backToTodayShort: { de: '‹ Heute', en: '‹ Today' },
+  notEnoughWeighIns: { de: 'Noch zu wenige Wiegungen.', en: 'Not enough weigh-ins yet.' },
+  training: { de: 'TRAINING', en: 'TRAINING' },
+  sessions: { de: 'Einheiten', en: 'sessions' },
+  sets: { de: 'Sätze', en: 'sets' },
+  volumeLifted: { de: 'bewegt', en: 'volume lifted' },
+  liftsHeading: { de: 'ÜBUNGEN', en: 'LIFTS' },
+  oneSessionSoFar: {
+    de: 'Erst eine Einheit — für eine Linie braucht es zwei.',
+    en: 'One session so far — a line needs two.',
+  },
+  couldNotLoadHistory: {
+    de: 'Deine Historie konnte nicht geladen werden',
+    en: 'Could not load your history',
+  },
 } satisfies Record<string, Phrase>;
 
 export function t(key: keyof typeof PHRASES): string {

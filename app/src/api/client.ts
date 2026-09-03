@@ -29,6 +29,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Two answers the app has to act on wherever they arrive, rather than showing
+ * as an error on one screen.
+ *
+ * `refused` is 403 pending_approval: an account that exists and has not been
+ * let in. `expired` is 401: a token that no longer resolves, which is what a
+ * revoked athlete's phone gets. Both are definitive — the same request will
+ * fail the same way forever — so they change what the app shows rather than
+ * being retried.
+ */
+const refusalListeners = new Set<(kind: 'refused' | 'expired') => void>();
+
+export function onRefused(listener: (kind: 'refused' | 'expired') => void): () => void {
+  refusalListeners.add(listener);
+  return () => refusalListeners.delete(listener);
+}
+
 export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; timeoutMs?: number } = {},
@@ -59,12 +76,22 @@ export async function api<T>(
   const payload = text ? (JSON.parse(text) as Record<string, unknown>) : {};
 
   if (!response.ok) {
-    throw new ApiError(
+    const error = new ApiError(
       response.status,
       typeof payload.error === 'string' ? payload.error : `Request failed (${response.status})`,
       payload.details,
       typeof payload.code === 'string' ? payload.code : undefined,
     );
+
+    // Announced from here rather than handled per screen: whichever tab the
+    // athlete happens to be on is the one that finds out.
+    if (error.code === 'pending_approval') {
+      for (const listener of refusalListeners) listener('refused');
+    } else if (error.status === 401) {
+      for (const listener of refusalListeners) listener('expired');
+    }
+
+    throw error;
   }
 
   return payload as T;

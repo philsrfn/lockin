@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/api/client';
 import type { Profile } from '../src/api/types';
 import {
+  clearConfig,
   isHealthConnected,
   isOnboardedLocally,
   loadConfig,
@@ -14,7 +15,7 @@ import {
   onSignedOut,
 } from '../src/api/config';
 import { startHealthSync } from '../src/health/sync';
-import { ApiError } from '../src/api/client';
+import { ApiError, onRefused } from '../src/api/client';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { WaitingScreen } from '../src/components/WaitingScreen';
 import { SignInScreen } from '../src/components/SignInScreen';
@@ -63,6 +64,25 @@ export default function RootLayout() {
       }
     })();
   }, [configured]);
+
+  /**
+   * A refusal reaches here from wherever it happened.
+   *
+   * A warm start skips the /profile check below — the onboarding answer is
+   * remembered locally so a cold start does not wait on the network — which
+   * means an account revoked or not yet approved would otherwise carry on
+   * looking like a working app until something happened to fail visibly.
+   */
+  useEffect(
+    () =>
+      onRefused((kind) => {
+        if (kind === 'refused') setWaiting(true);
+        // A token that no longer resolves is a revoked account or a device
+        // that was signed out elsewhere. Back to the sign-in screen.
+        else void clearConfig();
+      }),
+    [],
+  );
 
   /**
    * Signing out happens four routes deep, on the rules screen. This is what

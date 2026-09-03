@@ -39,7 +39,11 @@ export function useResource<T>(path: string): Resource<T> {
         setError(null);
         setStale(false);
       } catch (caught) {
-        const cached = cacheRead<T>(path);
+        // Only when the server did not answer. A 401 or a 403 is an answer —
+        // showing yesterday's numbers over the top of one makes a revoked or
+        // not-yet-approved account look like a working app.
+        const definitive = caught instanceof ApiError && !caught.retryable;
+        const cached = definitive ? null : cacheRead<T>(path);
         if (cached) {
           setData(cached);
           setStale(true);

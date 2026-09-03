@@ -101,9 +101,21 @@ export const geminiProvider: LlmProvider = {
         { purpose, model, status, durationMs: Date.now() - startedAt, err: error },
         'llm call failed',
       );
+      const retryable = status === 0 || status === 429 || status >= 500;
+
+      /*
+       * A sentence, not the provider's JSON. Phil read
+       * `{"error":{"code":400,"message":"Please ensure that function call turn
+       * comes immediately after..."}}` in his chat, which tells him nothing he
+       * can act on and names a provider §2 wants nothing outside this
+       * directory to know about. The original is on `source` and in the log
+       * line above, where it is actually useful.
+       */
       throw new LlmError(
-        `Gemini call failed: ${(error as Error).message}`,
-        status === 0 || status === 429 || status >= 500,
+        retryable
+          ? 'The trainer could not be reached just then. Try that again.'
+          : 'The trainer could not answer that. It has been logged.',
+        retryable,
         error,
       );
     }

@@ -2,7 +2,7 @@
  * The only thing the app talks to. The Gemini key never leaves the backend (§2),
  * and the bearer token lives in the iOS keychain — see api/config.ts.
  */
-import { currentBaseUrl, currentToken } from './config';
+import { currentToken, ensureBaseUrl } from './config';
 
 /** Gym wifi either answers quickly or is not going to. */
 const TIMEOUT_MS = 8000;
@@ -50,20 +50,20 @@ export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
-  const base = currentBaseUrl();
-
   /**
-   * Without this, an empty base makes `${base}${path}` a *relative* URL, and a
-   * relative fetch is answered by whatever server the bundle came from. In
-   * Expo Go that is Metro, which returns its own manifest with a cheerful 200
-   * — so `/today` resolved to an Expo manifest, was treated as a valid answer,
-   * and was written to the offline cache. Every screen that then read three
-   * levels into it threw, and the stack pointed at the screen rather than at
-   * this line.
+   * Never a relative URL. An empty base makes `${base}${path}` relative, and a
+   * relative fetch is answered by whatever server the bundle came from — in
+   * Expo Go that is Metro, which returns its own manifest with a cheerful 200.
+   * `/today` resolved to an Expo manifest, was treated as a valid answer, and
+   * was written to the offline cache; every screen that then read three levels
+   * into it threw, with a stack pointing at the screen rather than at this
+   * line.
    *
-   * Status 0 so it is treated as "no answer", which is what it is.
+   * Reads the keychain when this module has not been initialised yet rather
+   * than failing, so a hot reload does not leave the app hostless.
    */
-  if (!base) throw new ApiError(0, 'Not connected to a server yet');
+  const base = await ensureBaseUrl();
+  if (!base) throw new ApiError(0, 'No server configured');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
@@ -112,4 +112,4 @@ export async function api<T>(
   return payload as T;
 }
 
-export const apiBaseUrl = currentBaseUrl;
+

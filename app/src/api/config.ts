@@ -137,4 +137,21 @@ export async function markOnboardedLocally(): Promise<void> {
 
 export const currentToken = () => token ?? '';
 export const currentBaseUrl = () => baseUrl;
+
+/**
+ * The base URL, reading it back if this module has not been through
+ * `loadConfig` yet.
+ *
+ * `baseUrl` is module state, and module state is exactly what Fast Refresh
+ * throws away — so a hot reload left the client with no host and every request
+ * failing until something called loadConfig again. In a release build the root
+ * layout always gets there first, but a getter that can answer for itself
+ * costs one keychain read and removes the whole class.
+ */
+export async function ensureBaseUrl(): Promise<string> {
+  if (baseUrl) return baseUrl;
+
+  baseUrl = (await SecureStore.getItemAsync(URL_KEY)) ?? normalise(BUILT_IN_URL);
+  return baseUrl;
+}
 export const isConfigured = () => Boolean(token && baseUrl);

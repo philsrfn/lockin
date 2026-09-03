@@ -12,6 +12,7 @@ import { runTool } from './handlers';
 import { trainerSystemInstruction } from './prompts/trainer';
 import { generateFor } from './metered';
 import { LlmError, type ToolCall, type ToolResult, type Turn } from './provider';
+import { usableHistory } from './history';
 import { TOOLS } from './tools';
 
 /** How many model→tool→model rounds before we stop and answer with what we have. */
@@ -53,7 +54,7 @@ async function loadHistory(ctx: Ctx): Promise<Turn[]> {
     [ctx.userId, HISTORY_TURNS],
   );
 
-  return rows
+  const replayed = rows
     .reverse()
     .map((row): Turn | null => {
       const content = row.content;
@@ -72,6 +73,10 @@ async function loadHistory(ctx: Ctx): Promise<Turn[]> {
       return null;
     })
     .filter((turn): turn is Turn => turn !== null);
+
+  // The window above is a slice of rows, and its boundary lands wherever it
+  // lands — including inside a tool exchange, which the provider refuses.
+  return usableHistory(replayed);
 }
 
 /** What the app shows in the chat tab. */

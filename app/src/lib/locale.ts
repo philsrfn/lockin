@@ -322,6 +322,16 @@ const PHRASES = {
     en: 'That did not link.',
   },
 
+  nothingLoggedThatDay: {
+    de: 'An dem Tag nichts eingetragen.',
+    en: 'Nothing logged this day.',
+  },
+  gOf: { de: 'g von', en: 'g of' },
+  setsShort: { de: 'SÄTZE', en: 'SETS' },
+  noSession: { de: 'KEINE EINHEIT', en: 'NO SESSION' },
+  weighed: { de: 'GEWOGEN', en: 'WEIGHED' },
+  kcalLabel: { de: 'KCAL', en: 'KCAL' },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

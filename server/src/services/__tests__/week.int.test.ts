@@ -182,3 +182,62 @@ describe('getToday', () => {
     expect(today.week.strengthSessions.target).toBe(3);
   });
 });
+
+
+describe('looking at an earlier week', () => {
+  it('ends the window where it is asked to', async () => {
+    const ending = isoDaysAgo(10);
+
+    const week = await getWeek(phil, ending);
+
+    expect(week.days).toHaveLength(7);
+    expect(week.days[6]!.date).toBe(ending);
+    expect(week.days[0]!.date).toBe(isoDaysAgo(16));
+  });
+
+  it('counts what happened inside it, and nothing outside', async () => {
+    await finishedSession('A', 12); // inside the window ending 10 days ago
+    await finishedSession('B', 2); // this week
+
+    const past = await getWeek(phil, isoDaysAgo(10));
+    const now = await getWeek(phil);
+
+    expect(past.strength.done).toBe(1);
+    expect(now.strength.done).toBe(1);
+    expect(past.days.find((day) => day.date === isoDaysAgo(12))!.lifted).toBe(true);
+    expect(past.days.some((day) => day.date === isoDaysAgo(2))).toBe(false);
+  });
+
+  it('leaves later weigh-ins out of an earlier week', async () => {
+    // The weight query had no upper bound, which was invisible while every
+    // window ended today.
+    await logWeight(phil, { weightKg: 99, measuredOn: isoDaysAgo(12) });
+    await logWeight(phil, { weightKg: 95, measuredOn: isoDaysAgo(1) });
+
+    const past = await getWeek(phil, isoDaysAgo(10));
+
+    expect(past.weighIns.done).toBe(1);
+    expect(past.days.filter((day) => day.weightKg !== null)).toHaveLength(1);
+    expect(past.days.find((day) => day.date === isoDaysAgo(12))!.weightKg).toBe(99);
+  });
+
+  it('marks no day as today in a week that has passed', async () => {
+    const past = await getWeek(phil, isoDaysAgo(10));
+
+    expect(past.days.some((day) => day.isToday)).toBe(false);
+    expect(past.days.some((day) => day.isFuture)).toBe(false);
+  });
+
+  it('refuses to end in the future, which would be seven empty columns', async () => {
+    const ahead = await getWeek(phil, isoDaysAgo(-30));
+    const now = await getWeek(phil);
+
+    expect(ahead.days[6]!.date).toBe(now.days[6]!.date);
+  });
+
+  it('still ends today when asked for nothing', async () => {
+    const week = await getWeek(phil);
+
+    expect(week.days[6]!.isToday).toBe(true);
+  });
+});

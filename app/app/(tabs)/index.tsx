@@ -17,7 +17,8 @@ import type { Today, Week, WeekDay } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { ContextChip } from '../../src/components/ContextChip';
 import { CardioSheet } from '../../src/components/CardioSheet';
-import { WeekStrip } from '../../src/components/WeekStrip';
+import { FoodCapture } from '../../src/components/FoodCapture';
+import { WeekPager } from '../../src/components/WeekPager';
 import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
 import { t } from '../../src/lib/locale';
@@ -43,14 +44,15 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const today = useResource<Today>('/today');
   const week = useResource<Week>('/week');
-  const [selected, setSelected] = useState<string | null>(null);
+  /** The day the strip is pointing at. The day itself, not its date: with
+   *  earlier weeks in play there is no single week to resolve a date in. */
+  const [selected, setSelected] = useState<WeekDay | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
+  const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
 
   // Follow the day over midnight rather than stranding the selection.
-  useEffect(() => {
-    if (today.data && !selected) setSelected(today.data.date);
-  }, [today.data, selected]);
+
 
   /**
    * The language follows the athlete, not the handset. This is the one screen
@@ -78,8 +80,7 @@ export default function TodayScreen() {
   const doneToday = !inProgress && (completedToday?.length ?? 0) > 0;
   const resting = !!coach && coach.sessionType !== 'strength' && !doneToday && !inProgress;
 
-  const days = week.data?.days ?? [];
-  const active = days.find((day) => day.date === (selected ?? date));
+  const active = selected ?? week.data?.days.find((day) => day.date === date) ?? null;
   const isToday = !active || active.date === date;
 
   return (
@@ -137,28 +138,15 @@ export default function TodayScreen() {
           </Pressable>
         ) : null}
 
-        {/* The week: the subject of the screen and its navigation. */}
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.label}>{caps(t('thisWeek'))}</Text>
-            {/* Three levels deep, on the screen the app opens on. Within a
-                build the shape is guaranteed, but a cached payload survives a
-                reinstall, so the tally is allowed to be absent rather than
-                taking the screen down with it. */}
-            {week.data?.strength && week.data.cardio && week.data.weighIns ? (
-              <Text style={styles.tally}>
-                {week.data.strength.done}/{week.data.strength.target} {t('lifts')} ·{' '}
-                {week.data.cardio.done}/{week.data.cardio.target} {t('cardioTally')} ·{' '}
-                {week.data.weighIns.done}/7 {t('weighIns')}
-              </Text>
-            ) : null}
-          </View>
-          <WeekStrip
-            days={days}
-            selected={selected ?? date}
-            onSelect={(next) => setSelected(next)}
-          />
-        </View>
+        {/* The week: the subject of the screen and its navigation, and the
+            weeks behind it — "was last week better" is the question you ask
+            when this one is going badly. */}
+        <WeekPager
+          today={date}
+          thisWeek={week.data}
+          selected={selected?.date ?? date}
+          onSelect={setSelected}
+        />
 
         {/* Driven by the strip. Today by default, any day on tap. */}
         <View style={styles.section}>
@@ -171,6 +159,14 @@ export default function TodayScreen() {
               <View style={styles.heroRow}>
                 <Text style={styles.hero}>{macros.remaining.proteinG}</Text>
                 <Text style={styles.heroUnit}>{t('proteinLeft')}</Text>
+                <View style={styles.heroSpacer} />
+                {/*
+                  The number is the question and a barcode is the fastest
+                  answer to it, so the two sit together rather than a tab away.
+                */}
+                <Pressable onPress={() => setCapture('scan')} hitSlop={10} style={styles.scan}>
+                  <Text style={styles.scanText}>{t('scan')}</Text>
+                </Pressable>
               </View>
               <View style={styles.facts}>
                 <Fact value={`${macros.remaining.kcal}`} label={t('kcalLeft')} />
@@ -200,8 +196,11 @@ export default function TodayScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {/* Cleared rather than set to today: the hero falls back to today on
+            its own, so the strip does not have to be showing this week for
+            the button to work. */}
         {!isToday ? (
-          <Pressable onPress={() => setSelected(date)} hitSlop={10} style={styles.backToToday}>
+          <Pressable onPress={() => setSelected(null)} hitSlop={10} style={styles.backToToday}>
             <Text style={styles.backText}>{t('backToToday')}</Text>
           </Pressable>
         ) : null}
@@ -234,6 +233,17 @@ export default function TodayScreen() {
           void week.reload();
         }}
       />
+
+      {/* The same sheet the food tab uses — one code path to a logged meal. */}
+      <FoodCapture
+        mode={capture}
+        onClose={() => setCapture(null)}
+        onLogged={() => {
+          setCapture(null);
+          void today.reload();
+          void week.reload();
+        }}
+      />
     </View>
   );
 }
@@ -244,20 +254,22 @@ function DayDetail({ day, target }: { day: WeekDay; target: number }) {
     <>
       {/* An em-dash at 62pt reads as a stray rule, not as "no data". */}
       {day.proteinPct === null ? (
-        <Text style={styles.empty}>Nothing logged this day.</Text>
+        <Text style={styles.empty}>{t('nothingLoggedThatDay')}</Text>
       ) : (
         <View style={styles.heroRow}>
           <Text style={styles.hero}>{day.proteinG}</Text>
-          <Text style={styles.heroUnit}>g of {target}</Text>
+          <Text style={styles.heroUnit}>
+            {t('gOf')} {target}
+          </Text>
         </View>
       )}
       <View style={styles.facts}>
         <Fact
           value={day.lifted ? (day.template ?? '—') : '—'}
-          label={day.lifted ? `${day.sets} SETS` : 'NO SESSION'}
+          label={day.lifted ? `${day.sets} ${t('setsShort')}` : t('noSession')}
         />
-        <Fact value={day.weightKg ? kg(day.weightKg) : '—'} label="WEIGHED" />
-        <Fact value={day.kcal ? `${day.kcal}` : '—'} label="KCAL" />
+        <Fact value={day.weightKg ? kg(day.weightKg) : '—'} label={t('weighed')} />
+        <Fact value={day.kcal ? `${day.kcal}` : '—'} label={t('kcalLabel')} />
       </View>
     </>
   );
@@ -321,6 +333,14 @@ const styles = StyleSheet.create({
   tally: { fontSize: 12, color: colors.textFaint, ...typo.mono },
 
   heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  heroSpacer: { flex: 1 },
+  scan: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.textFaint,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  scanText: { ...typo.label, color: colors.text },
   hero: { fontSize: 62, fontWeight: '300', color: colors.text, letterSpacing: -3, ...typo.mono },
   heroUnit: { fontSize: 15, color: colors.textDim },
 

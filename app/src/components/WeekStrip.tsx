@@ -29,7 +29,8 @@ export function WeekStrip({
 }: {
   days: WeekDay[];
   selected: string;
-  onSelect: (date: string) => void;
+  /** The day itself: with several weeks in play, a date alone is ambiguous. */
+  onSelect: (day: WeekDay) => void;
 }) {
   return (
     <View style={styles.row}>
@@ -42,7 +43,7 @@ export function WeekStrip({
         return (
           <Pressable
             key={day.date}
-            onPress={() => onSelect(day.date)}
+            onPress={() => onSelect(day)}
             style={styles.col}
             hitSlop={4}
           >

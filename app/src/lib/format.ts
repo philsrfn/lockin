@@ -94,3 +94,22 @@ export function greeting(name: string | null, now: Date = new Date()): string {
   const who = name ? `, ${name}` : '';
   return `${text}${who}${question ? '?' : ''}`;
 }
+
+/**
+ * A week, as a heading. "21.–27. Aug." rather than "21. Aug. – 27. Aug.":
+ * the long form is nearly twice the width and collides with the tally beside
+ * it. The month is repeated only when the week actually crosses one.
+ */
+export function dateRange(fromIso: string, toIso: string): string {
+  const from = new Date(`${fromIso}T12:00:00`);
+  const to = new Date(`${toIso}T12:00:00`);
+
+  if (from.getMonth() === to.getMonth()) {
+    // Day alone for the first date — German gets its ordinal dot from Intl,
+    // English does not, and neither needs the month said twice.
+    const day = new Intl.DateTimeFormat(deviceLocale(), { day: 'numeric' }).format(from);
+    return `${day}–${shortDate(toIso)}`;
+  }
+
+  return `${shortDate(fromIso)} – ${shortDate(toIso)}`;
+}

@@ -279,7 +279,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/today', async (request) => getToday(request.ctx));
 
   /** The seven-day shape the home screen is built on. */
-  app.get('/week', async (request) => getWeek(request.ctx));
+  app.get('/week', async (request) => {
+    // `ending` is the last day of the window. Absent means this week, which is
+    // what the home screen asks for.
+    const { ending } = z
+      .object({ ending: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })
+      .parse(request.query);
+
+    return getWeek(request.ctx, ending);
+  });
 
   app.get('/workouts/next', async (request) => {
     const query = z.object({ template: TemplateIdSchema.optional() }).parse(request.query);

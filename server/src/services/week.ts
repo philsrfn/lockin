@@ -58,9 +58,18 @@ export type Week = {
 
 const WEEKDAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
-export async function getWeek(ctx: Ctx): Promise<Week> {
+/**
+ * `endingOn` is the last day of the window, in the athlete's zone. Defaults to
+ * today, which is the home screen; earlier dates are how the strip scrolls
+ * back through the weeks behind it.
+ */
+export async function getWeek(ctx: Ctx, endingOn?: string): Promise<Week> {
   const profile = await getProfile(ctx);
-  const asOf = dayIn(profile.timezone);
+  const today = dayIn(profile.timezone);
+
+  // A window that ends in the future would be seven columns of nothing
+  // pretending to be a week.
+  const asOf = endingOn && endingOn < today ? endingOn : today;
   const firstDay = addDays(asOf, -6);
   const span = daySpanIn(profile.timezone, firstDay, asOf);
 
@@ -81,8 +90,9 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
     ),
     ctx.db.query<{ day: string; weight_kg: number }>(
       `select to_char(measured_on, 'YYYY-MM-DD') as day, weight_kg
-       from bodyweight where user_id = $1 and measured_on >= $2::date`,
-      [ctx.userId, firstDay],
+       from bodyweight
+       where user_id = $1 and measured_on >= $2::date and measured_on <= $3::date`,
+      [ctx.userId, firstDay, asOf],
     ),
     ctx.db.query<{ day: string; protein: number; kcal: number }>(
       `select to_char(eaten_at at time zone $4, 'YYYY-MM-DD') as day,
@@ -110,8 +120,8 @@ export async function getWeek(ctx: Ctx): Promise<Week> {
     days.push({
       date,
       weekday: WEEKDAYS_DE[weekdayOf(date)] ?? '',
-      isToday: date === asOf,
-      isFuture: false,
+      isToday: date === today,
+      isFuture: date > today,
       lifted: !!session,
       template: session?.template ?? null,
       sets: session?.sets ?? 0,

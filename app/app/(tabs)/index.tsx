@@ -50,6 +50,8 @@ export default function TodayScreen() {
   const [coachOpen, setCoachOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
+  /** Bumped to send the strip back to this week along with the numbers. */
+  const [goHome, setGoHome] = useState(0);
 
   // Follow the day over midnight rather than stranding the selection.
 
@@ -146,6 +148,7 @@ export default function TodayScreen() {
           thisWeek={week.data}
           selected={selected?.date ?? date}
           onSelect={setSelected}
+          goHome={goHome}
         />
 
         {/* Driven by the strip. Today by default, any day on tap. */}
@@ -196,33 +199,51 @@ export default function TodayScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        {/* Cleared rather than set to today: the hero falls back to today on
-            its own, so the strip does not have to be showing this week for
-            the button to work. */}
+        {/*
+          Its own row above the actions, not squeezed in beside them. Sharing
+          the row left the primary button a third of its width, and the two
+          actions belong to today while the link is about leaving another day.
+
+          Cleared rather than set to today: the hero falls back to today on its
+          own, so the strip does not have to be showing this week for the
+          button to work.
+        */}
         {!isToday ? (
-          <Pressable onPress={() => setSelected(null)} hitSlop={10} style={styles.backToToday}>
+          <Pressable
+            onPress={() => {
+              setSelected(null);
+              // The strip too: leaving it stranded in August under today's
+              // numbers is half a return.
+              setGoHome((n) => n + 1);
+            }}
+            hitSlop={10}
+            style={styles.backToToday}
+          >
             <Text style={styles.backText}>{t('backToToday')}</Text>
           </Pressable>
         ) : null}
-        <Button
-          title={t(
-            inProgress ? 'resume' : doneToday ? 'trainAgain' : resting ? 'liftAnyway' : 'start',
-          )}
-          variant={!inProgress && (doneToday || resting) ? 'secondary' : 'primary'}
-          onPress={() => router.push('/workout')}
-          style={styles.primaryAction}
-        />
-        {/*
-          §11 expects two actions here. The second used to be food, which has
-          its own tab; the one with nowhere to go was cardio — the coach
-          prescribed it and had no way to know whether it happened.
-        */}
-        <Pressable
-          onPress={() => setCardioOpen(true)}
-          style={({ pressed }) => [styles.cardioAction, pressed && styles.cardioActionOn]}
-        >
-          <Text style={styles.cardioActionText}>{t('cardio')}</Text>
-        </Pressable>
+
+        <View style={styles.actions}>
+          <Button
+            title={t(
+              inProgress ? 'resume' : doneToday ? 'trainAgain' : resting ? 'liftAnyway' : 'start',
+            )}
+            variant={!inProgress && (doneToday || resting) ? 'secondary' : 'primary'}
+            onPress={() => router.push('/workout')}
+            style={styles.primaryAction}
+          />
+          {/*
+            §11 expects two actions here. The second used to be food, which has
+            its own tab; the one with nowhere to go was cardio — the coach
+            prescribed it and had no way to know whether it happened.
+          */}
+          <Pressable
+            onPress={() => setCardioOpen(true)}
+            style={({ pressed }) => [styles.cardioAction, pressed && styles.cardioActionOn]}
+          >
+            <Text style={styles.cardioActionText}>{t('cardio')}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <CardioSheet
@@ -361,8 +382,6 @@ const styles = StyleSheet.create({
   cardioActionOn: { borderColor: colors.text },
   cardioActionText: { ...typo.label, color: colors.textDim },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.md,
@@ -370,7 +389,8 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     gap: space.md,
   },
-  backToToday: { alignSelf: 'center' },
+  actions: { flexDirection: 'row', alignItems: 'stretch', gap: space.md },
+  backToToday: { alignSelf: 'flex-start', paddingVertical: space.xs },
   backText: { ...typo.label, color: colors.textFaint },
 
   alert: { fontSize: 13, color: colors.danger, lineHeight: 19 },

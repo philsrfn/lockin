@@ -28,13 +28,22 @@ export function WeekPager({
   thisWeek,
   selected,
   onSelect,
+  goHome,
 }: {
   today: string;
   thisWeek: Week | null;
   selected: string;
   onSelect: (day: WeekDay) => void;
+  /**
+   * Bumped when the screen wants this back on the current week. A counter
+   * rather than a boolean, because "go there again" has to be distinguishable
+   * from "already there" — and rather than a date, because the athlete is
+   * free to scroll away afterwards and should not be dragged back.
+   */
+  goHome?: number;
 }) {
   const { width } = useWindowDimensions();
+  const list = useRef<FlatList<string>>(null);
   // The strip is inset by the screen's own padding, so a page is the window
   // less that. Getting this wrong is what makes paging land between weeks.
   const page = width - space.lg * 2;
@@ -52,6 +61,11 @@ export function WeekPager({
   useEffect(() => {
     if (thisWeek) setWeeks((current) => ({ ...current, [today]: thisWeek }));
   }, [thisWeek, today]);
+
+  useEffect(() => {
+    if (!goHome) return;
+    list.current?.scrollToIndex({ index: WEEKS - 1, animated: true });
+  }, [goHome]);
 
   const fetchWeek = useCallback((ending: string) => {
     if (asked.current.has(ending)) return;
@@ -90,6 +104,7 @@ export function WeekPager({
       </View>
 
       <FlatList
+        ref={list}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}

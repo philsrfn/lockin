@@ -292,6 +292,19 @@ const PHRASES = {
   checkAgain: { de: 'Nochmal prüfen', en: 'Check again' },
   stillWaiting: { de: 'Noch nicht freigegeben.', en: 'Not yet.' },
 
+  admin: { de: 'ADMIN', en: 'ADMIN' },
+  adminBlurb: {
+    de: 'Öffne lockin-api/admin im Browser, tippe auf „Diesen Browser freigeben“ und trag den Code hier ein.',
+    en: 'Open the admin panel in a browser, tap "Approve this browser", and enter the code here.',
+  },
+  pairingCode: { de: 'CODE AUS DEM BROWSER', en: 'CODE FROM THE BROWSER' },
+  approveBrowser: { de: 'Browser freigeben', en: 'Approve browser' },
+  browserApproved: { de: 'Freigegeben — der Browser ist drin.', en: 'Approved — the browser is in.' },
+  codeRejected: {
+    de: 'Der Code stimmt nicht oder ist abgelaufen. Hol dir einen neuen.',
+    en: 'That code is wrong or expired. Get a new one.',
+  },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

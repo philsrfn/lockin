@@ -156,6 +156,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/account', async (request) => ({
     user: await getUser(request.ctx.userId),
     kind: await accountKind(request.ctx.userId),
+    // So the app knows whether to offer the admin controls at all.
+    isAdmin: request.user.isAdmin,
   }));
 
   app.delete('/account', async (request) => {

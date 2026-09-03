@@ -4,7 +4,13 @@ import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 import { ApiError, api } from '../src/api/client';
 import type { Program, Rule, RuleTier } from '../src/api/types';
 import { isHealthConnected, setHealthConnected } from '../src/api/config';
-import { type Account, deleteAccount, loadAccount, signOut } from '../src/auth/session';
+import {
+  type Account,
+  approveBrowser,
+  deleteAccount,
+  loadAccount,
+  signOut,
+} from '../src/auth/session';
 import { isSupported, requestPermission } from '../src/health';
 import { syncNow } from '../src/health/sync';
 import { t } from '../src/lib/locale';
@@ -39,6 +45,8 @@ export default function RulesScreen() {
   const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
   const [healthNote, setHealthNote] = useState<string | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
+  const [pairCode, setPairCode] = useState('');
+  const [pairState, setPairState] = useState<'idle' | 'busy' | 'done' | 'rejected'>('idle');
 
   const load = useCallback(async () => {
     try {
@@ -218,6 +226,47 @@ export default function RulesScreen() {
           </Card>
         );
       })}
+
+      {/*
+        The admin panel has no Sign in with Apple of its own, so the phone —
+        which does — vouches for the browser. Shown only to an admin; for
+        everybody else this section does not exist.
+      */}
+      {account?.isAdmin ? (
+        <Card label={t('admin')}>
+          <Text style={styles.blurb}>{t('adminBlurb')}</Text>
+          <Text style={styles.sheetLabel}>{t('pairingCode')}</Text>
+          <TextInput
+            value={pairCode}
+            onChangeText={(text) => {
+              setPairCode(text.toUpperCase());
+              setPairState('idle');
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={6}
+            style={[styles.input, styles.code]}
+          />
+          {pairState === 'done' ? (
+            <Text style={styles.approved}>{t('browserApproved')}</Text>
+          ) : null}
+          {pairState === 'rejected' ? <Text style={styles.error}>{t('codeRejected')}</Text> : null}
+          <Button
+            title={pairState === 'busy' ? t('checking') : t('approveBrowser')}
+            variant="secondary"
+            disabled={pairCode.trim().length < 6 || pairState === 'busy'}
+            onPress={() => {
+              setPairState('busy');
+              void approveBrowser(pairCode)
+                .then((claimed) => {
+                  setPairState(claimed ? 'done' : 'rejected');
+                  if (claimed) setPairCode('');
+                })
+                .catch(() => setPairState('rejected'));
+            }}
+          />
+        </Card>
+      ) : null}
 
       {account ? (
         <Card label={t('account')}>
@@ -411,6 +460,10 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: 14 },
   footnote: { fontSize: 13, color: colors.textFaint, lineHeight: 19 },
   accountName: { ...typo.body, color: colors.text },
+  // Six characters read off a screen: spaced out, so a mistyped one is
+  // visible before the button is pressed.
+  code: { fontSize: 24, letterSpacing: 8, textAlign: 'center' },
+  approved: { fontSize: 14, color: colors.accent },
   destructive: { fontSize: 14, color: colors.danger, paddingVertical: space.sm },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },

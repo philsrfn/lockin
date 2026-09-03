@@ -173,9 +173,15 @@ describe('the admin panel is the exception, and stays behind its guard', () => {
 
     const unguarded = declared
       .map((match, index) => ({ path: match[2]!, body: handlers[index] ?? '' }))
-      // The page itself is a shell with no data in it; it is public so that a
-      // browser can load it before it has a token to send.
-      .filter(({ path, body }) => path !== '/admin' && !body.includes('requireAdmin'))
+      // Three are public on purpose: the page is a shell with no data in it,
+      // and the two pairing routes exist precisely because the browser has
+      // nothing to authenticate with yet. Neither of those hands anything over
+      // without an admin claiming it from the app.
+      .filter(
+        ({ path, body }) =>
+          !['/admin', '/admin/pair', '/admin/pair/:id'].includes(path) &&
+          !body.includes('requireAdmin'),
+      )
       .map(({ path }) => path);
 
     expect(unguarded).toEqual([]);

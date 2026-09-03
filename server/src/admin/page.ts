@@ -135,6 +135,13 @@ const PAGE = String.raw`<!doctype html>
   .note { color: var(--dim); font-size: 13px; line-height: 1.6; }
   .warn { color: var(--accent); }
   .gate { max-width: 420px; margin: 12vh auto 0; display: flex; flex-direction: column; gap: 16px; }
+  /* Read off this screen and typed into a phone, so: big, spaced, and in a
+     face where the characters cannot be mistaken for each other. */
+  .code {
+    font-family: var(--mono); font-size: 40px; letter-spacing: 10px;
+    color: var(--accent); border: 1px solid var(--border);
+    padding: 20px; text-align: center; margin-bottom: 12px;
+  }
   .rates { font-family: var(--mono); font-size: 12px; color: var(--faint); line-height: 1.8; }
   .log { font-size: 13px; color: var(--dim); line-height: 1.9; }
   .log b { color: var(--text); font-weight: 500; }
@@ -145,10 +152,28 @@ const PAGE = String.raw`<!doctype html>
 
 <div id="gate" class="gate" hidden>
   <h1>lockin · admin</h1>
-  <p class="note">Paste the admin bearer token. It is kept in this browser only.</p>
-  <input id="token" type="password" autocomplete="off" placeholder="token" autocapitalize="none" spellcheck="false">
-  <button class="primary" id="unlock">Unlock</button>
+  <p class="note">
+    Approve this browser from the app, where you are already signed in with Apple.
+  </p>
+
+  <div id="code-block" hidden>
+    <div class="code" id="code"></div>
+    <p class="note">
+      Open lockin → <b>Regeln</b> → <b>Admin</b>, and enter this. It expires in
+      <span id="countdown">5:00</span>.
+    </p>
+  </div>
+
+  <button class="primary" id="start">Approve this browser</button>
   <p class="note" id="gate-error" style="color:var(--danger)" hidden></p>
+
+  <p class="note">
+    <a href="#" id="use-token">Use a bearer token instead</a>
+  </p>
+  <div id="token-block" hidden style="display:flex;flex-direction:column;gap:12px">
+    <input id="token" type="password" autocomplete="off" placeholder="token" autocapitalize="none" spellcheck="false">
+    <button id="unlock">Unlock</button>
+  </div>
 </div>
 
 <main id="panel" hidden>
@@ -271,8 +296,10 @@ const PAGE = String.raw`<!doctype html>
   }
 
   function showGate(message) {
+    stopPolling();
     $('panel').hidden = true;
     $('gate').hidden = false;
+    $('start').disabled = false;
     if (message) {
       $('gate-error').textContent = message;
       $('gate-error').hidden = false;
@@ -419,6 +446,70 @@ const PAGE = String.raw`<!doctype html>
       .then(function () { $('refresh').disabled = false; });
   }
 
+  // --- approving this browser from the phone --------------------------
+  var polling = null;
+
+  function stopPolling() {
+    if (polling) { clearInterval(polling.timer); clearInterval(polling.clock); }
+    polling = null;
+  }
+
+  function startPairing() {
+    stopPolling();
+    $('start').disabled = true;
+    $('gate-error').hidden = true;
+
+    fetch('/admin/pair', { method: 'POST' })
+      .then(function (response) { return response.json(); })
+      .then(function (pairing) {
+        $('code').textContent = pairing.code;
+        $('code-block').hidden = false;
+        $('start').textContent = 'New code';
+        $('start').disabled = false;
+
+        var left = pairing.expiresInSeconds;
+        var tick = function () {
+          left -= 1;
+          $('countdown').textContent =
+            Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+          if (left <= 0) {
+            stopPolling();
+            $('code-block').hidden = true;
+            showGate('That code expired. Ask for a new one.');
+          }
+        };
+
+        polling = {
+          // Two seconds: this is somebody standing there with a phone.
+          timer: setInterval(function () {
+            fetch('/admin/pair/' + encodeURIComponent(pairing.id))
+              .then(function (response) { return response.json(); })
+              .then(function (result) {
+                if (!result.token) return;
+                stopPolling();
+                token = result.token;
+                try { localStorage.setItem(KEY, token); } catch (e) {}
+                $('code-block').hidden = true;
+                load();
+              })
+              .catch(function () { /* a dropped poll is not an error */ });
+          }, 2000),
+          clock: setInterval(tick, 1000)
+        };
+      })
+      .catch(function () {
+        $('start').disabled = false;
+        showGate('Could not reach the server.');
+      });
+  }
+
+  $('start').addEventListener('click', startPairing);
+
+  $('use-token').addEventListener('click', function (event) {
+    event.preventDefault();
+    $('token-block').hidden = !$('token-block').hidden;
+  });
+
   $('unlock').addEventListener('click', function () {
     token = $('token').value.trim();
     if (!token) return;
@@ -434,6 +525,9 @@ const PAGE = String.raw`<!doctype html>
   $('refresh').addEventListener('click', load);
 
   $('forget').addEventListener('click', function () {
+    // Ends this browser's session on the server too, so a laptop signed out
+    // here cannot be signed back in by whatever is left in localStorage.
+    if (token) call('/auth/signout', { method: 'POST', body: {} }).catch(function () {});
     try { localStorage.removeItem(KEY); } catch (e) {}
     token = null;
     location.reload();

@@ -12,11 +12,24 @@ const PUBLIC_PATHS = new Set([
   '/health',
   '/auth/apple',
   '/auth/apple/nonce',
-  // The admin page itself is a shell: a token box and the script that fills
-  // it in. A browser cannot send an Authorization header for its own document
-  // request, so the HTML is public and every byte of data behind it is not.
+  // The admin page itself is a shell: the sign-in flow and the script that
+  // fills it in. A browser cannot send an Authorization header for its own
+  // document request, so the HTML is public and every byte of data behind it
+  // is not.
   '/admin',
+  // Starting a browser pairing. Hands back a code that is worthless until an
+  // admin claims it from the app.
+  '/admin/pair',
 ]);
+
+/**
+ * Collecting a pairing the phone has approved: GET /admin/pair/<id>, where the
+ * id is 32 random bytes the browser generated and never sent anywhere else.
+ * Matched on the method too, because POST /admin/pair/claim is the phone's end
+ * of the same flow and must stay behind a token.
+ */
+const isPairingCollection = (method: string, path: string) =>
+  method === 'GET' && path.startsWith('/admin/pair/');
 
 /** What an account that has not been approved yet may still do. */
 const PENDING_MAY = new Set(['/auth/signout', '/account']);
@@ -52,7 +65,7 @@ export function registerAuth(app: FastifyInstance): void {
 
   app.addHook('onRequest', async (request: FastifyRequest) => {
     const path = request.url.split('?')[0] ?? request.url;
-    if (PUBLIC_PATHS.has(path)) return;
+    if (PUBLIC_PATHS.has(path) || isPairingCollection(request.method, path)) return;
 
     const header = request.headers.authorization;
     if (!header?.startsWith('Bearer ')) {

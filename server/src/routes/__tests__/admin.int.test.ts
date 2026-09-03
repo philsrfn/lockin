@@ -13,6 +13,7 @@ import { TEST_BEARER_TOKEN } from '../../test/database';
 import { anotherAthlete, phil, resetData, resetProfile } from '../../test/helpers';
 import { recordUsage } from '../../services/usage';
 import { issueToken, syncRootToken } from '../../services/users';
+import { forgetPairings } from '../../admin/pairing';
 
 let app: FastifyInstance;
 
@@ -32,6 +33,7 @@ beforeEach(async () => {
   await resetData();
   await resetProfile();
   resetBuckets();
+  forgetPairings();
 });
 
 const data = async (headers = admin) =>
@@ -307,5 +309,112 @@ describe('the daily cap', () => {
 
     expect(zero.statusCode).toBe(200);
     expect(negative.statusCode).toBe(400);
+  });
+});
+
+
+describe('letting a browser in from the phone', () => {
+  const startPair = () => app.inject({ method: 'POST', url: '/admin/pair' });
+  const collect = (id: string) =>
+    app.inject({ method: 'GET', url: `/admin/pair/${encodeURIComponent(id)}` });
+
+  it('starts without a token, because the browser has none', async () => {
+    const response = await startPair();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().code).toMatch(/^[A-Z2-9]{6}$/);
+  });
+
+  it('gives the browser nothing until the phone claims it', async () => {
+    const { id } = (await startPair()).json();
+
+    expect((await collect(id)).json()).toEqual({ pending: true });
+  });
+
+  it('hands over a working token once an admin claims the code', async () => {
+    const { id, code } = (await startPair()).json();
+
+    const claimed = await app.inject({
+      method: 'POST',
+      url: '/admin/pair/claim',
+      headers: admin,
+      payload: { code },
+    });
+    expect(claimed.json()).toEqual({ claimed: true });
+
+    const { token } = (await collect(id)).json();
+    expect(token).toBeTruthy();
+
+    // And it is an admin token, not merely a session.
+    const response = await data({ authorization: `Bearer ${token}` });
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('refuses to be claimed by somebody who is not an admin', async () => {
+    // The whole scheme rests on this: the code is shown on a public screen, so
+    // it must be worthless to anybody who cannot already see the panel.
+    const other = await anotherAthlete();
+    const otherToken = await issueToken(other.userId, { source: 'apple' });
+    const { id, code } = (await startPair()).json();
+
+    const claimed = await app.inject({
+      method: 'POST',
+      url: '/admin/pair/claim',
+      headers: { authorization: `Bearer ${otherToken}` },
+      payload: { code },
+    });
+
+    expect(claimed.statusCode).toBe(404);
+    expect((await collect(id)).json()).toEqual({ pending: true });
+  });
+
+  it('refuses to be claimed with no token at all', async () => {
+    const { code } = (await startPair()).json();
+
+    const claimed = await app.inject({
+      method: 'POST',
+      url: '/admin/pair/claim',
+      payload: { code },
+    });
+
+    expect(claimed.statusCode).toBe(401);
+  });
+
+  it('is collected once, so a leaked id is worth one attempt', async () => {
+    const { id, code } = (await startPair()).json();
+    await app.inject({ method: 'POST', url: '/admin/pair/claim', headers: admin, payload: { code } });
+
+    expect((await collect(id)).statusCode).toBe(200);
+    expect((await collect(id)).statusCode).toBe(404);
+  });
+
+  it('does not accept an id nobody issued', async () => {
+    expect((await collect('a'.repeat(43))).statusCode).toBe(404);
+  });
+
+  it('gives the browser its own device row', async () => {
+    // So signing the laptop out does not sign the phone out with it.
+    const { id, code } = (await startPair()).json();
+    await app.inject({ method: 'POST', url: '/admin/pair/claim', headers: admin, payload: { code } });
+    const { token } = (await collect(id)).json();
+
+    const { rows } = await pool.query(
+      "select device from sessions_tokens where user_id = 1 and device = 'Admin panel'",
+    );
+    expect(rows).toHaveLength(1);
+
+    // Signing the browser out leaves the root token alone.
+    await app.inject({
+      method: 'POST',
+      url: '/auth/signout',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect((await data()).statusCode).toBe(200);
+  });
+
+  it('stops issuing codes to somebody hammering the door', async () => {
+    for (let i = 0; i < 20; i += 1) await startPair();
+
+    expect((await startPair()).statusCode).toBe(429);
   });
 });

@@ -13,6 +13,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { requireAdmin } from '../auth';
 import { adminPage } from '../admin/page';
+import { claimPairing, collectPairing, startPairing } from '../admin/pairing';
+import { issueToken } from '../services/users';
 import {
   athletes,
   budgets,
@@ -25,12 +27,45 @@ import {
 } from '../services/admin';
 
 const ApprovalSchema = z.object({ approved: z.boolean() });
+const ClaimSchema = z.object({ code: z.string().min(4).max(16) });
+const PairIdSchema = z.object({ id: z.string().min(20).max(64) });
 const BudgetSchema = z.object({ budget: z.number().int().min(0).max(100_000_000) });
 const IdSchema = z.object({ id: z.coerce.number().int().positive() });
 
 export function registerAdminRoutes(app: FastifyInstance): void {
   app.get('/admin', async (_request, reply) => {
     return reply.type('text/html; charset=utf-8').send(adminPage());
+  });
+
+  /**
+   * Letting a browser in without typing a token into it.
+   *
+   * These two are unauthenticated because the browser has nothing to
+   * authenticate with — that is the problem they exist to solve. Neither hands
+   * anything over on its own: a code is worthless until an admin claims it
+   * from the app, and an id is 32 random bytes that never left the browser
+   * that made it.
+   */
+  app.post('/admin/pair', async () => startPairing());
+
+  app.get('/admin/pair/:id', async (request, reply) => {
+    const { id } = PairIdSchema.parse(request.params);
+    const pairing = collectPairing(id);
+
+    if (pairing === null) return reply.code(404).send({ error: 'That sign-in expired.' });
+    if (pairing === 'pending') return { pending: true };
+
+    // Its own device row, so signing the browser out later does not touch the
+    // phone, and the panel shows up in the device count like anything else.
+    return { token: await issueToken(pairing.claimedBy, { source: 'apple', device: 'Admin panel' }) };
+  });
+
+  /** The phone vouching for the browser. Signed in, with Apple, and an admin. */
+  app.post('/admin/pair/claim', async (request) => {
+    requireAdmin(request);
+    const { code } = ClaimSchema.parse(request.body);
+
+    return { claimed: claimPairing(code, request.user.id) };
   });
 
   /**

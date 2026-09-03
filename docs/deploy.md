@@ -167,16 +167,31 @@ it in the keychain rather than the binary.
 
 ## The admin panel
 
-`https://YOUR_DOMAIN/admin`, in any browser. Paste the admin bearer token once;
-it is kept in that browser and nowhere else.
+`https://YOUR_DOMAIN/admin`, in any browser. Press **Approve this browser**, and
+it shows a six-character code. Open lockin on your phone → Regeln → Admin, type
+the code, and the browser is in.
+
+The panel has no Sign in with Apple of its own: Apple's web flow wants a
+Services ID and a verified domain, and this deployment is an IP address wearing
+an sslip.io hostname. So the phone does the authenticating — with Apple, as it
+already does — and vouches for the browser. The code is shown on a screen and is
+worthless on its own; claiming it needs an admin's token. The other half of the
+pair is 32 random bytes that never leave the browser that made them, and it is
+collected exactly once.
+
+The browser gets its own device row, so signing the laptop out does not touch
+the phone. There is a bearer-token box folded away underneath, for the case
+where the phone is the thing that is lost.
 
 It shows who is signed up, when they were last seen, what they logged this
 week, and what each of them costs — per day, per athlete, and per purpose, so
 "the bill went up" has an answer. Two levers: let somebody in or revoke them,
 and set a per-athlete daily token ceiling.
 
-The panel needs `users.is_admin`, which is set in the database and by no route.
-User 1 has it; to add another:
+The panel needs `users.is_admin`, which is set in the database and by no route
+— the panel cannot grant itself access, and anybody without the flag gets a 404
+rather than a 403, because there is no reason to confirm it is there. User 1 has
+it; to add another:
 
 ```sh
 ssh root@YOUR_IP

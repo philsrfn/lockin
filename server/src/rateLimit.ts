@@ -88,7 +88,9 @@ function enforce(request: FastifyRequest, name: string, limit: Limit): void {
  */
 export const AUTH_LIMIT: Limit = { max: 20, windowMs: 60 * 60_000 };
 
-const AUTH_PATHS = ['/auth/apple', '/auth/apple/nonce'];
+// Starting a browser pairing is the third unauthenticated door, and it mints
+// a code — so it is held to the same twenty an hour.
+const AUTH_PATHS = ['/auth/apple', '/auth/apple/nonce', '/admin/pair'];
 
 /** Paths that reach the model, and are therefore metered separately. */
 const LLM_PATHS = [

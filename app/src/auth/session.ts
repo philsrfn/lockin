@@ -10,7 +10,24 @@ export type Account = {
   user: { id: number; name: string | null; email: string | null };
   /** 'root' accounts were provisioned by whoever runs the server. */
   kind: 'apple' | 'root';
+  /** May reach the admin panel, and may approve a browser for it. */
+  isAdmin: boolean;
 };
+
+/**
+ * Approving a browser to open the admin panel.
+ *
+ * The panel has no Sign in with Apple of its own — Apple's web flow wants a
+ * Services ID and a verified domain. So the phone, which is signed in with
+ * Apple already, vouches for the browser instead.
+ */
+export async function approveBrowser(code: string): Promise<boolean> {
+  const { claimed } = await api<{ claimed: boolean }>('/admin/pair/claim', {
+    method: 'POST',
+    body: { code: code.trim().toUpperCase() },
+  });
+  return claimed;
+}
 
 export async function loadAccount(): Promise<Account> {
   return api<Account>('/account');

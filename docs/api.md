@@ -48,6 +48,9 @@ on the spot — running the command is the approval.
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | GET | `/admin` | — | The panel, as HTML. Unauthenticated: it is a shell with no data in it. |
+| POST | `/admin/pair` | — | `{id, code}`. Unauthenticated, rate limited to 20/hour. Starts a browser pairing. |
+| GET | `/admin/pair/:id` | — | `{pending}` or `{token}`. Unauthenticated — the id is the secret. Collected once. |
+| POST | `/admin/pair/claim` | `{code}` | `{claimed}`. Admin only: this is the phone vouching for the browser. |
 | GET | `/admin/data` | — | Everything the panel draws, in one request. |
 | POST | `/admin/users/:id/approval` | `{approved}` | `{athletes}`. Revoking also deletes that athlete's device tokens. |
 | POST | `/admin/users/:id/budget` | `{budget}` | `{athletes}`. Daily token ceiling; `0` is no ceiling. |
@@ -55,6 +58,13 @@ on the spot — running the command is the approval.
 Everything but the page requires `users.is_admin`, and answers **404** to
 anybody else — there is no reason to confirm to a signed-in athlete that the
 panel exists.
+
+The panel signs in by pairing rather than by a typed token, because Apple's web
+flow needs a Services ID and a verified domain that this deployment does not
+have. The browser shows a code; a phone that is already signed in with Apple,
+and is an admin, claims it. The code alone is useless — claiming needs an
+admin's token — and the `id` the browser holds is 32 random bytes that are worth
+exactly one collection.
 
 `is_admin` is set in the database and by no route, so the panel cannot grant
 itself access:

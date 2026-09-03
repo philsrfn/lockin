@@ -116,6 +116,34 @@ TestFlight internal distribution needs no App Review. Builds last 90 days.
 On first launch the app asks for the server URL and the bearer token — paste
 `https://YOUR_DOMAIN` and the value of `APP_BEARER_TOKEN` from `.env`.
 
+## Adding a native capability
+
+Every capability the app declares — push, HealthKit, Sign in with Apple — has to
+be on the App ID *and* inside the provisioning profile. EAS puts it on the App
+ID when it mints a profile, and it only mints one when it has none. An existing
+valid profile is reported as "All credentials are ready to build" without ever
+being compared against the app's entitlements, so the build gets as far as
+Xcode and fails there:
+
+```
+Provisioning profile "*[expo] de.dotspiro.lockin AppStore ..."
+doesn't include the Sign In with Apple capability.
+```
+
+`--non-interactive` does not cause this and dropping it does not fix it. The
+profile has to be regenerated, which needs an Apple ID login:
+
+```sh
+cd app
+npx eas-cli credentials --platform ios
+# → production → Build Credentials → set up a new provisioning profile
+npx eas-cli build --platform ios --profile production --auto-submit
+```
+
+Do this in the same sitting as the capability's first build. A profile minted
+before the capability existed will keep failing every build until it is
+replaced.
+
 ## Rotating the token later
 
 ```sh

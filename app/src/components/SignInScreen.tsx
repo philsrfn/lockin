@@ -20,6 +20,9 @@ import { t } from '../lib/locale';
 import { Button } from './Button';
 import { colors, radius, space, type as typo } from '../theme';
 
+/** Also the datum the correction bar is positioned against. */
+const WORDMARK = 40;
+
 /**
  * The first screen anybody sees. One button.
  *
@@ -103,7 +106,22 @@ export function SignInScreen({ onDone }: { onDone: (needsOnboarding: boolean) =>
             style={styles.mark}
             resizeMode="contain"
           />
-          <Text style={styles.wordmark}>lockin</Text>
+          {/*
+            The word this screen would otherwise be titled, corrected into the
+            app's name. It only works here — on any other screen there is no
+            "login" for it to be a correction of, which is why the wordmark
+            everywhere else is left alone.
+          */}
+          <View style={styles.wordmarkRow}>
+            <Text style={styles.wordmark}>lo</Text>
+            <View>
+              <Text style={[styles.wordmark, styles.struck]}>g</Text>
+              {/* Drawn rather than textDecorationLine, which renders a hairline
+                  at this weight and reads as a typo instead of a correction. */}
+              <View style={styles.strike} />
+            </View>
+            <Text style={styles.wordmark}>ckin</Text>
+          </View>
           <Text style={styles.blurb}>{t('signInBlurb')}</Text>
         </View>
 
@@ -204,7 +222,24 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, gap: space.lg, paddingTop: space.xxl },
   masthead: { gap: space.md, marginBottom: space.md },
   mark: { width: 68, height: 68, marginBottom: space.xs },
-  wordmark: { fontSize: 40, fontWeight: '300', color: colors.text, letterSpacing: -1.5 },
+  wordmark: { fontSize: WORDMARK, fontWeight: '300', color: colors.text, letterSpacing: -1.5 },
+  // Faint, so "lockin" is what gets read. The g only has to be legible enough
+  // that the bar across it reads as a correction rather than a smudge.
+  struck: { color: colors.textFaint },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'baseline' },
+  // The one spot of amber on this screen. There are no numbers here for it to
+  // mean "on target", so it is free to mean "this word, not that one".
+  strike: {
+    position: 'absolute',
+    left: -2,
+    right: -2,
+    // Through the middle of the bowl. Measured against the font size rather
+    // than hard-coded, because at the wrong height it reads as a line above
+    // the letter instead of a line through it.
+    top: WORDMARK * 0.7,
+    height: 3,
+    backgroundColor: colors.accent,
+  },
   blurb: { fontSize: 16, color: colors.textDim, lineHeight: 24 },
   body: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
   privacy: { fontSize: 13, color: colors.textFaint, lineHeight: 19 },

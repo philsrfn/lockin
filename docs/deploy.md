@@ -130,19 +130,29 @@ Provisioning profile "*[expo] de.dotspiro.lockin AppStore ..."
 doesn't include the Sign In with Apple capability.
 ```
 
-`--non-interactive` does not cause this and dropping it does not fix it. The
-profile has to be regenerated, which needs an Apple ID login:
+`--non-interactive` does not cause this and dropping it does not fix it. What
+fixes it is one command, run before the build:
 
 ```sh
 cd app
-npx eas-cli credentials --platform ios
-# → production → Build Credentials → set up a new provisioning profile
+npx eas-cli credentials:configure-build --platform ios --profile production
 npx eas-cli build --platform ios --profile production --auto-submit
 ```
 
-Do this in the same sitting as the capability's first build. A profile minted
-before the capability existed will keep failing every build until it is
-replaced.
+It logs in to the Apple account (the password comes from the macOS Keychain),
+writes the missing capabilities onto the App ID, notices that the existing
+profile is now invalid because the App ID changed, and rebuilds it:
+
+```
+✔ Synced capabilities: Enabled: HealthKit, Sign In with Apple
+  Provisioning profile (id: X27S72G3X3) is no longer valid
+✔ Updated provisioning profile with distribution certificate
+```
+
+It is a wizard rather than the `eas credentials` menu — every prompt takes its
+default, so `printf '\n\n\n' |` is enough if it is not being run by hand.
+Do it in the same sitting as the capability's first build; a profile minted
+before the capability existed will fail every build until it is replaced.
 
 ## Rotating the token later
 

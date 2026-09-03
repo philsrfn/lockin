@@ -73,8 +73,11 @@ export default function WeightScreen() {
   return (
     <Screen onRefresh={summary.reload} refreshing={summary.refreshing}>
       <View style={styles.display}>
+        {/* Dim zeros rather than an em-dash: at this size a dash is a
+            horizontal rule, and it read as a divider somebody had left in the
+            wrong place. Zeros read as an empty numeric field. */}
         <Text style={[styles.entry, entry.length === 0 && styles.entryEmpty]}>
-          {entry.length > 0 ? entry : '—'}
+          {entry.length > 0 ? entry : '0.0'}
         </Text>
         <Text style={styles.unit}>kg</Text>
       </View>

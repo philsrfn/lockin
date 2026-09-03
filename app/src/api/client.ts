@@ -2,7 +2,7 @@
  * The only thing the app talks to. The Gemini key never leaves the backend (§2),
  * and the bearer token lives in the iOS keychain — see api/config.ts.
  */
-import { currentToken, ensureBaseUrl } from './config';
+import { ensureBaseUrl, ensureToken } from './config';
 
 /** Gym wifi either answers quickly or is not going to. */
 const TIMEOUT_MS = 8000;
@@ -65,6 +65,8 @@ export async function api<T>(
   const base = await ensureBaseUrl();
   if (!base) throw new ApiError(0, 'No server configured');
 
+  const bearer = await ensureToken();
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
 
@@ -73,7 +75,7 @@ export async function api<T>(
     response = await fetch(`${base}${path}`, {
       method: options.method ?? 'GET',
       headers: {
-        Authorization: `Bearer ${currentToken()}`,
+        Authorization: `Bearer ${bearer}`,
         ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,

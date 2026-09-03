@@ -66,14 +66,14 @@ const PHRASES = {
   sevenDayAvg: { de: 'Ø 7 TAGE', en: '7-DAY AVG' },
   thisWeekShort: { de: 'WOCHE', en: 'WEEK' },
 
-  tabToday: { de: 'HEUTE', en: 'TODAY' },
-  tabTrainer: { de: 'TRAINER', en: 'TRAINER' },
-  tabFood: { de: 'ESSEN', en: 'FOOD' },
-  tabWeight: { de: 'GEWICHT', en: 'WEIGHT' },
+  tabToday: { de: 'Heute', en: 'Today' },
+  tabTrainer: { de: 'Trainer', en: 'Trainer' },
+  tabFood: { de: 'Essen', en: 'Food' },
+  tabWeight: { de: 'Gewicht', en: 'Weight' },
 
-  progress: { de: 'FORTSCHRITT', en: 'PROGRESS' },
-  rules: { de: 'REGELN', en: 'RULES' },
-  backToToday: { de: 'ZURÜCK ZU HEUTE', en: 'BACK TO TODAY' },
+  progress: { de: 'Fortschritt', en: 'Progress' },
+  rules: { de: 'Regeln', en: 'Rules' },
+  backToToday: { de: 'Zurück zu heute', en: 'Back to today' },
 
   start: { de: 'Los', en: 'Start' },
   resume: { de: 'Weiter', en: 'Resume' },
@@ -83,7 +83,7 @@ const PHRASES = {
   whereAreYou: { de: 'WO BIST DU', en: 'WHERE ARE YOU' },
   addPlace: { de: 'Ort hinzufügen', en: 'Add a place' },
 
-  cardio: { de: 'CARDIO', en: 'CARDIO' },
+  cardio: { de: 'Cardio', en: 'Cardio' },
   cardioTally: { de: 'Cardio', en: 'cardio' },
   logCardio: { de: 'Cardio eintragen', en: 'Log cardio' },
   minutes: { de: 'MINUTEN', en: 'MINUTES' },
@@ -177,7 +177,9 @@ const PHRASES = {
   kcalLeftOf: { de: 'kcal übrig von', en: 'kcal left of' },
   toTheFatFloor: { de: 'bis zum Fett-Minimum', en: 'to the fat floor' },
   fatFloorCleared: { de: 'Fett-Minimum erreicht', en: 'fat floor cleared' },
-  oneTap: { de: 'EIN TIPP', en: 'ONE TAP' },
+  // "Ein Tipp" is German for a piece of advice, not for one tap — the
+  // heading above his staples read as "here is a hint". Say what it does.
+  oneTap: { de: 'SCHNELL EINTRAGEN', en: 'ONE TAP' },
   myFoods: { de: 'MEIN ESSEN', en: 'MY FOODS' },
   scan: { de: 'Scannen', en: 'Scan' },
   describeIt: { de: 'Beschreiben', en: 'Describe it' },
@@ -332,7 +334,7 @@ const PHRASES = {
   weighed: { de: 'GEWOGEN', en: 'WEIGHED' },
   kcalLabel: { de: 'KCAL', en: 'KCAL' },
 
-  accountTab: { de: 'KONTO', en: 'ACCOUNT' },
+  accountTab: { de: 'Konto', en: 'Account' },
   signedInAs: { de: 'ANGEMELDET ALS', en: 'SIGNED IN AS' },
   accountTitle: { de: 'Konto', en: 'Account' },
   couldNotLoadAccount: {
@@ -344,6 +346,17 @@ const PHRASES = {
     de: 'Eine geordnete Liste von Tagen, die rotiert. Wie oft sie rotiert, ist wie oft du trainierst.',
     en: 'An ordered list of days that rotates. How often it rotates is how often you train.',
   },
+
+  todaysSession: { de: 'HEUTE AUF DEM PLAN', en: "TODAY'S SESSION" },
+  restDay: { de: 'Ruhetag', en: 'Rest day' },
+  restDayBlurb: {
+    de: 'Nichts geplant. Bewegung schadet nie, aber heute zählt Erholung.',
+    en: 'Nothing planned. Moving never hurts, but today recovery is the work.',
+  },
+  setsBy: { de: '×', en: '×' },
+
+  loggedToday: { de: 'HEUTE GEGESSEN', en: 'TODAY' },
+  whatDidYouEat: { de: 'WAS HAST DU GEGESSEN', en: 'WHAT DID YOU EAT' },
 
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',

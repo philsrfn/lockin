@@ -168,7 +168,7 @@ export default function FoodScreen() {
 
         {meals.length > 0 ? (
           <>
-            <Text style={styles.section}>TODAY</Text>
+            <Text style={styles.section}>{t('loggedToday')}</Text>
             <View style={styles.card}>
               {meals.map((meal) => (
                 <Pressable
@@ -331,7 +331,7 @@ function ManualEntry({
       >
         <Pressable style={styles.backdropFill} onPress={onClose} />
         <View style={styles.sheet}>
-          <Text style={styles.section}>WHAT DID YOU EAT</Text>
+          <Text style={styles.section}>{t('whatDidYouEat')}</Text>
 
           <TextInput
             value={name}

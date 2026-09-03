@@ -212,11 +212,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
     borderBottomRightRadius: radius.sm,
   },
+  // Filled, not outlined. An outline on the page is a box drawn around
+  // nothing; a surface one step lighter is the same object with less ink.
   theirs: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.bg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: radius.sm,
   },
   mineText: { fontSize: 16, color: colors.text, lineHeight: 22 },

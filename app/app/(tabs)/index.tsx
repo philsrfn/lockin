@@ -19,10 +19,11 @@ import { ContextChip } from '../../src/components/ContextChip';
 import { CardioSheet } from '../../src/components/CardioSheet';
 import { FoodCapture } from '../../src/components/FoodCapture';
 import { WeekPager } from '../../src/components/WeekPager';
+import { SessionPreview } from '../../src/components/SessionPreview';
 import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
 import { t } from '../../src/lib/locale';
-import { caps, colors, space, type as typo } from '../../src/theme';
+import { caps, colors, radius, space, type as typo } from '../../src/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -107,16 +108,25 @@ export default function TodayScreen() {
           <Text style={styles.date}>{longDate(date)}</Text>
           <View style={styles.mastheadRow}>
             <ContextChip context={context} onChanged={today.reload} />
+            {/* Chips rather than spaced small caps: three words in a row at
+                11pt looked like a caption, not three places to go. */}
             <View style={styles.links}>
-              <Pressable onPress={() => router.push('/progress')} hitSlop={12}>
-                <Text style={styles.link}>{t('progress')}</Text>
-              </Pressable>
-              <Pressable onPress={() => router.push('/rules')} hitSlop={12}>
-                <Text style={styles.link}>{t('rules')}</Text>
-              </Pressable>
-              <Pressable onPress={() => router.push('/account')} hitSlop={12}>
-                <Text style={styles.link}>{t('accountTab')}</Text>
-              </Pressable>
+              {(
+                [
+                  ['/progress', t('progress')],
+                  ['/rules', t('rules')],
+                  ['/account', t('accountTab')],
+                ] as const
+              ).map(([href, label]) => (
+                <Pressable
+                  key={href}
+                  onPress={() => router.push(href)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.chip, pressed && styles.chipOn]}
+                >
+                  <Text style={styles.chipText}>{label}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
         </View>
@@ -171,7 +181,11 @@ export default function TodayScreen() {
                   The number is the question and a barcode is the fastest
                   answer to it, so the two sit together rather than a tab away.
                 */}
-                <Pressable onPress={() => setCapture('scan')} hitSlop={10} style={styles.scan}>
+                <Pressable
+                  onPress={() => setCapture('scan')}
+                  hitSlop={10}
+                  style={({ pressed }) => [styles.scan, pressed && styles.chipOn]}
+                >
                   <Text style={styles.scanText}>{t('scan')}</Text>
                 </Pressable>
               </View>
@@ -200,6 +214,16 @@ export default function TodayScreen() {
             <DayDetail day={active!} target={week.data?.proteinTargetG ?? 190} />
           )}
         </View>
+
+        {/* What the Start button will actually start. This screen used to end
+            here with a third of it empty, and the only way to find out whether
+            today was squats or a rest day was to press the button. */}
+        {isToday ? (
+          <View style={styles.section}>
+            <Text style={styles.label}>{caps(t('todaysSession'))}</Text>
+            <SessionPreview plan={plan} />
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -340,8 +364,15 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 26, fontWeight: '300', color: colors.text, letterSpacing: -0.6 },
   date: { fontSize: 14, color: colors.textFaint, letterSpacing: 0.3, marginBottom: space.xs },
   mastheadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  links: { flexDirection: 'row', gap: space.lg },
-  link: { ...typo.label, color: colors.textFaint },
+  links: { flexDirection: 'row', gap: space.sm },
+  chip: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: 7,
+  },
+  chipOn: { opacity: 0.65 },
+  chipText: { fontSize: 12, fontWeight: '600', color: colors.textDim, letterSpacing: 0 },
 
   coach: { gap: space.sm },
   headline: { fontSize: 20, fontWeight: '400', color: colors.text, lineHeight: 27, letterSpacing: -0.3 },
@@ -360,12 +391,12 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   heroSpacer: { flex: 1 },
   scan: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.textFaint,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
-  scanText: { ...typo.label, color: colors.text },
+  scanText: { fontSize: 14, fontWeight: '600', color: colors.text },
   hero: { fontSize: 62, fontWeight: '300', color: colors.text, letterSpacing: -3, ...typo.mono },
   heroUnit: { fontSize: 15, color: colors.textDim },
 
@@ -376,15 +407,15 @@ const styles = StyleSheet.create({
 
   primaryAction: { flex: 1 },
   cardioAction: {
-    minHeight: 56,
-    paddingHorizontal: space.lg,
+    minHeight: 54,
+    paddingHorizontal: space.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
   },
-  cardioActionOn: { borderColor: colors.text },
-  cardioActionText: { ...typo.label, color: colors.textDim },
+  cardioActionOn: { opacity: 0.7 },
+  cardioActionText: { fontSize: 16, fontWeight: '600', color: colors.text, letterSpacing: -0.2 },
   footer: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
@@ -395,7 +426,7 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: 'row', alignItems: 'stretch', gap: space.md },
   backToToday: { alignSelf: 'flex-start', paddingVertical: space.xs },
-  backText: { ...typo.label, color: colors.textFaint },
+  backText: { fontSize: 14, fontWeight: '500', color: colors.textDim },
 
   alert: { fontSize: 13, color: colors.danger, lineHeight: 19 },
   placeholder: { ...typo.body, color: colors.textDim },

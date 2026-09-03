@@ -154,4 +154,19 @@ export async function ensureBaseUrl(): Promise<string> {
   baseUrl = (await SecureStore.getItemAsync(URL_KEY)) ?? normalise(BUILT_IN_URL);
   return baseUrl;
 }
+
+/**
+ * The token, restored the same way and for the same reason.
+ *
+ * A hot reload that dropped it made every request unauthenticated, which the
+ * client reads as a revoked account and answers by signing the athlete out —
+ * so editing a stylesheet ended the session. Reading it back costs one
+ * keychain lookup and only ever happens once per launch.
+ */
+export async function ensureToken(): Promise<string> {
+  if (token) return token;
+
+  token = (await SecureStore.getItemAsync(TOKEN_KEY)) ?? BUILT_IN_TOKEN ?? null;
+  return token ?? '';
+}
 export const isConfigured = () => Boolean(token && baseUrl);

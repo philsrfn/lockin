@@ -1,24 +1,31 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * lockin is a training ledger, and it is set like one.
+ * lockin is read at arm's length in a gym, and at 07:30 in bed.
  *
- * The design is the numbers. Everything else — labels, rules, chrome — gets out
- * of their way. No cards, no borders, no rounded boxes: structure comes from
- * hairlines and vertical rhythm, the way it does on a printed page.
+ * It began as a printed ledger — flat ink on paper, structure from hairlines
+ * alone. That was distinctive and it was also hard to use: nothing looked
+ * tappable, sections ran together, and the primary action was a white slab
+ * that read as disabled when it was disabled. So the paper is gone and the
+ * ink stayed.
  *
- * Read at arm's length in a gym, and at 07:30 in bed. Bone on near-black rather
- * than white on pure black: warmer, and it does not glare at either hour.
+ * Depth comes from lightness, not shadow. A shadow on near-black is mud;
+ * a surface one step lighter than the page reads instantly as an object on it.
+ * Three steps is the whole system: page, card, control.
+ *
+ * Bone on near-black rather than white on pure black: warmer, and it does not
+ * glare at either hour.
  */
 
 export const colors = {
-  /** Near-black, a touch warm. Pure black is a void; this is ink. */
+  /** The page. Near-black, a touch warm — pure black is a void; this is ink. */
   bg: '#0B0B0C',
-  /** Only for things you type into. Almost everything else sits on the ground. */
-  surface: '#131315',
-  surfaceHigh: '#1A1A1D',
-  /** Hairlines. Structure without boxes. */
-  border: '#232326',
+  /** A card on the page. One step up is all it takes to read as an object. */
+  surface: '#141417',
+  /** A control on a card. Two steps up, and never used on the page directly. */
+  surfaceHigh: '#1F1F23',
+  /** Dividers inside a card. Structure, not enclosure. */
+  border: '#2A2A30',
 
   /** Bone, not white. Paper rather than screen. */
   text: '#EDEAE3',
@@ -26,11 +33,17 @@ export const colors = {
   textFaint: '#57544E',
 
   /**
-   * One signal, spent sparingly — a number on target, a session done. Amber
-   * because every other training app is green, and because it is the colour of
-   * something finished rather than something permitted.
+   * The one colour. Amber because every other training app is green, and
+   * because it is the colour of something finished rather than something
+   * permitted.
+   *
+   * It carries two jobs — the primary action, and a number on target — which
+   * would be one too many if they looked alike. They do not: an action is a
+   * filled amber shape, a state is amber text. Fill means press me.
    */
   accent: '#E8A33D',
+  /** Amber at low opacity, for a control that is tinted rather than filled. */
+  accentSoft: 'rgba(232, 163, 61, 0.14)',
   accentDeep: '#2A1E0B',
 
   warn: '#E8A33D',
@@ -51,13 +64,17 @@ export const space = {
 } as const;
 
 /**
- * Corners are square. A radius is a box asking to be noticed, and nothing here
- * should be. The two exceptions are the progress rail and the context chip.
+ * Corners are round, and the amount says what a thing is: a chip, a control,
+ * or a surface holding others. Square corners read as a table cell, which is
+ * what made every button in this app look like a region rather than a target.
  */
 export const radius = {
-  sm: 0,
-  md: 0,
-  lg: 0,
+  /** Chips, tags, small toggles. */
+  sm: 10,
+  /** Buttons and inputs — anything a thumb lands on. */
+  md: 14,
+  /** Cards. Generous, because they hold other things. */
+  lg: 22,
   pill: 999,
 } as const;
 
@@ -81,10 +98,11 @@ export const type = {
 } as const;
 
 /**
- * The tab bar's own height, above the home indicator. Labels only, no icons.
- * Screens allow for it because the safe-area inset does not.
+ * The tab bar's own height, above the home indicator. Icons and labels now, so
+ * it is taller than the label-only bar it replaced. Screens allow for it
+ * because the safe-area inset does not.
  */
-export const tabBarHeight = 52;
+export const tabBarHeight = 68;
 
 /** Small caps, spaced. Used for every label in the app. */
 export const caps = (value: string) => value.toUpperCase();

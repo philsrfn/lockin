@@ -5,6 +5,7 @@
  * queue drains to the backend whenever it can. Losing a set to a dead bar of
  * signal in a basement gym is the one failure this app cannot have.
  */
+import Constants from 'expo-constants';
 import * as SQLite from 'expo-sqlite';
 
 const db = SQLite.openDatabaseSync('lockin.db');
@@ -174,11 +175,32 @@ export function deleteSet(clientId: string): void {
   db.runSync('delete from local_sets where client_id = ?', [clientId]);
 }
 
+/**
+ * Which build wrote a cache entry.
+ *
+ * A payload is only as readable as the code that expects its shape. When a
+ * release changes what /week returns, yesterday's cached copy still parses
+ * cleanly and then throws the moment a screen reaches into it — and it does
+ * that on the one path the cache exists for, which is being offline. So an
+ * entry written by a different build is not stale data, it is a different
+ * language, and it is dropped rather than rendered.
+ *
+ * EAS increments the build number on every production build, so this needs no
+ * maintenance: shipping a new version empties the cache by itself.
+ */
+const WRITER = [
+  Constants.expoConfig?.version ?? '0',
+  Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode ?? 'dev',
+].join('-');
+
 /** Last known good API payloads, so a cold start with no signal still renders. */
 export function cacheWrite(key: string, value: unknown): void {
   db.runSync('insert or replace into cache (key, value, updated_at) values (?, ?, ?)', [
     key,
-    JSON.stringify(value),
+    // Wrapped rather than given a column of its own: an entry from before this
+    // existed has no writer, fails the check below, and is discarded — which is
+    // the correct treatment for it anyway.
+    JSON.stringify({ writer: WRITER, value }),
     new Date().toISOString(),
   ]);
 }
@@ -187,7 +209,12 @@ export function cacheRead<T>(key: string): T | null {
   const row = db.getFirstSync<{ value: string }>('select value from cache where key = ?', [key]);
   if (!row) return null;
   try {
-    return JSON.parse(row.value) as T;
+    const parsed = JSON.parse(row.value) as { writer?: string; value?: T };
+    if (parsed?.writer !== WRITER) {
+      db.runSync('delete from cache where key = ?', [key]);
+      return null;
+    }
+    return (parsed.value ?? null) as T | null;
   } catch {
     return null;
   }

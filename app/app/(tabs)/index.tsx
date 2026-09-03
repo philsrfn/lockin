@@ -141,7 +141,11 @@ export default function TodayScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHead}>
             <Text style={styles.label}>{caps(t('thisWeek'))}</Text>
-            {week.data ? (
+            {/* Three levels deep, on the screen the app opens on. Within a
+                build the shape is guaranteed, but a cached payload survives a
+                reinstall, so the tally is allowed to be absent rather than
+                taking the screen down with it. */}
+            {week.data?.strength && week.data.cardio && week.data.weighIns ? (
               <Text style={styles.tally}>
                 {week.data.strength.done}/{week.data.strength.target} {t('lifts')} ·{' '}
                 {week.data.cardio.done}/{week.data.cardio.target} {t('cardioTally')} ·{' '}

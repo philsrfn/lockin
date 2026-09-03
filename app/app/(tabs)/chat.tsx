@@ -13,21 +13,24 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '../../src/api/client';
 import type { ChatMessage, ChatReply } from '../../src/api/types';
+import { plainText } from '../../src/lib/format';
+import { t } from '../../src/lib/locale';
 import { colors, radius, space, type as typo } from '../../src/theme';
 
 /** What each tool call reads as when the trainer actually did something. */
-const TOOL_LABELS: Record<string, string> = {
-  set_context: 'switched city',
-  log_weight: 'logged your weight',
-  log_set: 'logged a set',
-  log_session: 'updated the session',
-  log_meal: 'logged a meal',
-  swap_exercise: 'swapped an exercise',
-  adjust_calorie_target: 'changed your targets',
-  add_rule: 'added a rule',
-  deactivate_rule: 'turned off a rule',
-  get_today: 'checked today',
-  get_history: 'read your history',
+const TOOL_LABELS: Record<string, () => string> = {
+  set_context: () => t('toolSetContext'),
+  log_weight: () => t('toolLogWeight'),
+  log_set: () => t('toolLogSet'),
+  log_session: () => t('toolLogSession'),
+  log_meal: () => t('toolLogMeal'),
+  log_cardio: () => t('toolLogCardio'),
+  swap_exercise: () => t('toolSwapExercise'),
+  adjust_calorie_target: () => t('toolAdjustTargets'),
+  add_rule: () => t('toolAddRule'),
+  deactivate_rule: () => t('toolDeactivateRule'),
+  get_today: () => t('toolGetToday'),
+  get_history: () => t('toolGetHistory'),
 };
 
 export default function ChatScreen() {
@@ -140,12 +143,12 @@ export default function ChatScreen() {
             style={[styles.bubble, message.role === 'user' ? styles.mine : styles.theirs]}
           >
             <Text style={message.role === 'user' ? styles.mineText : styles.theirsText}>
-              {message.text}
+              {plainText(message.text)}
             </Text>
             {message.toolCalls?.length ? (
               <Text style={styles.tools}>
                 {message.toolCalls
-                  .map((call) => TOOL_LABELS[call.name] ?? call.name)
+                  .map((call) => TOOL_LABELS[call.name]?.() ?? call.name)
                   .filter((label, index, all) => all.indexOf(label) === index)
                   .join(' · ')}
               </Text>
@@ -156,7 +159,7 @@ export default function ChatScreen() {
         {sending ? (
           <View style={[styles.bubble, styles.theirs, styles.thinking]}>
             <ActivityIndicator size="small" color={colors.textFaint} />
-            <Text style={styles.thinkingText}>thinking</Text>
+            <Text style={styles.thinkingText}>{t('thinking')}</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -167,7 +170,7 @@ export default function ChatScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="How did that feel?"
+          placeholder={t('chatPlaceholder')}
           placeholderTextColor={colors.textFaint}
           style={styles.input}
           multiline
@@ -199,7 +202,16 @@ const styles = StyleSheet.create({
   emptyBody: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
 
   bubble: { maxWidth: '86%', borderRadius: radius.lg, paddingVertical: space.md, paddingHorizontal: space.lg },
-  mine: { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: radius.sm },
+  // A raised surface, not amber. Amber means "on target" everywhere else in
+  // the app, and spending it on every message he sends leaves nothing for the
+  // numbers that earned it — two solid amber slabs on one screen shout.
+  // `surface` is documented as the colour for things you type into, which is
+  // exactly what a sent message is.
+  mine: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.surfaceHigh,
+    borderBottomRightRadius: radius.sm,
+  },
   theirs: {
     alignSelf: 'flex-start',
     backgroundColor: colors.bg,
@@ -207,7 +219,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderBottomLeftRadius: radius.sm,
   },
-  mineText: { fontSize: 16, color: '#08130C', lineHeight: 22 },
+  mineText: { fontSize: 16, color: colors.text, lineHeight: 22 },
   theirsText: { fontSize: 16, color: colors.text, lineHeight: 23 },
   tools: { fontSize: 12, color: colors.accent, marginTop: space.sm, fontWeight: '600' },
 

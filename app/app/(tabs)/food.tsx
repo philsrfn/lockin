@@ -18,7 +18,8 @@ import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { FoodCapture } from '../../src/components/FoodCapture';
 import { FoodEditor } from '../../src/components/FoodEditor';
-import { colors, radius, space, type as typo } from '../../src/theme';
+import { t } from '../../src/lib/locale';
+import { colors, radius, space, tabBarHeight, type as typo } from '../../src/theme';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -103,8 +104,8 @@ export default function FoodScreen() {
         <View style={styles.heroRow}>
           <Text style={styles.hero}>{macros ? macros.remaining.proteinG : '—'}</Text>
           <View style={styles.heroLabel}>
-            <Text style={styles.heroUnit}>g protein</Text>
-            <Text style={styles.heroSub}>still to go</Text>
+            <Text style={styles.heroUnit}>{t('gProtein')}</Text>
+            <Text style={styles.heroSub}>{t('stillToGo')}</Text>
           </View>
         </View>
         <View style={styles.track}>
@@ -113,17 +114,22 @@ export default function FoodScreen() {
           />
         </View>
         <Text style={styles.subtle}>
-          {macros ? `${macros.remaining.kcal} kcal left of ${macros.targets.kcal}` : ' '}
+          {macros ? `${macros.remaining.kcal} ${t('kcalLeftOf')} ${macros.targets.kcal}` : ' '}
           {macros && macros.remaining.fatToFloorG > 0
-            ? ` · ${macros.remaining.fatToFloorG}g to the fat floor`
+            ? ` · ${macros.remaining.fatToFloorG}g ${t('toTheFatFloor')}`
             : macros
-              ? ' · fat floor cleared'
+              ? ` · ${t('fatFloorCleared')}`
               : ''}
         </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xxl }]}
+        // The tab bar floats over this scroll view and the safe-area inset does
+        // not know it is there — the two buttons at the end were half under it.
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + tabBarHeight + space.xl },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {loading ? <ActivityIndicator color={colors.textFaint} /> : null}
@@ -131,7 +137,7 @@ export default function FoodScreen() {
 
         {quick.length > 0 ? (
           <>
-            <Text style={styles.section}>ONE TAP</Text>
+            <Text style={styles.section}>{t('oneTap')}</Text>
             <View style={styles.tiles}>
               {quick.map((food) => (
                 <Pressable
@@ -189,9 +195,9 @@ export default function FoodScreen() {
 
         {rest.length > 0 ? (
           <>
-            <Text style={styles.section}>MY FOODS</Text>
+            <Text style={styles.section}>{t('myFoods')}</Text>
             <View style={styles.card}>
-              <Text style={styles.hint}>Tap to log · hold to edit</Text>
+              <Text style={styles.hint}>{t('tapToLogHoldToEdit')}</Text>
               {rest.map((food) => (
                 <Pressable
                   key={food.id}
@@ -214,20 +220,20 @@ export default function FoodScreen() {
         ) : null}
 
         <View style={styles.captureRow}>
-          <Button title="Scan" variant="secondary" style={styles.flex} onPress={() => setCapture('scan')} />
+          <Button title={t('scan')} variant="secondary" style={styles.flex} onPress={() => setCapture('scan')} />
           <Button
-            title="Describe it"
+            title={t('describeIt')}
             variant="secondary"
             style={styles.flex}
             onPress={() => setCapture('describe')}
           />
         </View>
         <Button
-          title="What's in the fridge?"
+          title={t('whatsInTheFridge')}
           variant="secondary"
           onPress={() => router.push('/fridge')}
         />
-        <Button title="Enter by hand" variant="ghost" onPress={() => setManualOpen(true)} />
+        <Button title={t('enterByHand')} variant="ghost" onPress={() => setManualOpen(true)} />
       </ScrollView>
 
       <FoodEditor
@@ -384,7 +390,11 @@ function ManualEntry({
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title={busy ? 'Saving…' : 'Log it'} onPress={submit} disabled={!valid || busy} />
+          <Button
+            title={busy ? t('saving') : t('logIt')}
+            onPress={submit}
+            disabled={!valid || busy}
+          />
         </View>
       </KeyboardAvoidingView>
     </Modal>

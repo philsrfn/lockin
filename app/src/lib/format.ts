@@ -69,6 +69,22 @@ export function performedLine(sets: { weightKg: number; reps: number }[]): strin
 }
 
 /**
+ * The trainer writes for a phone, not for a renderer. It still reaches for
+ * **bold** and bullet markers occasionally, and printing those raw put
+ * asterisks in the middle of sentences. Stripped rather than rendered: this is
+ * a chat, and a message with three weights of type in it is not calmer for it.
+ */
+export function plainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(^|\s)\*(\S.*?\S|\S)\*(?=\s|$)/g, '$1$2')
+    .replace(/(^|\s)_(\S.*?\S|\S)_(?=\s|$)/g, '$1$2')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '· ')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
+/**
  * The one line of the interface that speaks to the reader directly. It shifts
  * through the day so that seeing it ten times does not wear the way a fixed
  * "Hello" would.

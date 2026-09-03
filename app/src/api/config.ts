@@ -13,6 +13,7 @@
  * backend does not require a new TestFlight build.
  */
 import * as SecureStore from 'expo-secure-store';
+import { clearCache } from '../db/local';
 import { setPreferredLocale } from '../lib/locale';
 
 const TOKEN_KEY = 'lockin.apiToken';
@@ -93,6 +94,10 @@ export function onSignedOut(listener: () => void): () => void {
 
 export async function clearConfig(): Promise<void> {
   token = null;
+  // Cached payloads belong to the session that fetched them. Leaving them
+  // behind means the next person to sign in on this phone opens the app to
+  // somebody else's numbers before the first request returns.
+  clearCache();
   // The address is kept. It is not a credential, and forgetting it would make
   // the next person to sign in on this phone type a host name.
   await SecureStore.deleteItemAsync(TOKEN_KEY);

@@ -205,6 +205,11 @@ export function cacheWrite(key: string, value: unknown): void {
   ]);
 }
 
+/** Everything the last session had fetched. Called on sign-out. */
+export function clearCache(): void {
+  db.runSync('delete from cache');
+}
+
 export function cacheRead<T>(key: string): T | null {
   const row = db.getFirstSync<{ value: string }>('select value from cache where key = ?', [key]);
   if (!row) return null;

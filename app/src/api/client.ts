@@ -50,12 +50,27 @@ export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
+  const base = currentBaseUrl();
+
+  /**
+   * Without this, an empty base makes `${base}${path}` a *relative* URL, and a
+   * relative fetch is answered by whatever server the bundle came from. In
+   * Expo Go that is Metro, which returns its own manifest with a cheerful 200
+   * — so `/today` resolved to an Expo manifest, was treated as a valid answer,
+   * and was written to the offline cache. Every screen that then read three
+   * levels into it threw, and the stack pointed at the screen rather than at
+   * this line.
+   *
+   * Status 0 so it is treated as "no answer", which is what it is.
+   */
+  if (!base) throw new ApiError(0, 'Not connected to a server yet');
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
 
   let response: Response;
   try {
-    response = await fetch(`${currentBaseUrl()}${path}`, {
+    response = await fetch(`${base}${path}`, {
       method: options.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${currentToken()}`,

@@ -90,6 +90,16 @@ export async function getToday(ctx: Ctx): Promise<Today> {
   // opens the app, so a light week starts at the start of the week.
   await ensureDeload(ctx, zone);
 
+  // The one request every launch makes, so it is where "still here" is
+  // recorded. Throttled to an hour: this is a read path, and the value is only
+  // ever compared in days.
+  await ctx.db.query(
+    `update profile set last_seen_at = now()
+     where user_id = $1
+       and (last_seen_at is null or last_seen_at < now() - interval '1 hour')`,
+    [ctx.userId],
+  );
+
   // Mid-workout, today's plan is the session he is already in — and it must not
   // count its own sets as history when prescribing the next load.
   const template = open?.template ?? (await upcomingTemplate(ctx));

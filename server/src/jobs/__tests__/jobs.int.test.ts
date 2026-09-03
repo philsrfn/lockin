@@ -14,6 +14,7 @@ import { anotherAthlete, daysAgo, exerciseIdByName, phil, resetData, resetProfil
 import { logMeal } from '../../services/meals';
 import { setTimezone } from '../../services/profile';
 import { createSession } from '../../services/sessions';
+import { getToday } from '../../services/today';
 import { recordSet } from '../../services/sets';
 import { jobHandlers, logNudge, recentRuns } from '../handlers';
 import { type JobHandler, forceRun, sweep } from '../scheduler';
@@ -176,6 +177,54 @@ describe('recentRuns', () => {
 
     expect((await recentRuns(phil)).map((run) => run.job)).toEqual(['morning_checkin']);
     expect((await recentRuns(sam)).map((run) => run.job)).toEqual(['dinner_prompt']);
+  });
+});
+
+describe('athletes who have gone quiet', () => {
+  /** Pretend the app was last opened `days` ago. */
+  async function lastOpened(days: number) {
+    await pool.query(
+      `update profile set last_seen_at = now() - ($2 || ' days')::interval where user_id = $1`,
+      [phil.userId, days],
+    );
+  }
+
+  it('still coaches somebody who was here yesterday', async () => {
+    await lastOpened(1);
+
+    const result = await jobHandlers.morning_checkin(phil);
+
+    expect(result.detail?.coached).toBe(true);
+  });
+
+  it('stops paying for a note once nobody is reading it', async () => {
+    await lastOpened(5);
+
+    const result = await jobHandlers.morning_checkin(phil);
+
+    // Still nudged — a notification is free and might bring them back — but
+    // no model was asked to write anything.
+    expect(result.detail?.coached).toBe(false);
+    expect(result.status).not.toBe('skipped');
+  });
+
+  it('stops tapping the shoulder after a fortnight', async () => {
+    await lastOpened(20);
+
+    expect((await jobHandlers.morning_checkin(phil)).status).toBe('skipped');
+    expect((await jobHandlers.dinner_prompt(phil)).status).toBe('skipped');
+  });
+
+  it('comes straight back when they open the app', async () => {
+    await lastOpened(20);
+    expect((await jobHandlers.morning_checkin(phil)).status).toBe('skipped');
+
+    // getToday is what every launch calls, and what records the opening.
+    await getToday(phil);
+
+    const result = await jobHandlers.morning_checkin(phil);
+    expect(result.status).not.toBe('skipped');
+    expect(result.detail?.coached).toBe(true);
   });
 });
 

@@ -7,6 +7,7 @@
  * trainer you turn off.
  */
 import type { Ctx } from '../db';
+import { engagement } from '../domain/engagement';
 import { type JobResult } from './scheduler';
 import { sendPush } from '../push';
 import { generateWeeklyReview } from '../llm/review';
@@ -21,14 +22,23 @@ import { getProfile } from '../services/profile';
  * coach note here means it is already warm when he opens the app.
  */
 async function morningCheckin(ctx: Ctx): Promise<JobResult> {
+  const here = await stillHere(ctx);
+  if (!here.push) {
+    return { status: 'skipped', detail: { reason: 'gone quiet', daysAway: here.daysAway } };
+  }
+
   const context = await activeContext(ctx);
   let headline = 'Morning. Open up and let me know how you slept.';
 
-  try {
-    const note = await generateNote(ctx);
-    if (note) headline = note.headline;
-  } catch {
-    // A model outage must not cost him the check-in.
+  // The note is the expensive half. Somebody who has not opened the app in
+  // days is not reading it, and writing it anyway is the bill nobody notices.
+  if (here.writeCoachNote) {
+    try {
+      const note = await generateNote(ctx);
+      if (note) headline = note.headline;
+    } catch {
+      // A model outage must not cost him the check-in.
+    }
   }
 
   const result = await sendPush(ctx, {
@@ -37,11 +47,19 @@ async function morningCheckin(ctx: Ctx): Promise<JobResult> {
     data: { screen: 'today' },
   });
 
-  return { status: result.sent > 0 ? 'sent' : 'no_devices', detail: { ...result, headline } };
+  return {
+    status: result.sent > 0 ? 'sent' : 'no_devices',
+    detail: { ...result, headline, coached: here.writeCoachNote },
+  };
 }
 
 /** 20:00 — dinner logging, but only if the day actually looks unfinished. */
 async function dinnerPrompt(ctx: Ctx): Promise<JobResult> {
+  const here = await stillHere(ctx);
+  if (!here.push) {
+    return { status: 'skipped', detail: { reason: 'gone quiet', daysAway: here.daysAway } };
+  }
+
   const [profile, consumed] = await Promise.all([getProfile(ctx), macrosToday(ctx)]);
   const proteinLeft = profile.proteinTargetG - consumed.proteinG;
 
@@ -86,6 +104,15 @@ async function weeklyReview(ctx: Ctx): Promise<JobResult> {
  * a day by the (job, ran_for) key, because nagging twice is worse than not
  * nagging at all.
  */
+/** Reads when the app was last opened. See domain/engagement.ts. */
+async function stillHere(ctx: Ctx) {
+  const { rows } = await ctx.db.query<{ last_seen_at: Date | null }>(
+    'select last_seen_at from profile where user_id = $1',
+    [ctx.userId],
+  );
+  return engagement(rows[0]?.last_seen_at ?? null);
+}
+
 export async function logNudge(ctx: Ctx): Promise<JobResult> {
   // retry:true throughout — none of these mean "nothing will happen today",
   // they mean "not yet", and the day's slot must stay open.

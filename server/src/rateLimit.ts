@@ -74,10 +74,21 @@ function enforce(request: FastifyRequest, name: string, limit: Limit): void {
       name === 'llm'
         ? 'You have asked the trainer a lot in the last hour. Give it a few minutes — ' +
           'logging and your numbers are unaffected.'
-        : 'Too many requests. Try again in a moment.',
+        : name === 'auth'
+          ? 'Too many sign-in attempts. Try again later.'
+          : 'Too many requests. Try again in a moment.',
     );
   }
 }
+
+/**
+ * Sign-in, which is unauthenticated and therefore keyed by address. Tight:
+ * nobody signs in twenty times an hour, and this is the one door a stranger
+ * can knock on.
+ */
+export const AUTH_LIMIT: Limit = { max: 20, windowMs: 60 * 60_000 };
+
+const AUTH_PATHS = ['/auth/apple', '/auth/apple/nonce'];
 
 /** Paths that reach the model, and are therefore metered separately. */
 const LLM_PATHS = [
@@ -96,6 +107,10 @@ export function registerRateLimit(app: FastifyInstance): void {
     enforce(request, 'api', API_LIMIT);
 
     const path = request.url.split('?')[0] ?? request.url;
+    if (request.method === 'POST' && AUTH_PATHS.includes(path)) {
+      enforce(request, 'auth', AUTH_LIMIT);
+    }
+
     if (request.method === 'POST' && LLM_PATHS.includes(path)) {
       enforce(request, 'llm', LLM_LIMIT);
     }

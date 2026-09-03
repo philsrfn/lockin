@@ -14,6 +14,7 @@ import {
   JobNameSchema,
   MealPlanSchema,
   OnboardingSchema,
+  AppleSignInSchema,
   ChooseProgramSchema,
   HealthSyncSchema,
   LogCardioSchema,
@@ -41,7 +42,12 @@ import {
   updateContext,
 } from '../services/contexts';
 import { listExercises } from '../services/exercises';
-import { getProfile, setLocale, setTimezone } from '../services/profile';
+import { getProfile, isOnboarded, setLocale, setTimezone } from '../services/profile';
+import { verifyAppleIdentityToken } from '../auth/appleIdentity';
+import { consumeNonce, issueNonce } from '../auth/nonce';
+import { findOrCreateAppleUser, issueToken, revokeToken } from '../services/users';
+import { env } from '../env';
+import { unauthorized } from '../errors';
 import { completeOnboarding } from '../services/onboarding';
 import {
   createSession,
@@ -83,6 +89,50 @@ import { planFor, prescribeExercise, progress, upcomingTemplate } from '../servi
  * sync queue calls the same service — §11: never two code paths to one table.
  */
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Sign in with Apple. Both of these are reachable without a token — they are
+   * how a token is obtained — and both are rate limited hard.
+   *
+   * The nonce is issued by the server rather than made up by the client: that
+   * is what makes a captured identity token useless a second time.
+   */
+  app.post('/auth/apple/nonce', async () => ({ nonce: issueNonce() }));
+
+  app.post('/auth/apple', async (request) => {
+    const body = AppleSignInSchema.parse(request.body);
+
+    if (!consumeNonce(body.nonce)) {
+      throw unauthorized('That sign-in took too long. Try again.');
+    }
+
+    const identity = await verifyAppleIdentityToken(body.identityToken, {
+      audience: env.appleBundleId,
+      expectedNonce: body.nonce,
+    });
+
+    const { user, isNew } = await findOrCreateAppleUser({
+      sub: identity.sub,
+      email: identity.email,
+      name: body.name,
+      timezone: body.timezone,
+      locale: body.locale,
+    });
+
+    const token = await issueToken(user.id, { source: 'apple', device: body.device });
+    const onboarded = await isOnboarded(user.id);
+
+    // The token is returned once and stored only as a hash. Everything the app
+    // needs to decide where to send them comes back with it.
+    return { token, user, isNew, onboarded };
+  });
+
+  /** Signing out this device, and only this device. */
+  app.post('/auth/signout', async (request) => {
+    const header = request.headers.authorization ?? '';
+    if (header.startsWith('Bearer ')) await revokeToken(header.slice('Bearer '.length));
+    return { signedOut: true };
+  });
+
   app.get('/health', async (_request, reply) => {
     try {
       await pool.query('select 1');

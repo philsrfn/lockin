@@ -7,8 +7,8 @@
  * "a handful of friends". Sign in with Apple replaces this; the storage
  * underneath it does not change.
  */
-import { createHash } from 'node:crypto';
-import { type Ctx, type Queryable, ctxFor, pool, transaction } from '../db';
+import { createHash, randomBytes } from 'node:crypto';
+import { type Ctx, type Queryable, ctxFor, pool, queryOne, transaction } from '../db';
 import { badRequest, notFound } from '../errors';
 import { DEFAULT_TIME_ZONE } from '../domain/time';
 
@@ -22,12 +22,108 @@ export type User = {
 export const hashToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex');
 
+/**
+ * Resolves a bearer token to an athlete.
+ *
+ * Two places to look, because there are two ways a token gets issued. Signing
+ * in with Apple mints one per device, so an iPad does not sign the phone out.
+ * `users.token_hash` is the older, one-per-person token — Phil's, and the ones
+ * the CLI prints — and it keeps working untouched.
+ */
 export async function findUserByToken(token: string, db: Queryable = pool): Promise<User | null> {
+  const hash = hashToken(token);
+
   const { rows } = await db.query<{ id: number; name: string | null; email: string | null }>(
-    'select id, name, email from users where token_hash = $1',
-    [hashToken(token)],
+    `select u.id, u.name, u.email
+     from users u
+     left join sessions_tokens s on s.user_id = u.id and s.token_hash = $1
+     where u.token_hash = $1 or s.id is not null
+     limit 1`,
+    [hash],
   );
-  return rows[0] ?? null;
+
+  const user = rows[0];
+  if (!user) return null;
+
+  // Best effort: knowing when a device last spoke is what makes revoking one
+  // possible later. Never let it fail a sign-in.
+  void db
+    .query('update sessions_tokens set last_used_at = now() where token_hash = $1', [hash])
+    .catch(() => undefined);
+
+  return user;
+}
+
+/**
+ * A new long-lived token for one device. Returned once and stored only as a
+ * hash — a database dump is not a set of passwords.
+ */
+export async function issueToken(
+  userId: number,
+  options: { source?: string; device?: string | null } = {},
+  db: Queryable = pool,
+): Promise<string> {
+  const token = randomBytes(32).toString('base64url');
+
+  await db.query(
+    'insert into sessions_tokens (user_id, token_hash, source, device) values ($1, $2, $3, $4)',
+    [userId, hashToken(token), options.source ?? 'apple', options.device ?? null],
+  );
+
+  return token;
+}
+
+/** Signing out this device, and only this device. */
+export async function revokeToken(token: string, db: Queryable = pool): Promise<void> {
+  await db.query('delete from sessions_tokens where token_hash = $1', [hashToken(token)]);
+}
+
+export type AppleSignIn = {
+  /** Apple's stable id for this person in this app. */
+  sub: string;
+  email: string | null;
+  /** Apple sends a name only on the very first authorisation, if at all. */
+  name?: string | null;
+  timezone?: string;
+  locale?: string;
+};
+
+/**
+ * Finds the athlete behind an Apple id, or makes one.
+ *
+ * Keyed on `sub` and never on email: Apple's relay addresses change, the email
+ * can be withheld, and it is only sent on the first authorisation — so an
+ * athlete who hid their address would otherwise get a new account every time
+ * they signed in.
+ */
+export async function findOrCreateAppleUser(
+  input: AppleSignIn,
+): Promise<{ user: User; isNew: boolean }> {
+  const existing = await queryOne<{ id: number; name: string | null; email: string | null }>(
+    'select id, name, email from users where apple_sub = $1',
+    [input.sub],
+  );
+
+  if (existing) {
+    // Fill in anything we learned later without overwriting what they set.
+    if (input.email && !existing.email) {
+      await pool.query('update users set email = coalesce(email, $2) where id = $1', [
+        existing.id,
+        input.email,
+      ]);
+    }
+    return { user: existing, isNew: false };
+  }
+
+  const { user } = await provisionUser({
+    name: input.name ?? null,
+    email: input.email ?? null,
+    appleSub: input.sub,
+    timezone: input.timezone,
+    locale: input.locale,
+  });
+
+  return { user, isNew: true };
 }
 
 export async function getUser(id: number, db: Queryable = pool): Promise<User> {
@@ -75,6 +171,9 @@ export type NewUser = {
   email?: string | null;
   /** The bearer token this person will use. Stored only as a hash. */
   token?: string;
+  /** Apple's stable id, when they arrived through Sign in with Apple. */
+  appleSub?: string | null;
+  locale?: string | null;
   timezone?: string;
   heightCm?: number;
   calorieTarget?: number;
@@ -95,16 +194,21 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
 
   return transaction(async (db) => {
     const { rows } = await db.query<{ id: number; name: string | null; email: string | null }>(
-      `insert into users (name, email, token_hash) values ($1, $2, $3)
+      `insert into users (name, email, token_hash, apple_sub) values ($1, $2, $3, $4)
        returning id, name, email`,
-      [input.name ?? null, input.email ?? null, input.token ? hashToken(input.token) : null],
+      [
+        input.name ?? null,
+        input.email ?? null,
+        input.token ? hashToken(input.token) : null,
+        input.appleSub ?? null,
+      ],
     );
     const user = rows[0]!;
 
     await db.query(
       `insert into profile
-         (user_id, name, timezone, height_cm, calorie_target, protein_target_g, fat_floor_g)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+         (user_id, name, timezone, locale, height_cm, calorie_target, protein_target_g, fat_floor_g)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
       // Placeholders, not targets. `onboarded_at` stays null until the
       // questionnaire is answered, and the app routes to onboarding on that —
       // so these numbers are never shown to anybody. Computing real ones needs
@@ -113,6 +217,7 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
         user.id,
         input.name ?? null,
         input.timezone ?? DEFAULT_TIME_ZONE,
+        input.locale ?? null,
         input.heightCm ?? 175,
         input.calorieTarget ?? 2300,
         input.proteinTargetG ?? 170,

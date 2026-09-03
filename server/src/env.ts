@@ -23,6 +23,12 @@ export const env = {
   geminiApiKey: required('GEMINI_API_KEY'),
   geminiModelFast: optional('GEMINI_MODEL_FAST', 'gemini-3.6-flash'),
   geminiModelSmart: optional('GEMINI_MODEL_SMART', 'gemini-3.6-flash'),
+  /**
+   * The iOS bundle identifier. It is what binds an Apple identity token to
+   * this app — without it, a token Apple issued to any other app would sign
+   * somebody in here.
+   */
+  appleBundleId: optional('APPLE_BUNDLE_ID', 'de.dotspiro.lockin'),
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   /**

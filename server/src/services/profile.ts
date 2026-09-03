@@ -1,4 +1,4 @@
-import type { Ctx } from '../db';
+import { type Ctx, type Queryable, pool } from '../db';
 import type { MacroTargets } from '../domain/macros';
 import { checkCalorieTarget, checkGoalWeight, checkProteinTarget } from '../domain/safety';
 import {
@@ -229,4 +229,13 @@ export async function setLocale(ctx: Ctx, locale: string | null): Promise<Profil
     [ctx.userId, locale],
   );
   return getProfile(ctx);
+}
+
+/** Whether this athlete has answered the questionnaire. Used at sign-in. */
+export async function isOnboarded(userId: number, db: Queryable = pool): Promise<boolean> {
+  const { rows } = await db.query<{ onboarded: boolean }>(
+    'select onboarded_at is not null as onboarded from profile where user_id = $1',
+    [userId],
+  );
+  return rows[0]?.onboarded ?? false;
 }

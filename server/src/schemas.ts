@@ -175,6 +175,18 @@ export const SetDeloadSchema = z.object({
  * lets the server work out what is new — a phone that has to remember what it
  * already sent is a phone that loses a week when it is reinstalled.
  */
+/** Sign in with Apple. The identity token is verified against Apple's keys. */
+export const AppleSignInSchema = z.object({
+  identityToken: z.string().min(20).max(8000),
+  /** The nonce this server issued a moment ago. */
+  nonce: z.string().min(20).max(200),
+  /** Apple sends a name only on the very first authorisation, and only to the app. */
+  name: z.string().min(1).max(80).nullish(),
+  timezone: z.string().min(1).max(64).optional(),
+  locale: z.string().min(2).max(35).optional(),
+  device: z.string().max(80).nullish(),
+});
+
 export const HealthSyncSchema = z.object({
   days: z
     .array(

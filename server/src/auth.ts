@@ -3,8 +3,12 @@ import { type Ctx, ctxFor } from './db';
 import { unauthorized } from './errors';
 import { findUserByToken } from './services/users';
 
-/** Paths reachable without a token. */
-const PUBLIC_PATHS = new Set(['/health']);
+/**
+ * Reachable without a token. Two of these are how a token is obtained, so they
+ * cannot require one — they are rate limited hard instead. Matched exactly, so
+ * that a path merely starting with one of these is not accidentally public.
+ */
+const PUBLIC_PATHS = new Set(['/health', '/auth/apple', '/auth/apple/nonce']);
 
 declare module 'fastify' {
   interface FastifyRequest {

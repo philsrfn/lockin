@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { api } from '../api/client';
 import type { Week, WeekDay } from '../api/types';
@@ -8,7 +8,7 @@ import { t } from '../lib/locale';
 import { WeekStrip } from './WeekStrip';
 
 /** Far enough back to see a training block, not so far it becomes an archive. */
-const WEEKS = 16;
+const MAX_WEEKS = 16;
 
 /**
  * The week strip, with the weeks behind it.
@@ -28,12 +28,19 @@ export function WeekPager({
   thisWeek,
   selected,
   onSelect,
+  since,
   goHome,
 }: {
   today: string;
   thisWeek: Week | null;
   selected: string;
   onSelect: (day: WeekDay) => void;
+  /**
+   * The first day with anything logged. Weeks before it are empty by
+   * definition, and offering fifteen of them to somebody who started on
+   * Tuesday is not history, it is a corridor.
+   */
+  since: string | null;
   /**
    * Bumped when the screen wants this back on the current week. A counter
    * rather than a boolean, because "go there again" has to be distinguishable
@@ -53,10 +60,15 @@ export function WeekPager({
   const asked = useRef(new Set<string>());
 
   // Oldest first, so the strip reads left-to-right the way a calendar does and
-  // the newest week is the one you start on.
-  const endings = useRef(
-    Array.from({ length: WEEKS }, (_, i) => addDays(today, -7 * (WEEKS - 1 - i))),
-  ).current;
+  // the newest week is the one you start on. Never more weeks than there is
+  // anything to show, and never fewer than one.
+  const weeksBack = since
+    ? Math.min(MAX_WEEKS, Math.max(1, Math.ceil((daysBetween(since, today) + 1) / 7)))
+    : 1;
+  const endings = useMemo(
+    () => Array.from({ length: weeksBack }, (_, i) => addDays(today, -7 * (weeksBack - 1 - i))),
+    [today, weeksBack],
+  );
 
   useEffect(() => {
     if (thisWeek) setWeeks((current) => ({ ...current, [today]: thisWeek }));
@@ -64,8 +76,8 @@ export function WeekPager({
 
   useEffect(() => {
     if (!goHome) return;
-    list.current?.scrollToIndex({ index: WEEKS - 1, animated: true });
-  }, [goHome]);
+    list.current?.scrollToIndex({ index: endings.length - 1, animated: true });
+  }, [goHome, endings.length]);
 
   const fetchWeek = useCallback((ending: string) => {
     if (asked.current.has(ending)) return;
@@ -153,6 +165,12 @@ function WeekPage({
       )}
     </View>
   );
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const from = Date.parse(`${fromIso}T12:00:00Z`);
+  const to = Date.parse(`${toIso}T12:00:00Z`);
+  return Math.max(0, Math.round((to - from) / 86_400_000));
 }
 
 /** Local, because the server's day arithmetic is not on the phone. */

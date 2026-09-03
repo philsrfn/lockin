@@ -148,6 +148,7 @@ export default function TodayScreen() {
           thisWeek={week.data}
           selected={selected?.date ?? date}
           onSelect={setSelected}
+          since={today.data.since ?? null}
           goHome={goHome}
         />
 

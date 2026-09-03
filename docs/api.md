@@ -141,8 +141,8 @@ which is a separate question and lives on the profile.
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
-| GET | `/today` | — | everything the Today screen needs, one round trip |
-| GET | `/week` | — | the seven-day strip the home screen is built on |
+| GET | `/today` | — | everything the Today screen needs, one round trip. `since` is the first day with anything logged, so the strip offers only weeks there is something to see in. |
+| GET | `/week` | `ending=YYYY-MM-DD`, optional | the seven-day window ending on that day; today when absent |
 | GET | `/exercises` | — | `{exercises}` with substitute ids and equipment |
 | GET | `/programs` | — | `{programs, current}` — the catalogue and the one he is on |
 | POST | `/programs/choose` | `{programId}` | `{current}`. History keeps its day codes; the rotation restarts. |

@@ -241,3 +241,26 @@ describe('looking at an earlier week', () => {
     expect(week.days[6]!.isToday).toBe(true);
   });
 });
+
+
+describe('how far back there is anything to see', () => {
+  it('is null for somebody who has logged nothing', async () => {
+    expect((await getToday(phil)).since).toBe(null);
+  });
+
+  it('is the earliest day with anything on it', async () => {
+    await logWeight(phil, { weightKg: 99, measuredOn: isoDaysAgo(40) });
+    await finishedSession('A', 12);
+
+    expect((await getToday(phil)).since).toBe(isoDaysAgo(40));
+  });
+
+  it('counts a meal as something', async () => {
+    // Three sources, and the earliest of them wins — an athlete who logged
+    // food before ever lifting still has history worth scrolling to.
+    await logMeal(phil, { slot: 'lunch', description: 'Skyr', kcal: 400, proteinG: 40 });
+    await logWeight(phil, { weightKg: 99, measuredOn: isoDaysAgo(3) });
+
+    expect((await getToday(phil)).since).toBe(isoDaysAgo(3));
+  });
+});

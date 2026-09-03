@@ -41,6 +41,13 @@ export type Today = {
     steps: { average: number | null; target: number; daysKnown: number };
   };
   /**
+   * The first day this athlete has anything logged on, in their zone. The
+   * home screen scrolls back through weeks and there is no point offering
+   * fifteen empty ones to somebody who started on Tuesday. Null when they
+   * have logged nothing at all.
+   */
+  since: string | null;
+  /**
    * The trainer's read on today. null when it has not been generated yet —
    * the screen renders the deterministic plan immediately and fills this in
    * behind it, so a slow model call never blocks the app.
@@ -71,6 +78,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     week,
     cardio,
     health,
+    since,
   ] = await Promise.all([
     activeContext(ctx),
     openSession(ctx),
@@ -84,6 +92,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     getWeek(ctx),
     cardioToday(ctx, zone),
     healthToday(ctx, zone),
+    firstLoggedDay(ctx, zone),
   ]);
 
   // Recorded here rather than by a job: this payload is fetched every time he
@@ -128,5 +137,28 @@ export async function getToday(ctx: Ctx): Promise<Today> {
       steps: week.steps,
     },
     coach,
+    since,
   };
+}
+
+/**
+ * The earliest day with anything on it — a session, a weigh-in or a meal.
+ *
+ * Not the account's creation date: this database predates the users table, and
+ * an athlete who imported history would have data older than their row.
+ */
+async function firstLoggedDay(ctx: Ctx, zone: string): Promise<string | null> {
+  const { rows } = await ctx.db.query<{ day: string | null }>(
+    `select to_char(min(day), 'YYYY-MM-DD') as day from (
+       select min(performed_at at time zone $2)::date as day
+         from sessions where user_id = $1
+       union all
+       select min(measured_on) from bodyweight where user_id = $1
+       union all
+       select min(eaten_at at time zone $2)::date from meals where user_id = $1
+     ) as first_days`,
+    [ctx.userId, zone],
+  );
+
+  return rows[0]?.day ?? null;
 }

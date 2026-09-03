@@ -366,4 +366,6 @@ export type Today = {
     steps: { average: number | null; target: number; daysKnown: number };
   };
   coach: CoachNote | null;
+  /** The first day with anything logged. Null when nothing has been. */
+  since: string | null;
 };

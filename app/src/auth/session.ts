@@ -12,6 +12,8 @@ export type Account = {
   kind: 'apple' | 'root';
   /** May reach the admin panel, and may approve a browser for it. */
   isAdmin: boolean;
+  /** Whether this account can be opened with Apple on a new phone. */
+  appleLinked: boolean;
 };
 
 /**

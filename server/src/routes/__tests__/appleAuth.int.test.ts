@@ -407,3 +407,148 @@ describe('the token Phil already has', () => {
     await pool.query('select 1');
   });
 });
+
+
+describe('linking an Apple ID to an account that already exists', () => {
+  const link = (sub: string, token = TEST_BEARER_TOKEN, extra: Record<string, unknown> = {}) =>
+    nonce().then((value) =>
+      app.inject({
+        method: 'POST',
+        url: '/account/apple',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          identityToken: appleToken({ sub, nonce: value, ...extra }),
+          nonce: value,
+        },
+      }),
+    );
+
+  it('attaches it to the caller', async () => {
+    const response = await link('001.phils.apple.id');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().linked).toBe(true);
+
+    const account = await app.inject({
+      method: 'GET',
+      url: '/account',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+    expect(account.json().appleLinked).toBe(true);
+  });
+
+  it('signs in to that same account afterwards, with its history', async () => {
+    // This is the whole point. Without the link, signing in with Apple creates
+    // a second empty account and leaves a year of training on the first.
+    await app.inject({
+      method: 'POST',
+      url: '/bodyweight',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+      payload: { weightKg: 95.5, measuredOn: '2026-09-01' },
+    });
+
+    await link('001.phils.apple.id');
+
+    const signedIn = await signIn('001.phils.apple.id');
+    expect(signedIn.json().isNew).toBe(false);
+    expect(signedIn.json().user.id).toBe(1);
+    expect(signedIn.json().approved).toBe(true);
+
+    // A new phone, and his weigh-in is there.
+    const history = await app.inject({
+      method: 'GET',
+      url: '/bodyweight',
+      headers: { authorization: `Bearer ${signedIn.json().token}` },
+    });
+    expect(history.statusCode).toBe(200);
+    expect(JSON.stringify(history.json())).toContain('95.5');
+  });
+
+  it('leaves the token he already has working', async () => {
+    await link('001.phils.apple.id');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/today',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('is idempotent for the same Apple ID', async () => {
+    expect((await link('001.phils.apple.id')).statusCode).toBe(200);
+    expect((await link('001.phils.apple.id')).statusCode).toBe(200);
+  });
+
+  it('refuses an Apple ID already signed in to somebody else', async () => {
+    await signIn('001.somebody.else');
+
+    const response = await link('001.somebody.else');
+
+    expect(response.statusCode).toBe(409);
+  });
+
+  it('refuses to swap a link silently', async () => {
+    await link('001.phils.apple.id');
+
+    const response = await link('001.a.different.apple.id');
+
+    expect(response.statusCode).toBe(409);
+  });
+
+  it('needs a real, unreplayed Apple token like signing in does', async () => {
+    const value = await nonce();
+    const payload = {
+      identityToken: appleToken({ sub: '001.replayed.link', nonce: value }),
+      nonce: value,
+    };
+    const headers = { authorization: `Bearer ${TEST_BEARER_TOKEN}` };
+
+    expect((await app.inject({ method: 'POST', url: '/account/apple', headers, payload })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/account/apple', headers, payload })).statusCode).toBe(401);
+  });
+
+  it('refuses a token minted for another app', async () => {
+    const value = await nonce();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/account/apple',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+      payload: {
+        identityToken: appleToken({ sub: 'x', nonce: value, aud: 'com.someone.else' }),
+        nonce: value,
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('unlinks again, leaving the token as the way in', async () => {
+    await link('001.phils.apple.id');
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/account/apple',
+      headers: { authorization: `Bearer ${TEST_BEARER_TOKEN}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    // And the Apple ID no longer opens it.
+    expect((await signIn('001.phils.apple.id')).json().user.id).not.toBe(1);
+  });
+
+  it('refuses to unlink when Apple is the only way in', async () => {
+    // Somebody who signed up with Apple has no token to fall back on, and
+    // unlinking would leave an account nobody can open.
+    const token = (await signInApproved('001.apple.only')).json().token as string;
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/account/apple',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+});

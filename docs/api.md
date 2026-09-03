@@ -20,7 +20,9 @@ knows which was used.
 | POST | `/auth/apple/nonce` | — | `{nonce}`. Unauthenticated, rate limited to 20/hour per address. Single-use, expires after 10 minutes. |
 | POST | `/auth/apple` | `{identityToken, nonce, name?, timezone?, locale?, device?}` | `{token, user, isNew, onboarded}`. Unauthenticated. |
 | POST | `/auth/signout` | — | `{signedOut}`. Revokes the calling device's token and no other. |
-| GET | `/account` | — | `{user, kind}` where kind is `apple` or `root`. |
+| GET | `/account` | — | `{user, kind, isAdmin, appleLinked}` where kind is `apple` or `root`. |
+| POST | `/account/apple` | `{identityToken, nonce}` | `{linked, email}`. Attaches an Apple ID to the account already signed in. |
+| DELETE | `/account/apple` | — | `{linked: false}`. Refused when Apple is the only way in. |
 | DELETE | `/account` | — | `{deleted}`. Cascades to every owned row. 400 on a `root` account. |
 
 The identity token is verified against Apple's JWKS in
@@ -32,6 +34,15 @@ a captured token being replayed, which is why it cannot come from the app.
 Accounts key on Apple's `sub`. The email arrives only on the very first
 authorisation and may be a private relay address that changes, so keying on it
 would hand somebody a new account every time they signed in.
+
+**An account that predates Apple sign-in has to be linked before it can use
+it.** Without a matching `apple_sub`, signing in with Apple creates a second,
+empty account and leaves the history on the first — so `POST /account/apple`
+attaches the Apple ID to the account already signed in, verified to exactly the
+same standard as signing in, because it hands over a permanent way in. The
+token that account already holds keeps working; linking adds a door rather than
+replacing one. Linking a `sub` that belongs to somebody else is a 409, as is
+swapping an existing link for a different Apple ID without unlinking first.
 
 Deletion is refused on a `root` account: that token was provisioned by the
 operator rather than by a sign-in, and is theirs to withdraw.

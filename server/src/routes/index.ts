@@ -47,11 +47,14 @@ import { verifyAppleIdentityToken } from '../auth/appleIdentity';
 import { consumeNonce, issueNonce } from '../auth/nonce';
 import {
   accountKind,
+  appleLinked,
   deleteAccount,
   findOrCreateAppleUser,
   getUser,
   issueToken,
+  linkAppleAccount,
   revokeToken,
+  unlinkAppleAccount,
 } from '../services/users';
 import { env } from '../env';
 import { unauthorized } from '../errors';
@@ -158,7 +161,36 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     kind: await accountKind(request.ctx.userId),
     // So the app knows whether to offer the admin controls at all.
     isAdmin: request.user.isAdmin,
+    // And whether this account can be opened with Apple on a new phone.
+    appleLinked: await appleLinked(request.ctx.userId),
   }));
+
+  /**
+   * Attaching an Apple ID to the account already signed in here.
+   *
+   * The same verification as signing in — this hands somebody a permanent way
+   * into an account, so it is held to exactly the standard that minting a
+   * token is. The difference is only which row the verified `sub` lands on.
+   */
+  app.post('/account/apple', async (request) => {
+    const body = AppleSignInSchema.parse(request.body);
+
+    if (!consumeNonce(body.nonce)) {
+      throw unauthorized('That took too long. Try again.');
+    }
+
+    const identity = await verifyAppleIdentityToken(body.identityToken, {
+      audience: env.appleBundleId,
+      expectedNonce: body.nonce,
+    });
+
+    return linkAppleAccount(request.ctx.userId, { sub: identity.sub, email: identity.email });
+  });
+
+  app.delete('/account/apple', async (request) => {
+    await unlinkAppleAccount(request.ctx.userId);
+    return { linked: false };
+  });
 
   app.delete('/account', async (request) => {
     await deleteAccount(request.ctx.userId);

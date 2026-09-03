@@ -9,7 +9,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { type Ctx, type Queryable, ctxFor, pool, queryOne, transaction } from '../db';
-import { badRequest, notFound } from '../errors';
+import { badRequest, conflict, notFound } from '../errors';
 import { DEFAULT_TIME_ZONE } from '../domain/time';
 
 export type User = {
@@ -312,4 +312,88 @@ export async function deleteAccount(userId: number, db: Queryable = pool): Promi
   }
 
   await db.query('delete from users where id = $1', [userId]);
+}
+
+
+export type AppleLink = { linked: true; email: string | null } ;
+
+/**
+ * Attaching an Apple ID to an account that already exists.
+ *
+ * Without this, an athlete who has been using a hand-issued token and then
+ * signs in with Apple on a new phone does not sign in at all — there is no row
+ * with that `apple_sub`, so a second, empty account is created and their
+ * training history stays behind on the old one. This is the step that makes
+ * the two the same person.
+ *
+ * The token they already hold keeps working. Linking adds a way in; it does
+ * not replace one.
+ */
+export async function linkAppleAccount(
+  userId: number,
+  input: { sub: string; email?: string | null },
+): Promise<AppleLink> {
+  const owner = await queryOne<{ id: number }>('select id from users where apple_sub = $1', [
+    input.sub,
+  ]);
+
+  if (owner && owner.id !== userId) {
+    throw conflict('That Apple ID is already signed in to another account here.');
+  }
+
+  const current = await queryOne<{ apple_sub: string | null }>(
+    'select apple_sub from users where id = $1',
+    [userId],
+  );
+  if (!current) throw notFound(`No user ${userId}`);
+
+  if (current.apple_sub && current.apple_sub !== input.sub) {
+    // Silently swapping which Apple ID opens an account is the kind of change
+    // somebody should have to undo deliberately.
+    throw conflict(
+      'This account is already linked to a different Apple ID. Unlink it first.',
+    );
+  }
+
+  const { rows } = await pool.query<{ email: string | null }>(
+    `update users
+     set apple_sub = $2,
+         -- Apple sends the email once, on the first authorisation. Take it if
+         -- we have none, never over the top of one they chose.
+         email = coalesce(email, $3)
+     where id = $1
+     returning email`,
+    [userId, input.sub, input.email ?? null],
+  );
+
+  return { linked: true, email: rows[0]?.email ?? null };
+}
+
+/**
+ * Removing the Apple ID again. Refused when it is the only way in, because the
+ * alternative is an account nobody can open.
+ */
+export async function unlinkAppleAccount(userId: number): Promise<void> {
+  const row = await queryOne<{ has_token: boolean }>(
+    'select token_hash is not null as has_token from users where id = $1',
+    [userId],
+  );
+  if (!row) throw notFound(`No user ${userId}`);
+
+  if (!row.has_token) {
+    throw badRequest(
+      'Signing in with Apple is the only way into this account. Unlinking it would lock you out.',
+    );
+  }
+
+  await pool.query('update users set apple_sub = null where id = $1', [userId]);
+}
+
+/** Whether this account can be opened with Apple on a new device. */
+export async function appleLinked(userId: number, db: Queryable = pool): Promise<boolean> {
+  const { rows } = await db.query<{ linked: boolean }>(
+    'select apple_sub is not null as linked from users where id = $1',
+    [userId],
+  );
+  return rows[0]?.linked ?? false;
 }

@@ -13,7 +13,7 @@
 import Constants, { AppOwnership } from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
-import { ApiError } from '../api/client';
+import { ApiError, api } from '../api/client';
 import { currentBaseUrl, saveConfig } from '../api/config';
 import { systemLocale } from '../lib/locale';
 
@@ -94,6 +94,45 @@ export async function signInWithApple(baseUrl: string): Promise<SignInResult> {
 
   await saveConfig(host, result.token);
   return result;
+}
+
+/**
+ * Attaching an Apple ID to the account already signed in on this phone.
+ *
+ * Without it, an athlete who has been using a hand-issued token and then signs
+ * in with Apple on a new phone creates a second, empty account and leaves
+ * their history behind on the first. This is what makes the two the same
+ * person — and the token they already hold keeps working either way.
+ */
+export async function linkAppleToThisAccount(): Promise<{ email: string | null }> {
+  const value = await requestNonce(currentBaseUrl());
+
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
+      nonce: value,
+    });
+  } catch (caught) {
+    if ((caught as { code?: string }).code === 'ERR_REQUEST_CANCELED') {
+      throw new SignInCancelled('Cancelled');
+    }
+    throw caught;
+  }
+
+  if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+
+  // Through the ordinary client, because unlike signing in there is already a
+  // token and a base URL for it to use.
+  return api<{ email: string | null }>('/account/apple', {
+    method: 'POST',
+    body: { identityToken: credential.identityToken, nonce: value },
+    timeoutMs: 20_000,
+  });
+}
+
+export async function unlinkApple(): Promise<void> {
+  await api('/account/apple', { method: 'DELETE' });
 }
 
 async function requestNonce(host: string): Promise<string> {

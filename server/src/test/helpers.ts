@@ -63,8 +63,11 @@ export async function resetData(): Promise<void> {
   const tables = await transactionalTables();
   await pool.query(`truncate ${tables.join(', ')} restart identity cascade`);
   // Athletes provisioned by a test, and the rows that came with them. User 1 is
-  // the seed and stays.
+  // the seed and stays — but returns to the shape it was seeded in. A linked
+  // Apple ID is state a test wrote, and leaving it behind makes the next test
+  // fail for reasons that have nothing to do with what it is checking.
   await pool.query('delete from users where id <> 1');
+  await pool.query('update users set apple_sub = null, approved_at = now() where id = 1');
 }
 
 /** Back to the seeded targets, for tests that move them. */

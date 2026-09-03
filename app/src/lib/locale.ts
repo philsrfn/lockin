@@ -305,6 +305,23 @@ const PHRASES = {
     en: 'That code is wrong or expired. Get a new one.',
   },
 
+  appleId: { de: 'APPLE ID', en: 'APPLE ID' },
+  linkAppleBlurb: {
+    de: 'Verknüpfe dein Konto mit Apple, damit du dich auf einem neuen Handy anmelden kannst, ohne ein Token einzutippen. Dein jetziger Zugang bleibt bestehen.',
+    en: 'Link your account to Apple so you can sign in on a new phone without typing a token. The way you get in today keeps working.',
+  },
+  linkApple: { de: 'Mit Apple verknüpfen', en: 'Link with Apple' },
+  appleLinkedOn: {
+    de: 'Verknüpft. Auf einem neuen Handy reicht „Mit Apple anmelden“.',
+    en: 'Linked. On a new phone, "Sign in with Apple" is all you need.',
+  },
+  unlinkApple: { de: 'Verknüpfung lösen', en: 'Unlink' },
+  linking: { de: 'Verknüpfen…', en: 'Linking…' },
+  linkFailed: {
+    de: 'Verknüpfen hat nicht geklappt.',
+    en: 'That did not link.',
+  },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

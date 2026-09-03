@@ -11,6 +11,7 @@ import {
   loadAccount,
   signOut,
 } from '../src/auth/session';
+import { SignInCancelled, appleSignInAvailable, linkAppleToThisAccount, unlinkApple } from '../src/auth/apple';
 import { isSupported, requestPermission } from '../src/health';
 import { syncNow } from '../src/health/sync';
 import { t } from '../src/lib/locale';
@@ -47,6 +48,8 @@ export default function RulesScreen() {
   const [account, setAccount] = useState<Account | null>(null);
   const [pairCode, setPairCode] = useState('');
   const [pairState, setPairState] = useState<'idle' | 'busy' | 'done' | 'rejected'>('idle');
+  const [appleReady, setAppleReady] = useState(false);
+  const [linkState, setLinkState] = useState<'idle' | 'busy' | 'failed'>('idle');
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +84,10 @@ export default function RulesScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void appleSignInAvailable().then(setAppleReady);
+  }, []);
 
   useEffect(() => {
     if (!isSupported()) return setHealth('unsupported');
@@ -265,6 +272,48 @@ export default function RulesScreen() {
                 .catch(() => setPairState('rejected'));
             }}
           />
+        </Card>
+      ) : null}
+
+      {/*
+        The step that makes a hand-issued token and an Apple ID the same
+        person. Without it, signing in with Apple on a new phone creates a
+        second, empty account and leaves the training history on the old one.
+      */}
+      {account && !account.appleLinked && appleReady ? (
+        <Card label={t('appleId')}>
+          <Text style={styles.blurb}>{t('linkAppleBlurb')}</Text>
+          {linkState === 'failed' ? <Text style={styles.error}>{t('linkFailed')}</Text> : null}
+          <Button
+            title={linkState === 'busy' ? t('linking') : t('linkApple')}
+            variant="secondary"
+            disabled={linkState === 'busy'}
+            onPress={() => {
+              setLinkState('busy');
+              void linkAppleToThisAccount()
+                .then(() => {
+                  setLinkState('idle');
+                  return load();
+                })
+                .catch((caught) => {
+                  // Backing out of Apple's sheet is not a failure to report.
+                  setLinkState(caught instanceof SignInCancelled ? 'idle' : 'failed');
+                });
+            }}
+          />
+        </Card>
+      ) : null}
+
+      {account?.appleLinked ? (
+        <Card label={t('appleId')}>
+          <Text style={styles.approved}>{t('appleLinkedOn')}</Text>
+          {/* Only where a token is the fallback; the server refuses to leave
+              an account with no way in, and the app should not offer it. */}
+          {account.kind === 'root' ? (
+            <Pressable onPress={() => void unlinkApple().then(load)} hitSlop={8}>
+              <Text style={styles.destructive}>{t('unlinkApple')}</Text>
+            </Pressable>
+          ) : null}
         </Card>
       ) : null}
 

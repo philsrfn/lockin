@@ -332,6 +332,19 @@ const PHRASES = {
   weighed: { de: 'GEWOGEN', en: 'WEIGHED' },
   kcalLabel: { de: 'KCAL', en: 'KCAL' },
 
+  accountTab: { de: 'KONTO', en: 'ACCOUNT' },
+  signedInAs: { de: 'ANGEMELDET ALS', en: 'SIGNED IN AS' },
+  accountTitle: { de: 'Konto', en: 'Account' },
+  couldNotLoadAccount: {
+    de: 'Dein Konto konnte nicht geladen werden',
+    en: 'Could not load your account',
+  },
+  programme: { de: 'PROGRAMM', en: 'PROGRAMME' },
+  programmeBlurb: {
+    de: 'Eine geordnete Liste von Tagen, die rotiert. Wie oft sie rotiert, ist wie oft du trainierst.',
+    en: 'An ordered list of days that rotates. How often it rotates is how often you train.',
+  },
+
   couldNotLoadHistory: {
     de: 'Deine Historie konnte nicht geladen werden',
     en: 'Could not load your history',

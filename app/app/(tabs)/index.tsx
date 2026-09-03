@@ -114,6 +114,9 @@ export default function TodayScreen() {
               <Pressable onPress={() => router.push('/rules')} hitSlop={12}>
                 <Text style={styles.link}>{t('rules')}</Text>
               </Pressable>
+              <Pressable onPress={() => router.push('/account')} hitSlop={12}>
+                <Text style={styles.link}>{t('accountTab')}</Text>
+              </Pressable>
             </View>
           </View>
         </View>

@@ -243,6 +243,47 @@ bottom of the page; correct one in `deploy/.env` when the provider reprices:
 GEMINI_PRICE_GEMINI_3_6_FLASH=0.3/2.5
 ```
 
+## Giving somebody access to the server
+
+```sh
+./deploy/operator.sh root@YOUR_IP list
+./deploy/operator.sh root@YOUR_IP add    tarnas ~/keys/tarnas.pub
+./deploy/operator.sh root@YOUR_IP remove tarnas
+```
+
+`add` creates a named account, installs their public key, and puts them in the
+`docker` group. Running it twice rotates the key rather than adding a second
+one.
+
+**Be clear-eyed about what the docker group is.** Anyone in it can run
+`docker run -v /:/host` and read or write every file on the box — the Postgres
+volume and `deploy/.env` included. It is root, one step removed. This is not a
+containment boundary and should not be described as one.
+
+What it does buy is accountability and revocability: their own key, their own
+name in the logs and in file ownership, and one command that takes it away
+without rotating anybody else's key. Give it only to somebody you would have
+given root to.
+
+The database holds body weight, meals and training history for **everyone**
+using the app, not just the person you are letting in. That is the actual
+decision being made here.
+
+Password authentication is off, so there is nothing to send them and nothing to
+leak — you need their **public** key (`~/.ssh/id_ed25519.pub` on their machine,
+one line beginning `ssh-ed25519`). If they do not have one:
+
+```sh
+ssh-keygen -t ed25519 -C "their@email"
+cat ~/.ssh/id_ed25519.pub
+```
+
+A public key is safe to send over anything. The private half never moves.
+
+After `remove`, their key is gone and their sessions are killed — but they held
+root-equivalent access, so rotate what they could have read: `APP_BEARER_TOKEN`
+(see below), `GEMINI_API_KEY`, and `POSTGRES_PASSWORD`.
+
 ## Adding a friend
 
 Every athlete has their own profile, timezone, contexts, rules and notification

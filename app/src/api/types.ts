@@ -106,6 +106,28 @@ export type Session = {
 
 export type PerformedSet = { weightKg: number; reps: number; rir: number | null };
 
+/**
+ * What the athlete actually burns, measured from logged intake and weight.
+ * Deliberately a yes-or-no rather than a nullable number: when the data
+ * cannot support an answer the screen says which part is missing.
+ */
+export type Expenditure =
+  | {
+      ok: true;
+      tdeeKcal: number;
+      windowDays: number;
+      intakeDays: number;
+      meanIntakeKcal: number;
+      changeKg: number;
+      confidence: 'low' | 'good';
+    }
+  | {
+      ok: false;
+      reason: 'not_enough_intake' | 'not_enough_weight' | 'implausible';
+      intakeDays: number;
+      windowDays: number;
+    };
+
 export type PrescriptionReason =
   | 'first_time'
   | 'increase_load'

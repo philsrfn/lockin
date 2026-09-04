@@ -67,6 +67,7 @@ import {
   openSession,
 } from '../services/sessions';
 import { deleteSet, recordSet } from '../services/sets';
+import { expenditure } from '../services/expenditure';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
 import { getWeek } from '../services/week';
@@ -321,6 +322,25 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         targetSets: query.sets,
       }),
     };
+  });
+
+  /**
+   * What the athlete actually burns, measured from intake and weight rather
+   * than assumed from a formula. Answers `{ok: false, reason}` rather than a
+   * number when the data cannot support one — see domain/expenditure.ts.
+   */
+  app.get('/expenditure', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(14).max(90).default(28) })
+      .parse(request.query);
+    // The target comes back with it. A measured figure is only interesting
+    // beside the number the app has been assuming, and fetching the profile
+    // separately to put them next to each other would be a second round trip
+    // for one integer.
+    const [measured, profile] = await Promise.all([
+      expenditure(request.ctx, query.days),
+      getProfile(request.ctx),
+    ]);
+    return { expenditure: measured, calorieTarget: profile.calorieTarget };
   });
 
   app.get('/progress', async (request) => {

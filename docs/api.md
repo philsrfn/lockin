@@ -148,6 +148,7 @@ which is a separate question and lives on the profile.
 | POST | `/programs/choose` | `{programId}` | `{current}`. History keeps its day codes; the rotation restarts. |
 | GET | `/workouts/next` | `?template=<day code>` | prescriptions; defaults to the next in rotation |
 | GET | `/exercises/:id/prescription` | `?excludeSessionId&sets` | one movement's load, from its own history |
+| GET | `/expenditure` | `?days=14..90` (default 28) | `{expenditure, calorieTarget}`. Measured daily burn, or `{ok:false, reason}` when the data cannot support one. |
 | GET | `/progress` | `?days=90` | volume, set count, best set per exercise per day (Epley) |
 | GET | `/sessions` | `?limit=20` | `{sessions}` newest first, sets included |
 | GET | `/sessions/open` | — | `{session}` — the one in progress, or null |

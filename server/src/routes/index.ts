@@ -75,6 +75,7 @@ import { lookupBarcode, saveScanned } from '../services/barcode';
 import { estimateFood } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
 import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
+import { saveInventory } from '../services/fridge';
 import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
@@ -546,13 +547,20 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * Plans against what is LEFT of today (§9 step 5), and only from a list he
-   * has confirmed — `confirmed: true` is required, so an unedited vision pass
-   * cannot reach here by accident.
+   * Plans against what is LEFT of today (§9 step 5), and only from a list the
+   * athlete has confirmed — `confirmed: true` is required, so an unedited
+   * vision pass cannot reach here by accident.
+   *
+   * The confirmation is stored on the way through (§9 step 4). This is the
+   * only moment the app has evidence of what is in the fridge, and until it
+   * was written down the trainer could be asked to plan dinner in chat with
+   * nothing to plan from.
    */
   app.post('/fridge/plan', async (request) => {
     const body = MealPlanSchema.parse(request.body);
-    return { plan: await generateMealPlan(request.ctx, body.items) };
+    const inventory = await saveInventory(request.ctx, body.items);
+
+    return { plan: await generateMealPlan(request.ctx, inventory.items), inventory };
   });
 
   app.get('/meals', async (request) => ({ meals: await mealsToday(request.ctx) }));

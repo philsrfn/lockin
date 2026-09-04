@@ -186,7 +186,12 @@ which is a separate question and lives on the profile.
 | POST | `/foods/scanned` | `{barcode, name, kcal, proteinG, …}` | `{food}` — 201 |
 | POST | `/foods/estimate` | `{text}` | `{estimate}`. A candidate to confirm, not a log entry. |
 | POST | `/fridge/read` | `{imageBase64, mimeType}` | `{items}`. Vision candidates; the photo is dropped. |
-| POST | `/fridge/plan` | `{items:[…confirmed]}` | `{plan}` against what is *left* of today |
+| POST | `/fridge/plan` | `{items:[…confirmed], confirmed: true}` | `{plan, inventory}` against what is *left* of today. Stores the confirmed list (§9 step 4) before planning from it. |
+
+The stored list is what the trainer's `generate_meal_plan` tool reads, so a
+plan asked for in chat comes from a fridge somebody actually confirmed. It goes
+stale after four days and the tool then refuses rather than cooking from food
+that has been eaten.
 
 ## The trainer
 

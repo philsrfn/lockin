@@ -70,7 +70,14 @@ export async function resetData(): Promise<void> {
   await pool.query('update users set apple_sub = null, approved_at = now() where id = 1');
 }
 
-/** Back to the seeded targets, for tests that move them. */
+/**
+ * Back to the fixture's targets, for tests that move them.
+ *
+ * These were the seeded values until the seed was neutralised for a public
+ * repo; they stayed here because a few hundred assertions are written against
+ * them. So this restores the fixture, not the seed — the two are allowed to
+ * differ, and only this file needs to know which is which.
+ */
 export async function resetProfile(): Promise<void> {
   await pool.query(
     `update profile

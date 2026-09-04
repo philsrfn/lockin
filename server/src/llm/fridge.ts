@@ -5,7 +5,7 @@
  * "User confirms/edits the list. Never generate a plan off an unconfirmed
  * vision pass — mis-detected ingredients produce plans he can't actually
  * cook." So vision returns candidates and stops; the plan is a separate call
- * that runs only against a list he has confirmed.
+ * that runs only against a list the athlete has confirmed.
  *
  * The photo is never stored. It is passed to the model and dropped.
  */
@@ -18,13 +18,13 @@ import { validateMealPlan } from '../rules/validator';
 import { listRules } from '../services/rules';
 import { activeContext } from '../services/contexts';
 import { macrosToday, mealsToday } from '../services/meals';
+import type { FridgeItem } from '../services/fridge';
 import { getProfile, macroTargets } from '../services/profile';
 
-export type FridgeItem = {
-  name: string;
-  estimatedQty: string;
-  confidence: 'low' | 'medium' | 'high';
-};
+// The shape belongs to the service that stores it, not to the layer that
+// happens to generate a first draft of it. Re-exported because half the
+// codebase already imports it from here.
+export type { FridgeItem };
 
 const VISION_SCHEMA = {
   type: 'object',
@@ -47,12 +47,12 @@ const VISION_SCHEMA = {
 
 const VISION_INSTRUCTION = `List the food you can actually see in this fridge or cupboard photo.
 
-Name things as a German shopper would. Give a rough quantity — he will correct
-it. Mark confidence honestly: a clearly readable Skyr tub is high, a vague
-container at the back is low.
+Name things as a German shopper would. Give a rough quantity — it will be
+corrected before anything is cooked. Mark confidence honestly: a clearly
+readable Skyr tub is high, a vague container at the back is low.
 
 Only list what you can see. Do not infer that a fridge "probably" has eggs. A
-mis-detected ingredient becomes a meal he cannot cook, which is worse than a
+mis-detected ingredient becomes a meal nobody can cook, which is worse than a
 short list.`;
 
 export async function readFridgePhoto(
@@ -134,12 +134,12 @@ const PLAN_SCHEMA = {
           proteinG: { type: 'integer' },
           fatG: { type: 'integer' },
           carbsG: { type: 'integer' },
-          method: { type: 'string', description: 'Two sentences at most. He can cook.' },
+          method: { type: 'string', description: 'Two sentences at most. They can cook.' },
         },
         required: ['name', 'slot', 'usesFromFridge', 'kcal', 'proteinG', 'fatG', 'carbsG', 'method'],
       },
     },
-    note: { type: 'string', description: 'One line. What this leaves him short of, if anything.' },
+    note: { type: 'string', description: 'One line. What this leaves them short of, if anything.' },
   },
   required: ['meals', 'note'],
 };
@@ -169,14 +169,14 @@ export async function generateMealPlan(ctx: Ctx, items: FridgeItem[]): Promise<M
 
   const brief = [
     `In the fridge: ${items.map((item) => `${item.name} (${item.estimatedQty})`).join(', ')}.`,
-    `He is in ${context?.name ?? 'an unknown city'}.`,
+    `They are in ${context?.name ?? 'an unknown place'}.`,
     logged.length
       ? `Already eaten today: ${logged.map((meal) => `${meal.slot} — ${meal.description} (${meal.proteinG ?? 0}g protein)`).join('; ')}.`
-      : 'He has not logged anything yet today.',
+      : 'They have not logged anything yet today.',
     eatenSlots.length
-      ? `Do NOT plan another ${eatenSlots.join(' or ')} — those are done. Plan only the slots he has left.`
+      ? `Do NOT plan another ${eatenSlots.join(' or ')} — those are done. Plan only the slots they have left.`
       : '',
-    `Remaining today: ${left.kcal} kcal, ${left.proteinG}g protein, and he still needs ${left.fatToFloorG}g fat to clear his floor.`,
+    `Remaining today: ${left.kcal} kcal, ${left.proteinG}g protein, and ${left.fatToFloorG}g fat still needed to clear the floor.`,
     'Plan only what is left of today, not a whole day.',
     'Rules you must respect:',
     ...active.map((rule) => `- [${rule.tier}] ${rule.text}`),
@@ -184,16 +184,16 @@ export async function generateMealPlan(ctx: Ctx, items: FridgeItem[]): Promise<M
     .filter(Boolean)
     .join('\n');
 
-  const instruction = `You plan food for Phil from what is actually in his fridge.
+  const instruction = `You plan food for this athlete from what is actually in their fridge.
 
 Cover what is LEFT of today, not a fresh day. Protein is the number that
 matters; calories are a ceiling, not a target to fill.
 
 Use what is in the list. You may assume salt, pepper, oil and basic spices.
-Anything else, do not use it — he cannot cook with ingredients he does not
+Anything else, do not use it — they cannot cook with ingredients they do not
 have.
 
-Keep the method to two sentences. He can cook, he does not need a recipe.
+Keep the method to two sentences. They can cook, they do not need a recipe.
 Never moralise about food.`;
 
   const ask = async (extra?: string): Promise<MealPlan> => {

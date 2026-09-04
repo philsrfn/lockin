@@ -170,6 +170,7 @@ const PHRASES = {
   toolDeactivateRule: { de: 'Regel abgeschaltet', en: 'turned off a rule' },
   toolGetToday: { de: 'heute nachgesehen', en: 'checked today' },
   toolGetHistory: { de: 'Historie gelesen', en: 'read your history' },
+  toolMealPlan: { de: 'aus dem Kühlschrank geplant', en: 'planned from your fridge' },
   chatPlaceholder: { de: 'Wie war es?', en: 'How did that feel?' },
 
   gProtein: { de: 'g Protein', en: 'g protein' },

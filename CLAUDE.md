@@ -234,10 +234,16 @@ Declared in `server/src/llm/tools.ts`, each mapping to a validated handler in
 | `adjust_calorie_target` | change daily kcal (validated, §7) |
 | `swap_exercise` | substitute within the same movement pattern |
 | `add_rule` / `deactivate_rule` | mutate the rules document |
+| `generate_meal_plan` | plan the rest of today from the confirmed fridge list |
+
+`generate_meal_plan` takes **no parameters**, and that is the safety property
+rather than an oversight: it plans from the list the athlete confirmed with
+their own hands, or it refuses. A parameter would let the model hand it a
+fridge, which is the mistake §9 exists to prevent, one step further back. It
+also refuses a list older than four days — see `domain/fridge.ts`.
 
 **Missing, and deliberately absent rather than half-built:**
-`generate_meal_plan` (the `/fridge/plan` route exists — the trainer just cannot
-call it) and `regenerate_week` (needs a stored week plan). See
+`regenerate_week`, which needs a stored week plan. See
 [docs/roadmap.md](docs/roadmap.md).
 
 Rule: any tool that writes returns the resulting state, so the model's next
@@ -306,7 +312,10 @@ concrete change, and the updated targets via tool calls.
 3. **The athlete confirms/edits the list.** Never generate a plan off an
    unconfirmed vision pass — mis-detected ingredients produce plans nobody can
    cook.
-4. Confirmed list → `fridge_inventory`
+4. Confirmed list → `fridge_inventory` (`services/fridge.ts`). This is the only
+   evidence the app has of what is in the fridge, so it is also what the
+   `generate_meal_plan` tool reads — the trainer can plan in chat, but only
+   from a list that went through somebody's hands.
 5. Plan runs against inventory + **remaining** macros for today (not the daily
    total) + active rules for the current context
 6. Validator pass (§5) → present

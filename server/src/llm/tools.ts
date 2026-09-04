@@ -192,6 +192,20 @@ export const TOOLS: ToolDeclaration[] = [
     },
   },
   {
+    name: 'generate_meal_plan',
+    description:
+      // No parameters on purpose. §9 exists because a mis-detected ingredient
+      // becomes a meal nobody can cook; letting the model pass an ingredient
+      // list would reintroduce exactly that, one step further back.
+      'Plan the rest of today\'s food from the fridge list the athlete last ' +
+      'confirmed, against the macros they have LEFT. You cannot supply the ' +
+      'ingredients — it reads the list they confirmed on the Fridge screen. ' +
+      'If it refuses because there is no list or the list is old, say so and ' +
+      'ask them to photograph the fridge again. If the result says mentionAge, ' +
+      'tell them how old the list is before you give them the plan.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
     name: 'deactivate_rule',
     description: 'Turn off a rule. Use get_today or ask him to identify which.',
     parameters: {

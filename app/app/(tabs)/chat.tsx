@@ -31,6 +31,7 @@ const TOOL_LABELS: Record<string, () => string> = {
   deactivate_rule: () => t('toolDeactivateRule'),
   get_today: () => t('toolGetToday'),
   get_history: () => t('toolGetHistory'),
+  generate_meal_plan: () => t('toolMealPlan'),
 };
 
 export default function ChatScreen() {

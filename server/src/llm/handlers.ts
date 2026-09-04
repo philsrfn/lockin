@@ -10,6 +10,10 @@
  */
 import type { Ctx } from '../db';
 import { HttpError } from '../errors';
+import { inventoryAge } from '../domain/fridge';
+import { generateMealPlan } from './fridge';
+import { latestInventory } from '../services/fridge';
+import { LlmError } from './provider';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
@@ -236,6 +240,45 @@ const HANDLERS: Record<
   async deactivate_rule(ctx, args) {
     return { ok: true, rule: await deactivateRule(ctx, Number(args.ruleId)), rules: await listRules(ctx) };
   },
+
+  /**
+   * The one handler that calls the model again inside a chat turn — the plan
+   * is generated, not looked up, so the athlete waits for two model calls
+   * (three if the §5 validator rejects the first plan and it is re-prompted).
+   * The chat client allows two minutes, which is enough.
+   *
+   * It takes no arguments, and that is the whole safety property: the model
+   * cannot hand it a fridge. It plans from the list the athlete confirmed with
+   * their own hands, or it refuses.
+   */
+  async generate_meal_plan(ctx) {
+    const inventory = await latestInventory(ctx);
+    if (!inventory) {
+      return fail(
+        'No fridge list has been confirmed yet',
+        'Ask them to photograph the fridge on the Fridge screen. Do not invent ingredients.',
+      );
+    }
+
+    const age = inventoryAge(new Date(inventory.capturedAt), new Date());
+    if (age.stale) {
+      return fail(
+        `The last fridge list is ${Math.round(age.hours / 24)} days old, which is too old to cook from`,
+        'Ask them to photograph the fridge again. Food that was there on the day is eaten by now.',
+      );
+    }
+
+    return {
+      ok: true,
+      plan: await generateMealPlan(ctx, inventory.items),
+      fridgeList: {
+        confirmedAt: inventory.capturedAt,
+        place: inventory.contextName,
+        ageHours: age.hours,
+        mentionAge: age.worthMentioning,
+      },
+    };
+  },
 };
 
 export async function runTool(ctx: Ctx, call: ToolCall): Promise<ToolOutcome> {
@@ -246,7 +289,13 @@ export async function runTool(ctx: Ctx, call: ToolCall): Promise<ToolOutcome> {
     return await handler(ctx, call.args);
   } catch (error) {
     // A tool failure is information for the trainer, not a crashed request.
-    const message = error instanceof HttpError ? error.message : 'Something went wrong';
+    // LlmError carries a message worth relaying — generate_meal_plan can fail
+    // because the model came back malformed, and "Something went wrong" would
+    // throw that away.
+    const message =
+      error instanceof HttpError || error instanceof LlmError
+        ? error.message
+        : 'Something went wrong';
     return fail(message);
   }
 }

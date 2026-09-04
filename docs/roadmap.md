@@ -10,23 +10,26 @@ Ordered by ratio of value to effort. Sizes are honest: **S** is an afternoon,
 
 ---
 
+## Done since this list was written
+
+**`generate_meal_plan` (2026-09-04).** The trainer can plan the rest of today
+from the fridge. Doing it turned up the reason it had never been done:
+`fridge_inventory` was in the schema and in the tenancy guard but **nothing
+ever wrote to it** — §9 step 4 was never built, and the Fridge screen posted
+its list straight to the planner from component state. So confirmation is
+durable now (`services/fridge.ts`), and the tool reads it.
+
+Two decisions worth knowing about. The tool takes **no parameters**, so the
+model cannot hand it a fridge — that is §9's whole point, expressed in the
+schema rather than in prompt wording. And a list goes stale after four days
+(`domain/fridge.ts`), because a list that was right on Tuesday describes food
+that was eaten on Wednesday.
+
+---
+
 ## Next
 
-### 1. `generate_meal_plan` as a tool — S
-
-The machinery is all there. `llm/fridge.ts:152` exports
-`generateMealPlan(ctx, items)` and `/fridge/plan` calls it. The trainer just
-cannot: it is not in `llm/tools.ts`, so "what can I cook tonight?" in chat does
-nothing, and the only way to a plan is through the Fridge screen.
-
-The work: read the latest `fridge_inventory` row for the athlete, declare the
-tool, dispatch to the existing function in `llm/handlers.ts`. The §5 validator
-already runs inside it.
-
-**Files:** `server/src/llm/tools.ts`, `server/src/llm/handlers.ts`,
-`server/src/services/` (a reader for the latest inventory).
-
-### 2. The pre-session reminder — S
+### 1. The pre-session reminder — S
 
 §8 lists five proactive triggers. Four exist (`morning_checkin`, `log_nudge`,
 `dinner_prompt`, `weekly_review`). The missing one is **30 minutes before a
@@ -40,7 +43,7 @@ fire time depends on the planned session rather than being a fixed hour.
 **Files:** `server/src/jobs/handlers.ts`, `server/src/jobs/scheduler.ts`,
 a migration for the schedule row.
 
-### 3. A TestFlight build carrying the redesign — S
+### 2. A TestFlight build carrying the redesign — S
 
 The last build is **17**, which predates the redesign, the weight line chart,
 the account avatar and the PPL fix. All of that is committed and the server
@@ -58,7 +61,7 @@ device.
 
 ## After that
 
-### 4. `regenerate_week` — M
+### 3. `regenerate_week` — M
 
 The other missing §6 tool, and genuinely bigger than the first: there is no
 stored week plan to regenerate. `services/week.ts` computes a week on read
@@ -69,7 +72,7 @@ Worth asking whether it should exist at all. The trainer can already swap an
 exercise, change a programme and adjust targets; "rebuild the coming week" may
 be a feature from the era when the week was a fixed A/B/C rotation.
 
-### 5. Row-level security — M, and careful
+### 4. Row-level security — M, and careful
 
 Deliberately deferred, with the reasoning and the four remaining steps written
 down in [tenancy.md](tenancy.md). It needs `FORCE ROW LEVEL SECURITY` and a
@@ -84,7 +87,7 @@ more. This is the largest known gap in the app.
 and pass everything through when it is absent protect only the paths that were
 already careful, while making the reads look covered.
 
-### 6. Gemini Pro access — S, but not code
+### 5. Gemini Pro access — S, but not code
 
 `GEMINI_MODEL_SMART` points at Flash because every Pro model 404s on the
 current key and `gemini-2.5-flash` is closed to new projects. The Sunday
@@ -93,7 +96,7 @@ weekly review is the most important job in the app (§8) and it wants Pro.
 This is a Cloud project problem, not a code one. Nothing needs changing but
 the env var, once the key can reach it.
 
-### 7. The generalisation pass missed the model-facing strings — S
+### 6. The generalisation pass missed the model-facing strings — S
 
 The app is multi-user; roughly forty tool descriptions, prompt lines and
 comments still call the athlete "he". `llm/tools.ts` alone has fifteen — *"Omit
@@ -111,9 +114,12 @@ athlete's portion estimate to one body, so it was a real defect and not only a
 leak. Better still would be passing the athlete's *own* targets into that
 prompt; it has a `Ctx` and does not use it.
 
-The rest was left rather than folded into a commit about documentation.
+`llm/fridge.ts` went the same way when the meal-plan tool was built — its
+vision and planning instructions both spoke about one man.
 
-### 8. The rate limiter's buckets are in memory — S
+The rest was left rather than folded into a commit about something else.
+
+### 7. The rate limiter's buckets are in memory — S
 
 Honest for one box, wrong for two. If the server is ever scaled or run
 alongside a second process, per-athlete limits and the daily token budget stop
@@ -162,7 +168,7 @@ Written down so nobody rediscovers them as gaps:
 | | |
 |---|---|
 | Account avatar tap | untested — simulator overlay covers it |
-| Model-facing strings | still say "he" for every athlete (item 7) |
+| Model-facing strings | still say "he" for every athlete (item 6) |
 | The rules editor sheet | placeholders are hardcoded English, not in `locale.ts` |
 | Rate limiter | in-memory, single process only |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |

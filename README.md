@@ -97,9 +97,9 @@ auto-starting rest timer, RIR chips, exercise swap filtered by movement
 pattern, and an RPE + joint-pain finish. **Offline-first**: a set is written to
 the phone's SQLite before the network is touched, and a queue drains it later.
 
-**The trainer** — full chat with twelve tools that mutate real state:
-context, weight, sets, sessions, cardio, meals, exercise swaps, target changes
-and rules.
+**The trainer** — full chat with thirteen tools that mutate real state:
+context, weight, sets, sessions, cardio, meals, exercise swaps, target changes,
+rules, and a meal plan built from the fridge you last photographed.
 
 **Food** — quick-add tiles for your actual staples, then recents, then your own
 library, then manual entry. No general nutrition database; the library grows by
@@ -126,10 +126,9 @@ Sign in with a token or with Apple. Both resolve to the same row.
 
 ## Not yet
 
-Two of the fourteen tools are absent rather than half-built:
-`generate_meal_plan` (the route exists — the trainer just cannot call it) and
-`regenerate_week` (needs a stored week plan). There is no pre-session reminder,
-no voice mode, and no row-level security — that last one is
+One of the fourteen tools is absent rather than half-built: `regenerate_week`,
+which needs a stored week plan. There is no pre-session reminder, no voice
+mode, and no row-level security — that last one is
 [reasoned through](docs/tenancy.md) rather than forgotten.
 
 The full list, in the order it should be done, is

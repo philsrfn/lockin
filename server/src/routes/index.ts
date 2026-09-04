@@ -76,6 +76,7 @@ import { estimateFood } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
 import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
 import { saveInventory } from '../services/fridge';
+import { trainingHistory } from '../services/history';
 import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
@@ -327,6 +328,18 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const query = z.object({ days: z.coerce.number().int().min(7).max(365).default(90) })
       .parse(request.query);
     return progress(request.ctx, query.days);
+  });
+
+  /**
+   * Past training, grouped into the athlete's own days. One request rather
+   * than a list call plus a detail call per row: the sets are already loaded
+   * to summarise them, so sending them costs nothing and means tapping a
+   * session opens instantly instead of waiting on gym wifi.
+   */
+  app.get('/history', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) })
+      .parse(request.query);
+    return trainingHistory(request.ctx, query.days);
   });
 
   app.get('/sessions', async (request) => {

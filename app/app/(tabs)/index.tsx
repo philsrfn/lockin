@@ -133,6 +133,7 @@ export default function TodayScreen() {
             <View style={styles.links}>
               {(
                 [
+                  ['/history', t('history')],
                   ['/progress', t('progress')],
                   ['/rules', t('rules')],
                 ] as const

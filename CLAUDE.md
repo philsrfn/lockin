@@ -378,6 +378,11 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
 - **Weight** — one number pad, three seconds. The 7-day average is the
   headline, and the chart is a line in a coordinate system: the average is the
   line, daily weigh-ins are dots.
+- **History** — what was actually done, newest first, grouped into the
+  athlete's own days with lifts and cardio interleaved. Sets expand in place
+  rather than opening a detail screen: the list already carries them, so it
+  works with no signal. Progress answers whether the numbers are going up;
+  this answers what happened, which is the question asked more often.
 - **Rules** — the §5 editor, three tiered lists, scope selector. Only rules.
 - **Account** — profile, language, programme, Apple ID, Health, sign out,
   admin pairing.

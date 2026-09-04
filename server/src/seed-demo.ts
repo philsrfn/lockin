@@ -112,7 +112,7 @@ async function main() {
       'select id, name from contexts order by id',
     );
     const homeId = contextRows.find((c) => c.name === 'Home')?.id ?? 1;
-    const munsterId = contextRows.find((c) => c.name === 'Münster')?.id ?? homeId;
+    const secondCityId = contextRows.find((c) => c.name === 'City A')?.id ?? homeId;
 
     // --- training: three sessions a week, one week missed to look human
     let sessionIndex = 0;
@@ -129,7 +129,7 @@ async function main() {
       if (day === 0) continue;
 
       const template = TEMPLATES[sessionIndex % 3]!;
-      const context = weeksAgo === 4 ? munsterId : homeId;
+      const context = weeksAgo === 4 ? secondCityId : homeId;
       // One isolated joint-pain flag: shows the feature without tripping the
       // two-consecutive rule that cuts load and sends him to a doctor.
       const jointPain = day === 26;

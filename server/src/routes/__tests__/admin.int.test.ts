@@ -275,7 +275,7 @@ describe('letting people in and out', () => {
 
     const body = (await data()).json();
 
-    expect(body.actions[0]).toMatchObject({ actor: 'Phil', action: 'revoke' });
+    expect(body.actions[0]).toMatchObject({ actor: 'Athlete', action: 'revoke' });
   });
 });
 

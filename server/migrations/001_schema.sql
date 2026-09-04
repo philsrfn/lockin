@@ -13,7 +13,7 @@ create table profile (
   constraint profile_is_singleton check (id = 1)
 );
 
--- Home / Münster / Mannheim / Leipzig
+-- The athlete's places: home, and wherever else they train
 create table contexts (
   id            serial primary key,
   name          text not null unique,

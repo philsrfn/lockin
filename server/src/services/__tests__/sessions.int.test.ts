@@ -44,12 +44,12 @@ describe('createSession', () => {
   });
 
   it('honours an explicit context over the active one', async () => {
-    const leipzig = await contextIdByName('Leipzig');
+    const leipzig = await contextIdByName('City C');
 
     const session = await createSession(phil, { template: 'B', contextId: leipzig });
 
     expect(session.contextId).toBe(leipzig);
-    expect(session.contextName).toBe('Leipzig');
+    expect(session.contextName).toBe('City C');
   });
 
   it('leaves the context null when nothing is active', async () => {

@@ -102,7 +102,7 @@ export async function logCardio(
     throw badRequest('RPE must be between 1 and 10');
   }
 
-  // The place, so the trainer knows a run in Leipzig from one at home.
+  // The place, so the trainer knows a run away from one at home.
   const context = await activeContext(ctx);
 
   const { rows } = await ctx.db.query<Row>(

@@ -38,12 +38,15 @@ export const TOOLS: ToolDeclaration[] = [
   {
     name: 'set_context',
     description:
-      'Switch the active city. Home, Münster, Mannheim or Leipzig. Do this as ' +
-      'soon as he mentions he is somewhere else — the food rules and the gym ' +
-      'depend on it.',
+      // The places are the athlete's own and differ per account, so this
+      // cannot name them. They are listed in the CURRENT CONTEXT block of the
+      // system instruction; match what the athlete says against that.
+      'Switch the active place. Use one of the names listed in the context ' +
+      'block. Do this as soon as they mention they are somewhere else — the ' +
+      'food rules and the equipment depend on it.',
     parameters: {
       type: 'object',
-      properties: { name: str('Home, Münster, Mannheim or Leipzig') },
+      properties: { name: str('The place name, exactly as the context block spells it') },
       required: ['name'],
     },
   },

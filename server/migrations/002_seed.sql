@@ -1,24 +1,30 @@
 -- Seed data per CLAUDE.md §4 "Seed data" and §5 "Rules".
 
+-- Placeholder numbers. The first account overwrites all of them during
+-- onboarding, which computes targets from the body actually in front of it
+-- (services/onboarding.ts). Nothing downstream reads these as defaults.
 insert into profile (id, height_cm, goal_weight_kg, calorie_target, protein_target_g, fat_floor_g)
-values (1, 191, 80, 2300, 190, 70);
+values (1, 180, 75, 2200, 165, 65);
 
--- All four contexts are gym-capable: Hansefit BEST is unlimited nationwide
--- check-ins. Only Home changes the food picture.
+-- Four places, because the athlete this was first built for trained in four
+-- cities and the whole point of a context is that equipment and food change
+-- with the city. The names are placeholders — everyone renames them, and a
+-- second account seeds Home alone. All four are gym-capable; only Home
+-- changes the food picture.
 insert into contexts (name, equipment, food_profile, is_active) values
   ('Home',
    '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}',
    '{"dinner": "moms_food_half_plus_protein"}',
    true),
-  ('Münster',
+  ('City A',
    '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}',
    '{"dinner": "own"}',
    false),
-  ('Mannheim',
+  ('City B',
    '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}',
    '{"dinner": "own"}',
    false),
-  ('Leipzig',
+  ('City C',
    '{"gym": true, "partner": "hansefit", "notes": "Hansefit BEST — unlimited nationwide check-ins"}',
    '{"dinner": "own"}',
    false);

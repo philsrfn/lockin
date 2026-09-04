@@ -227,16 +227,16 @@ describe('settings and rules', () => {
   });
 
   it('switches only your own city', async () => {
-    const leipzig = await contextIdByName('Leipzig');
+    const leipzig = await contextIdByName('City C');
 
     await expect(activateContext(sam, leipzig)).rejects.toMatchObject({ statusCode: 404 });
     expect((await activeContext(phil))?.name).toBe('Home');
   });
 
   it('keeps two people\'s active contexts independent', async () => {
-    await activateContext(phil, await contextIdByName('Leipzig'));
+    await activateContext(phil, await contextIdByName('City C'));
 
-    expect((await activeContext(phil))?.name).toBe('Leipzig');
+    expect((await activeContext(phil))?.name).toBe('City C');
     expect((await activeContext(sam))?.name).toBe('Home');
   });
 });

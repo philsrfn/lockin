@@ -59,7 +59,7 @@ function dayWith(meals: MealPlanDay['meals']): MealPlanDay {
 
 describe('the Skyr rule', () => {
   it('passes a breakfast that is Skyr, berries and oats', () => {
-    const violations = validateMealPlan(dayWith([skyrBreakfast]), RULES, 'Münster');
+    const violations = validateMealPlan(dayWith([skyrBreakfast]), RULES, 'City A');
     expect(violations.filter((v) => v.code === 'breakfast_skyr')).toHaveLength(0);
   });
 
@@ -69,7 +69,7 @@ describe('the Skyr rule', () => {
         { slot: 'breakfast', description: 'Scrambled eggs and toast', kcal: 500, proteinG: 30 },
       ]),
       RULES,
-      'Münster',
+      'City A',
     );
     const violation = violations.find((v) => v.code === 'breakfast_skyr');
     expect(violation).toBeDefined();
@@ -82,7 +82,7 @@ describe('the Skyr rule', () => {
     const violations = validateMealPlan(
       dayWith([{ slot: 'breakfast', description: '500g Skyr with berries', kcal: 400, proteinG: 50 }]),
       RULES,
-      'Münster',
+      'City A',
     );
     expect(violations.find((v) => v.code === 'breakfast_skyr')?.message).toMatch(/oats/i);
   });
@@ -91,7 +91,7 @@ describe('the Skyr rule', () => {
     const violations = validateMealPlan(
       dayWith([{ slot: 'breakfast', description: '500g Skyr and 40g oats', kcal: 450, proteinG: 52 }]),
       RULES,
-      'Münster',
+      'City A',
     );
     expect(violations.find((v) => v.code === 'breakfast_skyr')?.message).toMatch(/berries/i);
   });
@@ -102,7 +102,7 @@ describe('the Skyr rule', () => {
         { slot: 'breakfast', description: '500g Skyr mit Beeren und 40g Haferflocken', kcal: 520, proteinG: 55 },
       ]),
       RULES,
-      'Münster',
+      'City A',
     );
     expect(violations.filter((v) => v.code === 'breakfast_skyr')).toHaveLength(0);
   });
@@ -111,7 +111,7 @@ describe('the Skyr rule', () => {
     const violations = validateMealPlan(
       dayWith([{ slot: 'lunch', description: 'Soy chunk bowl', kcal: 700, proteinG: 60 }]),
       RULES,
-      'Münster',
+      'City A',
     );
     expect(violations.find((v) => v.code === 'breakfast_skyr')).toBeDefined();
   });
@@ -142,14 +142,14 @@ describe('the Home dinner rule', () => {
     expect(violations.find((v) => v.code === 'home_dinner_moms_food')).toBeDefined();
   });
 
-  it('does not apply in Leipzig, because the rule is scoped to Home', () => {
+  it('does not apply in City C, because the rule is scoped to Home', () => {
     const violations = validateMealPlan(
       dayWith([
         skyrBreakfast,
         { slot: 'dinner', description: 'Chicken and rice', kcal: 700, proteinG: 55 },
       ]),
       RULES,
-      'Leipzig',
+      'City C',
     );
     expect(violations.filter((v) => v.code === 'home_dinner_moms_food')).toHaveLength(0);
   });
@@ -176,7 +176,7 @@ describe('the protein floor', () => {
         { slot: 'lunch', description: 'Salad', kcal: 300, proteinG: 10 },
       ]),
       RULES,
-      'Münster',
+      'City A',
     );
     const violation = violations.find((v) => v.code === 'min_daily_protein');
     expect(violation).toBeDefined();

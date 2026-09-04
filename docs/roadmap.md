@@ -93,7 +93,27 @@ weekly review is the most important job in the app (§8) and it wants Pro.
 This is a Cloud project problem, not a code one. Nothing needs changing but
 the env var, once the key can reach it.
 
-### 7. The rate limiter's buckets are in memory — S
+### 7. The generalisation pass missed the model-facing strings — S
+
+The app is multi-user; roughly forty tool descriptions, prompt lines and
+comments still call the athlete "he". `llm/tools.ts` alone has fifteen — *"Omit
+if he did not say"*, *"What he ate, in his words"*, *"when it came off his
+mother's stove"*. `llm/coach.ts` and `llm/context.ts` have more.
+
+This is not cosmetic. Those strings are what Gemini reads, so every athlete's
+trainer is currently told, in the tool schema, that its athlete is a man.
+
+The public-repo cleanup fixed the ones that also leaked personal data:
+`set_context`, which enumerated four cities; the trainer persona's HOW YOU WORK
+block; and `llm/food.ts`, whose macro estimator opened by telling the model the
+athlete was 191 cm and cutting on 2300 kcal — that one was anchoring every
+athlete's portion estimate to one body, so it was a real defect and not only a
+leak. Better still would be passing the athlete's *own* targets into that
+prompt; it has a `Ctx` and does not use it.
+
+The rest was left rather than folded into a commit about documentation.
+
+### 8. The rate limiter's buckets are in memory — S
 
 Honest for one box, wrong for two. If the server is ever scaled or run
 alongside a second process, per-athlete limits and the daily token budget stop
@@ -142,6 +162,8 @@ Written down so nobody rediscovers them as gaps:
 | | |
 |---|---|
 | Account avatar tap | untested — simulator overlay covers it |
+| Model-facing strings | still say "he" for every athlete (item 7) |
+| The rules editor sheet | placeholders are hardcoded English, not in `locale.ts` |
 | Rate limiter | in-memory, single process only |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |
 | Last TestFlight build | 17, predates the redesign |

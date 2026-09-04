@@ -471,6 +471,14 @@ real data going back to September 2026.
 - Migrations run in filename order and are recorded in `schema_migrations`.
   They are never edited after they have run anywhere real — write a new one.
 
+The one edit that has been made to an applied migration: `002_seed.sql` and
+`011_users.sql` had their *seed values* neutralised when this repo went public
+— one person's body measurements, cities and name should not be the default
+every fresh install starts from. That was safe only because the runner keys on
+filename with no checksum, so nothing re-ran, and because it changed no schema.
+It is the exception that shows the rule's shape: a seed value a fresh database
+has not yet read is not the same thing as a column production depends on.
+
 ---
 
 ## 16. Making a change

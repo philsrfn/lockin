@@ -15,8 +15,8 @@
  *   it is no number at all.
  *
  * The estimate is never written straight to the log: it comes back as a
- * candidate the app shows him to confirm or correct, the same principle §9
- * applies to the fridge photo. A guess he has agreed with is data. A guess
+ * candidate the app shows them to confirm or correct, the same principle §9
+ * applies to the fridge photo. A guess they have agreed with is data. A guess
  * written silently is corruption.
  */
 import type { Ctx } from '../db';
@@ -29,7 +29,7 @@ export type FoodEstimate = {
   proteinG: number;
   fatG: number;
   carbsG: number;
-  /** low = he should really check this before saving. */
+  /** low = they should really check this before saving. */
   confidence: 'low' | 'medium' | 'high';
   assumptions: string;
 };
@@ -39,7 +39,7 @@ const SCHEMA = {
   properties: {
     name: {
       type: 'string',
-      description: 'A short label for the log, in the language he wrote in. Under 60 characters.',
+      description: 'A short label for the log, in the language they wrote in. Under 60 characters.',
     },
     kcal: { type: 'integer', description: 'Total calories for the whole portion described' },
     proteinG: { type: 'integer', description: 'Total protein in grams' },
@@ -49,26 +49,37 @@ const SCHEMA = {
       type: 'string',
       enum: ['low', 'medium', 'high'],
       description:
-        'high when he gave weights or a standard packaged item; low when the portion is genuinely unclear',
+        'high when they gave weights or a standard packaged item; low when the portion is genuinely unclear',
     },
     assumptions: {
       type: 'string',
       description:
-        'One short sentence naming the portion you assumed, so he can correct it. Empty if he was specific.',
+        'One short sentence naming the portion you assumed, so they can correct it. ' +
+        'Empty if they were specific.',
     },
   },
   required: ['name', 'kcal', 'proteinG', 'fatG', 'carbsG', 'confidence', 'assumptions'],
 };
 
-const INSTRUCTION = `You estimate the macros of food a German lifter describes in one line.
+/**
+ * Deliberately says nothing about whose food this is.
+ *
+ * It used to open with one athlete's height and calorie target, which was
+ * true when there was one athlete and became a bias the moment there were
+ * more: every estimate was anchored to a 191 cm man's portions regardless of
+ * who was logging. Body-specific anchoring belongs in the athlete's own
+ * context, not in a constant — and the honest default for an unknown person
+ * is a portion, not a person.
+ */
+const INSTRUCTION = `You estimate the macros of food a lifter describes in one line.
 
-He is 191cm, cutting on 2300 kcal and 190g protein a day, and logs on his phone
-between other things. He writes in English or German, often both in one line.
+They log on their phone between other things, and write in English or German,
+often both in one line.
 
-Estimate the WHOLE portion he described, not per 100g. If he gave a weight, use
-it. If he did not, assume the portion a hungry adult man actually eats — not a
-packet's serving suggestion — and say what you assumed in one short sentence so
-he can correct it.
+Estimate the WHOLE portion they described, not per 100g. If they gave a weight,
+use it. If they did not, assume the portion an adult training hard actually
+eats — not a packet's serving suggestion — and say what you assumed in one
+short sentence so they can correct it.
 
 Be honest about confidence. "200g chicken breast" is high. "some pasta with
 sauce" is low, and saying so is more useful than a confident wrong number.

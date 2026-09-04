@@ -109,14 +109,14 @@ describe('profile', () => {
 });
 
 describe('contexts', () => {
-  it('seeds the four cities with Home active', async () => {
+  it('seeds four places with Home active', async () => {
     const contexts = await listContexts(phil);
 
     expect(contexts.map((context) => context.name)).toEqual([
       'Home',
-      'Münster',
-      'Mannheim',
-      'Leipzig',
+      'City A',
+      'City B',
+      'City C',
     ]);
     expect((await activeContext(phil))?.name).toBe('Home');
   });
@@ -128,9 +128,9 @@ describe('contexts', () => {
   });
 
   it('switching city leaves exactly one active, never two and never none', async () => {
-    const contexts = await activateContext(phil, await contextIdByName('Leipzig'));
+    const contexts = await activateContext(phil, await contextIdByName('City C'));
 
-    expect(contexts.filter((context) => context.isActive).map((c) => c.name)).toEqual(['Leipzig']);
+    expect(contexts.filter((context) => context.isActive).map((c) => c.name)).toEqual(['City C']);
   });
 
   it('404s on a city that does not exist, leaving the active one alone', async () => {
@@ -160,7 +160,7 @@ describe('places he trains', () => {
   });
 
   it('refuses a name he already uses', async () => {
-    await expect(createContext(phil, { name: 'Leipzig' })).rejects.toMatchObject({
+    await expect(createContext(phil, { name: 'City C' })).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -169,10 +169,10 @@ describe('places he trains', () => {
     // The trainer reads foodProfile.dinner. A rename must not lose it.
     const before = (await listContexts(phil)).find((context) => context.name === 'Home')!;
 
-    const after = await updateContext(phil, before.id, { name: 'Münster (Mama)' });
+    const after = await updateContext(phil, before.id, { name: 'City A (renamed)' });
 
     const renamed = after.find((context) => context.id === before.id);
-    expect(renamed?.name).toBe('Münster (Mama)');
+    expect(renamed?.name).toBe('City A (renamed)');
     expect(renamed?.foodProfile).toEqual({ dinner: 'moms_food_half_plus_protein' });
   });
 
@@ -194,7 +194,7 @@ describe('places he trains', () => {
   });
 
   it('archives rather than deletes, so old sessions keep their city', async () => {
-    const leipzig = await contextIdByName('Leipzig');
+    const leipzig = await contextIdByName('City C');
 
     const after = await archiveContext(phil, leipzig);
 
@@ -204,10 +204,10 @@ describe('places he trains', () => {
   });
 
   it('frees the name once a place is archived', async () => {
-    await archiveContext(phil, await contextIdByName('Leipzig'));
+    await archiveContext(phil, await contextIdByName('City C'));
 
-    const after = await createContext(phil, { name: 'Leipzig' });
-    expect(after.filter((context) => context.name === 'Leipzig')).toHaveLength(1);
+    const after = await createContext(phil, { name: 'City C' });
+    expect(after.filter((context) => context.name === 'City C')).toHaveLength(1);
   });
 
   it('hands the active flag on rather than leaving nowhere to train', async () => {
@@ -220,7 +220,7 @@ describe('places he trains', () => {
   });
 
   it('will not archive the only place he has', async () => {
-    for (const name of ['Münster', 'Mannheim', 'Leipzig']) {
+    for (const name of ['City A', 'City B', 'City C']) {
       await archiveContext(phil, await contextIdByName(name));
     }
 
@@ -256,9 +256,9 @@ describe('rules', () => {
   });
 
   it('scopes a rule to one city when asked', async () => {
-    const result = await addRule(phil, { tier: 'soft', text: 'Gym closes at 22:00', scope: 'Leipzig' });
+    const result = await addRule(phil, { tier: 'soft', text: 'Gym closes at 22:00', scope: 'City C' });
 
-    expect(result.rule.scope).toBe('Leipzig');
+    expect(result.rule.scope).toBe('City C');
   });
 
   it.each([
@@ -282,12 +282,12 @@ describe('rules', () => {
   });
 
   it('edits wording without restating the rest', async () => {
-    const added = await addRule(phil, { tier: 'soft', text: 'Prefer oat milk', scope: 'Leipzig' });
+    const added = await addRule(phil, { tier: 'soft', text: 'Prefer oat milk', scope: 'City C' });
 
     const updated = await updateRule(phil, added.rule.id, { text: 'Prefer oat milk in coffee' });
 
     expect(updated.text).toBe('Prefer oat milk in coffee');
-    expect(updated.scope).toBe('Leipzig');
+    expect(updated.scope).toBe('City C');
     expect(updated.tier).toBe('soft');
   });
 

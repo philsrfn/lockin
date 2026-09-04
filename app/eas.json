@@ -15,18 +15,12 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m-medium"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://139-59-146-230.sslip.io"
       }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
         "resourceClass": "m-medium"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://139-59-146-230.sslip.io"
       }
     }
   },

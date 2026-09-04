@@ -201,7 +201,7 @@ function RuleSheet({
           <TextInput
             value={scope}
             onChangeText={setScope}
-            placeholder="Only in one city? Home, Münster… (optional)"
+            placeholder="Only in one place? Name it (optional)"
             placeholderTextColor={colors.textFaint}
             style={styles.input}
           />

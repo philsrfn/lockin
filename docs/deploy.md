@@ -91,7 +91,23 @@ Postgres backups.
 ## App
 
 The bundle ships with **no** bearer token — it is entered once on first launch
-and stored in the iOS keychain. So there is no secret to configure in EAS.
+and stored in the iOS keychain.
+
+The backend's address is **not** in `eas.json`. The repo is public, and a
+committed hostname is a standing invitation to probe it, so the value lives as
+an EAS environment variable and is injected at build time:
+
+```sh
+eas env:list production                       # what a build will see
+eas env:set --name EXPO_PUBLIC_API_URL \
+  --value https://YOUR_DOMAIN \
+  --environment production --environment preview \
+  --visibility sensitive --scope project --type string
+```
+
+Set it before the first build on a new EAS project, or the app ships with no
+server configured and asks every user to type a hostname on first launch. It is
+already set for `@philserafin/lockin`.
 
 ```sh
 npm i -g eas-cli

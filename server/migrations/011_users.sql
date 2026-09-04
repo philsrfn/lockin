@@ -23,7 +23,7 @@ create table users (
 
 -- The athlete this database was built for. Keeping id 1 means every backfill
 -- below is a constant, and his phone's token keeps working.
-insert into users (id, name) values (1, 'Phil');
+insert into users (id, name) values (1, 'Athlete');
 select setval(pg_get_serial_sequence('users', 'id'), 1, true);
 
 -- Owned tables. exercises is deliberately absent: it is a catalog of movements,

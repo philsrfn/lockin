@@ -113,3 +113,16 @@ export function dateRange(fromIso: string, toIso: string): string {
 
   return `${shortDate(fromIso)} – ${shortDate(toIso)}`;
 }
+
+/**
+ * A name, as one or two letters for an avatar. Falls back to a person glyph
+ * rather than to a blank circle, which reads as a loading state.
+ */
+export function initials(name: string | null): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '•';
+
+  const first = parts[0]![0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]![0] ?? '') : '';
+  return (first + last).toUpperCase();
+}

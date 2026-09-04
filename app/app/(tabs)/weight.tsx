@@ -8,7 +8,7 @@ import type { WeightSummary } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { Screen } from '../../src/components/Screen';
-import { Sparkline } from '../../src/components/Sparkline';
+import { WeightChart } from '../../src/components/WeightChart';
 import { kg, shortDate, signedKg } from '../../src/lib/format';
 import { t } from '../../src/lib/locale';
 import { colors, radius, space, type as typo } from '../../src/theme';
@@ -125,7 +125,7 @@ export default function WeightScreen() {
           </View>
         </View>
 
-        {data ? <Sparkline series={data.series} height={64} /> : null}
+        {data ? <WeightChart series={data.series} /> : null}
 
         <Text style={styles.footnote}>{t('weightFootnote')}</Text>
       </Card>

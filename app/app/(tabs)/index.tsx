@@ -20,7 +20,7 @@ import { CardioSheet } from '../../src/components/CardioSheet';
 import { FoodCapture } from '../../src/components/FoodCapture';
 import { WeekPager } from '../../src/components/WeekPager';
 import { SessionPreview } from '../../src/components/SessionPreview';
-import { greeting, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
+import { greeting, initials, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
 import { t } from '../../src/lib/locale';
 import { caps, colors, radius, space, type as typo } from '../../src/theme';
@@ -104,8 +104,28 @@ export default function TodayScreen() {
         }
       >
         <View style={styles.masthead}>
-          <Text style={styles.greeting}>{greeting(profile.name)}</Text>
-          <Text style={styles.date}>{longDate(date)}</Text>
+          <View style={styles.titleRow}>
+            <View style={styles.titleText}>
+              <Text style={styles.greeting} numberOfLines={1}>
+                {greeting(profile.name)}
+              </Text>
+              <Text style={styles.date}>{longDate(date)}</Text>
+            </View>
+            {/*
+              Where every app keeps the account, and the one place an icon
+              beats a word: a name in a circle is recognised without reading,
+              and it frees the row below for the two places you actually go.
+            */}
+            <Pressable
+              onPress={() => router.push('/account')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('accountTitle')}
+              style={({ pressed }) => [styles.avatar, pressed && styles.chipOn]}
+            >
+              <Text style={styles.avatarText}>{initials(profile.name)}</Text>
+            </Pressable>
+          </View>
           <View style={styles.mastheadRow}>
             <ContextChip context={context} onChanged={today.reload} />
             {/* Chips rather than spaced small caps: three words in a row at
@@ -115,7 +135,6 @@ export default function TodayScreen() {
                 [
                   ['/progress', t('progress')],
                   ['/rules', t('rules')],
-                  ['/account', t('accountTab')],
                 ] as const
               ).map(([href, label]) => (
                 <Pressable
@@ -361,6 +380,18 @@ const styles = StyleSheet.create({
   centre: { alignItems: 'center', justifyContent: 'center', gap: space.lg, padding: space.lg },
 
   masthead: { gap: space.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  titleText: { flex: 1 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  avatarText: { fontSize: 15, fontWeight: '600', color: colors.textDim, letterSpacing: 0.3 },
   greeting: { fontSize: 26, fontWeight: '300', color: colors.text, letterSpacing: -0.6 },
   date: { fontSize: 14, color: colors.textFaint, letterSpacing: 0.3, marginBottom: space.xs },
   mastheadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

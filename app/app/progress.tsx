@@ -5,7 +5,7 @@ import { ApiError, api } from '../src/api/client';
 import type { ExerciseProgress, Progress, WeeklyReview, WeightSummary } from '../src/api/types';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
-import { Sparkline } from '../src/components/Sparkline';
+import { WeightChart } from '../src/components/WeightChart';
 import { kg, shortDate, signedKg } from '../src/lib/format';
 import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
@@ -111,7 +111,7 @@ export default function ProgressScreen() {
                 <Text style={styles.dim}>{t('thisWeekLower')}</Text>
               </View>
             </View>
-            <Sparkline series={weight.series} height={72} />
+            <WeightChart series={weight.series} />
             {weight.goalWeightKg ? (
               <Text style={styles.footnote}>
                 {kg(weight.average7.avgKg - weight.goalWeightKg)} kg {t('aboveGoal')}{' '}

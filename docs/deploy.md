@@ -66,6 +66,26 @@ Syncs the source, builds the image on the box, and waits for
 `https://YOUR_DOMAIN/health`. Migrations run on boot and are tracked, so this
 is safe to re-run for every future deploy.
 
+**`Broken pipe` during the build is not a failed deploy.** The current box has
+961 MB of RAM, and `docker build` takes enough of it that sshd cannot fork for
+a minute or two — the connection dies, the script reports a broken pipe, and
+the build carries on to completion on the server without you. Port 22 comes
+back on its own within a minute.
+
+Do not re-run the deploy to "fix" it, and do not hammer SSH while it is down.
+Wait, reconnect once, and check what actually happened:
+
+```sh
+ssh root@YOUR_IP 'cd /opt/lockin/deploy && docker compose -f docker-compose.prod.yml ps'
+ssh root@YOUR_IP 'cd /opt/lockin/deploy && docker compose -f docker-compose.prod.yml \
+  exec -T db psql -U lockin -d lockin -tAc \
+  "select filename from schema_migrations order by filename desc limit 3;"'
+```
+
+An `api` container a few minutes old and your newest migration at the top of
+that list means it worked. The real fix is a bigger box or building the image
+somewhere else and pushing it to a registry; neither is worth it yet.
+
 **Useful afterwards**
 
 ```sh

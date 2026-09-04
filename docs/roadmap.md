@@ -40,7 +40,9 @@ body, writing the day's note threw a constraint violation — a 500 on the Today
 screen's coach card, and a morning check-in silently falling back to its
 generic headline every day. Migration 026 drops the constraint; the day codes
 are validated against the athlete's actual programme, which is where they
-belong. **This needs deploying to take effect for anyone.**
+belong. **Deployed 2026-09-04**; verified against production, where both
+athletes are on Push / Pull / Legs and the last stored note was from the day
+before the switch.
 
 ---
 
@@ -176,3 +178,4 @@ Written down so nobody rediscovers them as gaps:
 | Rate limiter | in-memory, single process only |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |
 | Last TestFlight build | 17, predates the redesign |
+| The server has 961 MB | a docker build starves sshd; see deploy.md |

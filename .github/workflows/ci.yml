@@ -1,0 +1,62 @@
+# The three checks CONTRIBUTING.md asks for before every commit, run again here
+# so nobody has to be trusted to have run them.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: server — tests and typecheck
+    runs-on: ubuntu-latest
+
+    # The integration suite runs against a real Postgres: the services layer is
+    # the only write path in the app, so testing it against a mock would test
+    # the mock.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lockin
+          POSTGRES_PASSWORD: lockin
+          POSTGRES_DB: lockin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lockin -d lockin"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      # 5432 here, not the 5433 used locally — nothing else is running on this
+      # box. The suite creates its own scratch databases beside this one.
+      TEST_DATABASE_URL: postgres://lockin:lockin@localhost:5432/lockin
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm --prefix server ci
+      - run: npm --prefix server run typecheck
+      - run: npm --prefix server test
+
+  app:
+    name: app — typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm --prefix app ci
+      - run: npm --prefix app run typecheck

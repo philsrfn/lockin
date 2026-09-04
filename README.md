@@ -1,135 +1,177 @@
 # lockin
 
-Personal trainer app. One user. See [CLAUDE.md](CLAUDE.md) for the full spec.
+An AI personal trainer that knows your body, your schedule, the places you
+train, your food rules and your training history — talks to you continuously,
+and actually changes your plan.
 
-**Phase 1** is the skeleton: Postgres, a Fastify API, deterministic double
-progression, and an Expo app with Today, the workout logger, and Weight.
-Offline-first where it matters — a set is written to the phone before the
-network is touched.
+It started as one man's app. It is now multi-user, but it is still not a
+product: a handful of people use it, every day, and it is built for that rather
+than for scale.
 
-**Phase 2** is the trainer. Gemini decides what today *is* — lift, treadmill or
-rest — and talks to him through a tool set that mutates real state. It does not
-decide a single load: those stay in tested code.
+**The design in one line:** code decides every number that matters, the model
+decides everything else, and the model can only act through tools that write to
+Postgres.
+
+---
 
 ## Running it
 
-```sh
-cp .env.example .env          # then set APP_BEARER_TOKEN: openssl rand -hex 32
+Node 20+, Docker, and a Mac with Xcode for the app.
+
+```bash
+cp .env.example .env          # set APP_BEARER_TOKEN: openssl rand -hex 32
 docker compose up -d db       # Postgres 16 on host port 5433
 npm --prefix server install
 npm --prefix server run migrate:dev
 npm --prefix server run dev   # http://localhost:3000
 ```
 
-Postgres binds host port **5433**, not 5432, because this machine already runs
-another Postgres. Override with `POSTGRES_PORT` in `.env`.
+Postgres binds host port **5433**, not 5432, because the machine this was
+written on already runs another Postgres. Override with `POSTGRES_PORT`.
 
-Then the app:
+Give yourself an athlete to be, then start the app:
 
-```sh
-cp app/.env.example app/.env  # EXPO_PUBLIC_API_TOKEN must match APP_BEARER_TOKEN
+```bash
+npm --prefix server run user:create -- --name Sam --timezone Europe/Berlin
+cp app/.env.example app/.env  # EXPO_PUBLIC_API_TOKEN = the token it printed
 npm --prefix app install
 npm --prefix app run ios
 ```
 
-On a real phone rather than the simulator, set `EXPO_PUBLIC_API_URL` to the
-Mac's LAN address — `localhost` means the phone itself.
+On a real phone rather than the simulator, `EXPO_PUBLIC_API_URL` must be the
+Mac's LAN address — `localhost` on a phone means the phone.
 
-The whole backend in Docker:
+The whole backend in Docker instead: `docker compose up -d`.
 
-```sh
-docker compose up -d
-```
+**Full setup, conventions and the review checklist:
+[CONTRIBUTING.md](CONTRIBUTING.md).**
 
 ## Tests
 
-```sh
-npm --prefix server test
+```bash
+npm --prefix server test           # 723 tests, 38 files, ~15s
+npm --prefix server run typecheck
+npm --prefix app run typecheck
 ```
 
-64 tests over `server/src/domain/`, which is pure — no database, no clock, no
-io. Per §1 of the spec, no number that matters is computed anywhere else:
-progression, macro arithmetic, and the weight trend all live there.
+Two suites. `test:unit` is `server/src/domain/` — pure, no database, no clock,
+no io. `test:int` runs against a **real Postgres**, so `docker compose up -d db`
+first or it fails immediately and for the wrong reason.
+
+---
 
 ## Where the AI sits
 
-The split is the whole design, and it is §1 of the spec:
+This split is the whole design.
 
 **Code decides the numbers.** Loads, reps, progression, deloads, the ramp-in
-cap, the joint-pain gate, macro arithmetic, the weight trend. All pure
-functions, all unit-tested. The model is handed these and told not to do
-arithmetic on them.
+cap, the joint-pain gate, macro arithmetic, the weight trend, the safety
+floors. Pure functions in `server/src/domain/`, all unit-tested. The model is
+handed the results and told not to do arithmetic on them.
 
 **The model decides everything else.** Whether today is a lifting day at all,
 which template fits, when to back off, what to say about the last two weeks.
-Rest is a real answer — the weekly targets are 3 lifts and 2 zone-2 sessions,
-so four days a week are not lifting days.
+Rest is a real answer — the weekly targets are three lifts and two zone-2
+sessions, so most days are not lifting days.
 
-It acts through tools, never through prose. If it says it logged your weight,
-a row exists; the Trainer tab prints what actually ran under each reply.
+**It acts through tools, never through prose.** If it says it logged your
+weight, a row exists. The Trainer tab prints what actually ran under each
+reply.
 
-Safety floors sit below the model and cannot be talked past. Ask it to cut you
-to 1200 kcal and the tool refuses, clamps to 1800, and the trainer has to tell
-you it was refused.
+**Safety floors sit below the model and cannot be talked past.** Ask it to cut
+you to 1200 kcal and the tool refuses, clamps, and the trainer has to tell you
+it was refused. Floors are derived from the body in front of the app, not from
+one man's numbers.
 
-## What phase 1 does
+---
 
-- **Today** — context chip, the day's session with every load resolved from
-  history, protein remaining, 7-day weight trend. One round trip.
-- **Workout logger** — steppers pre-filled from the prescription so hitting the
-  target is one tap, auto-starting rest timer, RIR chips, exercise swap filtered
-  by movement pattern, and an RPE + joint-pain finish.
-- **Weight** — one number pad, three seconds, and the 7-day average made the
-  headline number.
-- **Offline** — sets, sessions and weigh-ins are written to local SQLite and
-  drained to the API by a queue. See [docs/offline-sync.md](docs/offline-sync.md).
+## What it does
 
-Enforced below the model, in code, ready for phase 2:
-double progression with deload, the two-week ramp-in, and the §7 joint-pain gate
-that cuts load 20% and calls for a doctor after two consecutive flagged
-sessions.
+**Today** — where you are, the coach's read for the day, the session with every
+load resolved from history, protein remaining, the weight trend, a scrollable
+week. One round trip.
 
-## What phase 2 adds
+**The workout logger** — used one-handed, sweaty, between sets, on bad wifi.
+Steppers pre-filled from the prescription so hitting the target is one tap. An
+auto-starting rest timer, RIR chips, exercise swap filtered by movement
+pattern, and an RPE + joint-pain finish. **Offline-first**: a set is written to
+the phone's SQLite before the network is touched, and a queue drains it later.
 
-- **A coach read on Today** — lift / zone-2 / rest, with a reason, generated
-  once a day and cached so it does not drift each time the app opens.
-- **A Trainer tab** — full chat, with the conversation persisted.
-- **Eleven tools** — context switching, weight, sets, sessions, meals, exercise
-  swaps, target changes, and rules.
-- **§7 safety floors** — calorie, protein, BMI-20 goal weight, two rest days,
-  and the automatic calorie raise after two weeks losing faster than
-  1.2 kg/week.
-- **§5 rules validator** — the seeded rules carry codes mapping to checkers.
-  The Skyr rule is tested explicitly, in English and German.
+**The trainer** — full chat with twelve tools that mutate real state:
+context, weight, sets, sessions, cardio, meals, exercise swaps, target changes
+and rules.
 
-Only `gemini-3.6-flash` is reachable on the current key — every Pro model 404s,
-and `gemini-2.5-flash` is closed to new projects. The Phase 3 weekly review
-wants Pro and will need project access.
+**Food** — quick-add tiles for your actual staples, then recents, then your own
+library, then manual entry. No general nutrition database; the library grows by
+use. Barcode scan via OpenFoodFacts. Protein remaining is the hero number.
+
+**Weight** — one number pad, three seconds. The 7-day average is the headline,
+and the chart is a line in a coordinate system: the average is the line, daily
+weigh-ins are dots.
+
+**Proactive coaching** — a morning check-in, a nudge when a session went
+unlogged, a dinner prompt, and the Sunday review that reads the last fortnight
+and adjusts next week's targets. Each fires against the athlete's **own** local
+clock.
+
+**Apple Health, read** — steps, sleep, resting heart rate, workouts and a smart
+scale, so the coach stops having to ask about recovery.
+
+**An admin panel** — who is using this, what it costs, and who is waiting to be
+let in. Every model call is priced into `llm_usage`.
+
+Sign in with a token or with Apple. Both resolve to the same row.
+
+---
 
 ## Not yet
 
-No push (phase 3). No food *screen*, no fridge photo (phase 4) — though the
-trainer can already log a meal you mention in chat, and `/today` reads the
-meals table.
+Two of the fourteen tools are absent rather than half-built:
+`generate_meal_plan` (the route exists — the trainer just cannot call it) and
+`regenerate_week` (needs a stored week plan). There is no pre-session reminder,
+no voice mode, and no row-level security — that last one is
+[reasoned through](docs/tenancy.md) rather than forgotten.
 
-Two of the thirteen §6 tools are absent rather than half-built:
-`generate_meal_plan` needs fridge inventory, `regenerate_week` needs a stored
-week plan.
+The full list, in the order it should be done, is
+[docs/roadmap.md](docs/roadmap.md).
 
-The bearer token comes from `EXPO_PUBLIC_API_TOKEN`, which bakes it into the
-bundle. §2 wants it in the iOS keychain; that needs `expo-secure-store` and a
-paste-once setup screen, and should land before anything reaches TestFlight.
+---
 
 ## Layout
 
 ```
-server/migrations/   plain .sql, applied in filename order, tracked in schema_migrations
+server/migrations/   plain .sql, filename order, tracked in schema_migrations
 server/src/domain/   pure functions + tests. No db, no io, no clock.
-server/src/services/ the single write path to each table
+server/src/services/ the single write path to each table. Takes a Ctx.
 server/src/routes/   thin HTTP wrappers over services
-app/app/             expo-router screens
-app/src/db/          local SQLite (source of truth mid-workout)
-app/src/sync/        offline queue
-docs/api.md          endpoint reference
-docs/offline-sync.md how the queue behaves, and how it fails
+server/src/llm/      provider interface, gemini impl, tools, prompts
+server/src/jobs/     the per-athlete scheduler and its handlers
+app/app/             expo-router screens (file = route)
+app/src/db/          local SQLite — source of truth mid-workout
+app/src/sync/        the offline queue
+deploy/              compose, Caddy, provision + deploy + backup scripts
 ```
+
+## Docs
+
+| | |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | the spec and the invariants. Read this first. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, the daily loop, conventions, the checklist |
+| [docs/architecture.md](docs/architecture.md) | the map, and recipes for common changes |
+| [docs/roadmap.md](docs/roadmap.md) | what is left, in order |
+| [docs/api.md](docs/api.md) | every endpoint |
+| [docs/tenancy.md](docs/tenancy.md) | tenant isolation, and where it stops |
+| [docs/offline-sync.md](docs/offline-sync.md) | the queue, and how it fails |
+| [docs/deploy.md](docs/deploy.md) | the box, the app, and the capability trap |
+| [docs/health.md](docs/health.md) | Apple Health |
+| [docs/generalisation.md](docs/generalisation.md) | what was deliberately not done, and why |
+
+---
+
+## One warning
+
+**This app is in daily use with real data going back to September 2026.**
+Migrations are additive only — never `drop`, never `truncate`, never rewrite a
+column in place. Take a `pg_dump` (`deploy/backup.sh`) before anything touches
+production. §15 of CLAUDE.md is the long version.

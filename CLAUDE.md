@@ -295,9 +295,17 @@ clock**, not the server's. Times are adjustable per athlete.
 | `log_nudge` | 90 min after session start, no sets | Nudge to log. |
 | `dinner_prompt` | 20:00 | One-tap dinner logging. |
 | `weekly_review` | Sunday 18:00 | 7-day average, adherence, next week's targets. |
+| `session_reminder` | 17:00 | Today's session and the place, if it has not happened yet. |
 
-**Missing:** the pre-session reminder — 30 min before a planned session, with
-which gym in the current city.
+§8 words the last one as "30 min before planned session". Nothing in the model
+records when today's session is meant to start, and that is deliberate — §5
+makes the targets weekly because fixed weekdays fail the moment somebody
+travels. So it fires at a time of day like the others and earns its place by
+staying quiet: it speaks only on a lifting day that has not happened yet, and
+spends no model call doing it.
+
+None of these times are adjustable yet. §8 says they should be; there is no
+route and no screen for it.
 
 The weekly review is the most important job in the app. It reads the last 14
 days in full and produces: trend assessment, one thing that went well, one

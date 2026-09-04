@@ -337,3 +337,36 @@ describe('switching programmes with a session still open', () => {
     expect(rows[0].n).toBe(1);
   });
 });
+
+describe('the coach note can store any day the catalogue offers', () => {
+  /**
+   * coach_notes.template was checked against ('A','B','C') in migration 004,
+   * when three full-body days were the whole world. The catalogue has offered
+   * Push/Pull/Legs and Upper/Lower since migration 015 and the constraint
+   * never moved, so writing the note for anybody on either programme threw —
+   * which is a 500 on the Today screen's coach card, and a silently missing
+   * note on every morning check-in.
+   *
+   * The day codes are validated where they belong: the model is handed the
+   * current programme's codes as an enum, and sanitise() checks its answer
+   * against the same list. A second, staler copy of that list in a check
+   * constraint could only ever be wrong.
+   */
+  it('accepts every day code in the catalogue, not just the first programme\'s', async () => {
+    const { rows } = await pool.query<{ code: string }>(
+      'select distinct code from program_days order by code',
+    );
+    const codes = rows.map((row) => row.code);
+    expect(codes.length).toBeGreaterThan(3);
+
+    for (const [index, code] of codes.entries()) {
+      await expect(
+        pool.query(
+          `insert into coach_notes (user_id, for_date, session_type, template, headline, body)
+           values ($1, date '2026-01-01' + $2::int, 'strength', $3, 'x', 'y')`,
+          [phil.userId, index, code],
+        ),
+      ).resolves.toBeDefined();
+    }
+  });
+});

@@ -11,11 +11,12 @@ import { engagement } from '../domain/engagement';
 import { type JobResult } from './scheduler';
 import { sendPush } from '../push';
 import { generateWeeklyReview } from '../llm/review';
-import { generateNote } from '../llm/coach';
+import { cachedNote, generateNote } from '../llm/coach';
 import { activeContext } from '../services/contexts';
 import { openSession } from '../services/sessions';
 import { macrosToday } from '../services/meals';
 import { getProfile } from '../services/profile';
+import { getToday } from '../services/today';
 
 /**
  * 07:30 — the day's plan, the city to confirm, and the Skyr. Generating the
@@ -133,11 +134,76 @@ export async function logNudge(ctx: Ctx): Promise<JobResult> {
   return { status: result.sent > 0 ? 'sent' : 'no_devices', detail: result };
 }
 
+/**
+ * The fifth §8 trigger — today's session, and where to do it.
+ *
+ * §8 words this as "30 min before planned session", which the data model
+ * cannot answer: nothing anywhere records when today's session is meant to
+ * start, and that is deliberate. §5 makes the targets weekly rather than
+ * weekday-shaped because travel breaks fixed days. So this fires at a time of
+ * day like every other job, and earns its place by being quiet — it says
+ * something only when today is a lifting day that has not happened yet.
+ *
+ * It spends no model call. The coach note it reads was written at 07:30; if
+ * there is none, the week's own arithmetic answers the same question well
+ * enough, and neither is worth a second call to say "you have not lifted yet".
+ */
+async function sessionReminder(ctx: Ctx): Promise<JobResult> {
+  const here = await stillHere(ctx);
+  if (!here.push) {
+    return { status: 'skipped', detail: { reason: 'gone quiet', daysAway: here.daysAway } };
+  }
+
+  const today = await getToday(ctx);
+
+  // Already done, or already under way. Nothing a reminder can add.
+  if (today.completedToday.length > 0) {
+    return { status: 'skipped', detail: { reason: 'already trained today' } };
+  }
+  if (today.openSession) {
+    return { status: 'skipped', detail: { reason: 'session already open' } };
+  }
+
+  const note = await cachedNote(ctx, today.date);
+  const lifting = note
+    ? note.sessionType === 'strength'
+    : // No note — the morning check-in has not run, or the model was
+      // unreachable. The week's own arithmetic is a fair stand-in: if the
+      // strength target is already met, today is not the day to push.
+      today.week.strengthSessions.done < today.week.strengthSessions.target;
+
+  if (!lifting) {
+    return {
+      status: 'skipped',
+      detail: { reason: note ? `coach says ${note.sessionType}` : 'week already complete' },
+    };
+  }
+
+  // The first few movements are enough to recognise the day. The whole list is
+  // a notification nobody finishes reading.
+  const movements = today.plan.exercises
+    .slice(0, 3)
+    .map((exercise) => exercise.name)
+    .join(' · ');
+
+  const result = await sendPush(ctx, {
+    title: today.plan.dayName,
+    body: [movements, today.context?.name].filter(Boolean).join(' — '),
+    data: { screen: 'workout' },
+  });
+
+  return {
+    status: result.sent > 0 ? 'sent' : 'no_devices',
+    detail: { ...result, template: today.plan.template, place: today.context?.name ?? null },
+  };
+}
+
 export const jobHandlers = {
   morning_checkin: morningCheckin,
   dinner_prompt: dinnerPrompt,
   weekly_review: weeklyReview,
   log_nudge: logNudge,
+  session_reminder: sessionReminder,
 };
 
 export type JobName = keyof typeof jobHandlers;

@@ -1,0 +1,15 @@
+-- coach_notes.template has been checked against ('A','B','C') since migration
+-- 004, when three full-body days were the whole world. Migration 015 turned
+-- the programme into a catalogue — Push/Pull/Legs, Upper/Lower — and this
+-- constraint did not move with it.
+--
+-- The result was silent for anyone still on full body and total for anyone
+-- else: writing the day's note threw a constraint violation, which is a 500 on
+-- the Today screen's coach card and a morning check-in that quietly fell back
+-- to its generic headline every single day.
+--
+-- Dropping rather than widening. The day codes live in program_days, the model
+-- is handed the current programme's codes as an enum, and sanitise() checks
+-- its answer against that same list before anything is stored. A second copy
+-- of that list here could only ever go stale again — it already did.
+alter table coach_notes drop constraint if exists coach_notes_template_check;

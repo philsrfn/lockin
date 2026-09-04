@@ -25,25 +25,28 @@ schema rather than in prompt wording. And a list goes stale after four days
 (`domain/fridge.ts`), because a list that was right on Tuesday describes food
 that was eaten on Wednesday.
 
+**The pre-session reminder (2026-09-04).** §8's fifth trigger, now
+`session_reminder` at 17:00 local. §8 asks for it "30 min before planned
+session", which the model cannot answer — nothing records when today's session
+is meant to start, because §5 makes the targets weekly on purpose. So it fires
+at a time of day and stays quiet unless today is a lifting day that has not
+happened yet. It costs no model call: it reads the note the morning check-in
+already wrote, and falls back to the week's own arithmetic when there is none.
+
+**A live bug, found on the way (2026-09-04).** `coach_notes.template` was still
+checked against `('A','B','C')` from migration 004. The catalogue has offered
+Push/Pull/Legs and Upper/Lower since migration 015, so for anybody not on full
+body, writing the day's note threw a constraint violation — a 500 on the Today
+screen's coach card, and a morning check-in silently falling back to its
+generic headline every day. Migration 026 drops the constraint; the day codes
+are validated against the athlete's actual programme, which is where they
+belong. **This needs deploying to take effect for anyone.**
+
 ---
 
 ## Next
 
-### 1. The pre-session reminder — S
-
-§8 lists five proactive triggers. Four exist (`morning_checkin`, `log_nudge`,
-`dinner_prompt`, `weekly_review`). The missing one is **30 minutes before a
-planned session**: today's session, and which gym in the city the athlete is
-currently in.
-
-The scheduler already sweeps per athlete against their own local clock, so this
-is a handler plus a `job_schedule` row shape. The one new thing is that the
-fire time depends on the planned session rather than being a fixed hour.
-
-**Files:** `server/src/jobs/handlers.ts`, `server/src/jobs/scheduler.ts`,
-a migration for the schedule row.
-
-### 2. A TestFlight build carrying the redesign — S
+### 1. A TestFlight build carrying the redesign — S
 
 The last build is **17**, which predates the redesign, the weight line chart,
 the account avatar and the PPL fix. All of that is committed and the server
@@ -61,7 +64,7 @@ device.
 
 ## After that
 
-### 3. `regenerate_week` — M
+### 2. `regenerate_week` — M
 
 The other missing §6 tool, and genuinely bigger than the first: there is no
 stored week plan to regenerate. `services/week.ts` computes a week on read
@@ -72,7 +75,7 @@ Worth asking whether it should exist at all. The trainer can already swap an
 exercise, change a programme and adjust targets; "rebuild the coming week" may
 be a feature from the era when the week was a fixed A/B/C rotation.
 
-### 4. Row-level security — M, and careful
+### 3. Row-level security — M, and careful
 
 Deliberately deferred, with the reasoning and the four remaining steps written
 down in [tenancy.md](tenancy.md). It needs `FORCE ROW LEVEL SECURITY` and a
@@ -87,7 +90,7 @@ more. This is the largest known gap in the app.
 and pass everything through when it is absent protect only the paths that were
 already careful, while making the reads look covered.
 
-### 5. Gemini Pro access — S, but not code
+### 4. Gemini Pro access — S, but not code
 
 `GEMINI_MODEL_SMART` points at Flash because every Pro model 404s on the
 current key and `gemini-2.5-flash` is closed to new projects. The Sunday
@@ -96,7 +99,7 @@ weekly review is the most important job in the app (§8) and it wants Pro.
 This is a Cloud project problem, not a code one. Nothing needs changing but
 the env var, once the key can reach it.
 
-### 6. The generalisation pass missed the model-facing strings — S
+### 5. The generalisation pass missed the model-facing strings — S
 
 The app is multi-user; roughly forty tool descriptions, prompt lines and
 comments still call the athlete "he". `llm/tools.ts` alone has fifteen — *"Omit
@@ -119,7 +122,7 @@ vision and planning instructions both spoke about one man.
 
 The rest was left rather than folded into a commit about something else.
 
-### 7. The rate limiter's buckets are in memory — S
+### 6. The rate limiter's buckets are in memory — S
 
 Honest for one box, wrong for two. If the server is ever scaled or run
 alongside a second process, per-athlete limits and the daily token budget stop
@@ -168,7 +171,7 @@ Written down so nobody rediscovers them as gaps:
 | | |
 |---|---|
 | Account avatar tap | untested — simulator overlay covers it |
-| Model-facing strings | still say "he" for every athlete (item 6) |
+| Model-facing strings | still say "he" for every athlete (item 5) |
 | The rules editor sheet | placeholders are hardcoded English, not in `locale.ts` |
 | Rate limiter | in-memory, single process only |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |

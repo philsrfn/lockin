@@ -174,6 +174,9 @@ const SEED_JOBS: [string, number, number, number | null][] = [
   ['dinner_prompt', 20, 0, null],
   ['weekly_review', 18, 0, 0],
   ['log_nudge', 0, 0, null],
+  // Kept in step with migration 025, which backfills it for everybody who
+  // existed before it.
+  ['session_reminder', 17, 0, null],
 ];
 
 export type NewUser = {

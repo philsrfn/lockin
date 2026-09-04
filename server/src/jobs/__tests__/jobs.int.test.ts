@@ -13,7 +13,7 @@ import { pool } from '../../db';
 import { anotherAthlete, daysAgo, exerciseIdByName, phil, resetData, resetProfile } from '../../test/helpers';
 import { logMeal } from '../../services/meals';
 import { setTimezone } from '../../services/profile';
-import { createSession } from '../../services/sessions';
+import { createSession, finishSession } from '../../services/sessions';
 import { getToday } from '../../services/today';
 import { recordSet } from '../../services/sets';
 import { jobHandlers, logNudge, recentRuns } from '../handlers';
@@ -281,5 +281,95 @@ describe('the log nudge', () => {
     await createSession(phil, { template: 'A', performedAt: twoHoursAgo });
 
     expect((await logNudge(phil)).status).toBe('no_devices');
+  });
+});
+
+describe('the reminder before a session', () => {
+  /**
+   * §8 asks for this "30 min before planned session". Nothing in the model
+   * records when today's session is meant to start — §5 makes the targets
+   * weekly on purpose, because fixed weekdays fail the moment somebody
+   * travels. So it fires at a time of day and earns its place by staying
+   * quiet: it speaks only on a lifting day that has not happened yet.
+   */
+  async function noteSays(sessionType: 'strength' | 'cardio' | 'rest'): Promise<void> {
+    const { date } = await getToday(phil);
+    await pool.query(
+      `insert into coach_notes (user_id, for_date, session_type, template, headline, body)
+       values ($1, $2, $3, null, 'x', 'y')
+       on conflict (user_id, for_date) do update set session_type = excluded.session_type`,
+      [phil.userId, date, sessionType],
+    );
+  }
+
+  /** A finished session today, with a set in it. */
+  async function trainedToday(): Promise<void> {
+    const session = await createSession(phil, { template: 'A' });
+    await recordSet(phil, {
+      sessionId: session.id,
+      exerciseId: await exerciseIdByName('Back Squat'),
+      setIndex: 1,
+      weightKg: 80,
+      reps: 8,
+    });
+    await finishSession(phil, session.id, { rpe: 7 });
+  }
+
+  it('names the day and the place when there is a session still to do', async () => {
+    await noteSays('strength');
+
+    const result = await jobHandlers.session_reminder(phil);
+
+    // No devices registered, so nothing leaves — but it decided to send.
+    expect(result.status).toBe('no_devices');
+    expect(result.detail?.place).toBe('Home');
+    expect(result.detail?.template).toBeTruthy();
+  });
+
+  it('says nothing once the session is done', async () => {
+    await noteSays('strength');
+    await trainedToday();
+
+    const result = await jobHandlers.session_reminder(phil);
+
+    expect(result.status).toBe('skipped');
+    expect(result.detail?.reason).toMatch(/already trained/);
+  });
+
+  it('says nothing while a session is open — the log nudge owns that', async () => {
+    await noteSays('strength');
+    await createSession(phil, { template: 'A' });
+
+    expect((await jobHandlers.session_reminder(phil)).detail?.reason).toMatch(/already open/);
+  });
+
+  it.each(['rest', 'cardio'] as const)('does not push a lift on a %s day', async (kind) => {
+    await noteSays(kind);
+
+    const result = await jobHandlers.session_reminder(phil);
+
+    expect(result.status).toBe('skipped');
+    expect(result.detail?.reason).toBe(`coach says ${kind}`);
+  });
+
+  it('falls back to the week when no note was written, and stays quiet once it is complete', async () => {
+    // The morning check-in never ran, or the model was unreachable. Asking it
+    // again here would be a second bill to say "you have not lifted yet".
+    expect((await jobHandlers.session_reminder(phil)).status).toBe('no_devices');
+
+    for (let day = 1; day <= 3; day += 1) await trainedToday();
+
+    const result = await jobHandlers.session_reminder(phil);
+    expect(result.status).toBe('skipped');
+  });
+
+  it('stops tapping the shoulder of somebody who has gone quiet', async () => {
+    await noteSays('strength');
+    await pool.query(
+      `update profile set last_seen_at = now() - interval '20 days' where user_id = $1`,
+      [phil.userId],
+    );
+
+    expect((await jobHandlers.session_reminder(phil)).detail?.reason).toBe('gone quiet');
   });
 });

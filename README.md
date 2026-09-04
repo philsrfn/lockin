@@ -109,10 +109,11 @@ use. Barcode scan via OpenFoodFacts. Protein remaining is the hero number.
 and the chart is a line in a coordinate system: the average is the line, daily
 weigh-ins are dots.
 
-**Proactive coaching** — a morning check-in, a nudge when a session went
-unlogged, a dinner prompt, and the Sunday review that reads the last fortnight
-and adjusts next week's targets. Each fires against the athlete's **own** local
-clock.
+**Proactive coaching** — a morning check-in, a reminder of the day's session
+and where to do it, a nudge when a session went unlogged, a dinner prompt, and
+the Sunday review that reads the last fortnight and adjusts next week's
+targets. Each fires against the athlete's **own** local clock, and each stays
+quiet when it has nothing to say.
 
 **Apple Health, read** — steps, sleep, resting heart rate, workouts and a smart
 scale, so the coach stops having to ask about recovery.
@@ -127,9 +128,9 @@ Sign in with a token or with Apple. Both resolve to the same row.
 ## Not yet
 
 One of the fourteen tools is absent rather than half-built: `regenerate_week`,
-which needs a stored week plan. There is no pre-session reminder, no voice
-mode, and no row-level security — that last one is
-[reasoned through](docs/tenancy.md) rather than forgotten.
+which needs a stored week plan. There is no voice mode and no row-level
+security — that last one is [reasoned through](docs/tenancy.md) rather than
+forgotten.
 
 The full list, in the order it should be done, is
 [docs/roadmap.md](docs/roadmap.md).

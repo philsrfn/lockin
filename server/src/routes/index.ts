@@ -67,6 +67,7 @@ import {
   openSession,
 } from '../services/sessions';
 import { deleteSet, recordSet } from '../services/sets';
+import { personalBests } from '../services/records';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
 import { getWeek } from '../services/week';
@@ -322,6 +323,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }),
     };
   });
+
+  /**
+   * Personal bests per movement — heaviest, and best by estimated max. Read
+   * from finished sessions only: a set taken back mid-workout was never a
+   * record.
+   */
+  app.get('/records', async (request) => ({ records: await personalBests(request.ctx) }));
 
   app.get('/progress', async (request) => {
     const query = z.object({ days: z.coerce.number().int().min(7).max(365).default(90) })

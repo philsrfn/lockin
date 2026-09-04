@@ -388,3 +388,16 @@ describe('the routes themselves', () => {
     expect(response.json().results[0].status).toBe('applied');
   });
 });
+
+describe('the records route', () => {
+  it('is empty for somebody who has not finished a session', async () => {
+    const response = await app.inject({ method: 'GET', url: '/records', headers: auth });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ records: [] });
+  });
+
+  it('needs a token like everything else', async () => {
+    expect((await app.inject({ method: 'GET', url: '/records' })).statusCode).toBe(401);
+  });
+});

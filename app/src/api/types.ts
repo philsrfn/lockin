@@ -106,6 +106,21 @@ export type Session = {
 
 export type PerformedSet = { weightKg: number; reps: number; rir: number | null };
 
+export type Best = {
+  weightKg: number;
+  reps: number;
+  estimated1rm: number;
+  performedAt: string;
+};
+
+/** All-time bests for one movement. Heaviest and best disagree often. */
+export type ExerciseBests = {
+  exerciseId: number;
+  exerciseName: string;
+  heaviest: Best;
+  strongest: Best;
+};
+
 export type PrescriptionReason =
   | 'first_time'
   | 'increase_load'
@@ -125,6 +140,8 @@ export type ExercisePrescription = {
   restSeconds: number;
   incrementKg: number;
   range: { min: number; max: number };
+  /** Loaded with plates, so the logger can show what to put on the bar. */
+  barbell: boolean;
   last: { performedAt: string; sets: PerformedSet[] } | null;
   substitutes: { id: number; name: string; pattern: string }[];
 };

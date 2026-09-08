@@ -91,6 +91,7 @@ const PHRASES = {
   kindIntervals: { de: 'Intervalle', en: 'Intervals' },
   kindSport: { de: 'Sport', en: 'Sport' },
   kindWalk: { de: 'Gehen', en: 'Walk' },
+  kindOther: { de: 'Anderes', en: 'Other' },
   walkNote: {
     de: 'Zählt nicht für die Woche — Schritte sind Schritte.',
     en: 'Does not count towards the week — steps are steps.',
@@ -153,6 +154,28 @@ const PHRASES = {
   sessions: { de: 'Einheiten', en: 'sessions' },
   sets: { de: 'Sätze', en: 'sets' },
   volumeLifted: { de: 'bewegt', en: 'volume lifted' },
+  historyTitle: { de: 'Verlauf', en: 'History' },
+  history: { de: 'Verlauf', en: 'History' },
+  nothingTrainedYet: {
+    de: 'Noch nichts eingetragen. Was du trainierst, steht danach hier.',
+    en: 'Nothing logged yet. What you train shows up here afterwards.',
+  },
+  nothingInThisRange: {
+    de: 'In diesem Zeitraum nichts eingetragen.',
+    en: 'Nothing logged in this range.',
+  },
+  showSets: { de: 'Sätze zeigen', en: 'Show sets' },
+  hideSets: { de: 'Sätze ausblenden', en: 'Hide sets' },
+  unfinishedSession: { de: 'nicht abgeschlossen', en: 'not finished' },
+  jointPainFlagged: { de: 'Gelenkschmerz vermerkt', en: 'joint pain flagged' },
+  rpeShort: { de: 'RPE', en: 'RPE' },
+  cardioMinutesTotal: { de: 'Cardio-Minuten', en: 'cardio minutes' },
+  cardioDoesNotCount: { de: 'zählt nicht für die Woche', en: 'does not count towards the week' },
+  // `minutes` is MINUTEN, a spaced small-caps label. Lower-casing it for a
+  // sentence gave "35 minuten", and German capitalises its nouns.
+  minutesWord: { de: 'Minuten', en: 'minutes' },
+  // `today` already exists above; only yesterday was missing.
+  yesterday: { de: 'Gestern', en: 'Yesterday' },
   liftsHeading: { de: 'ÜBUNGEN', en: 'LIFTS' },
   oneSessionSoFar: {
     de: 'Erst eine Einheit — für eine Linie braucht es zwei.',

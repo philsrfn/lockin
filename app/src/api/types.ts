@@ -106,6 +106,42 @@ export type Session = {
 
 export type PerformedSet = { weightKg: number; reps: number; rir: number | null };
 
+export type ExerciseSummary = {
+  exerciseId: number;
+  exerciseName: string;
+  sets: number;
+  topWeightKg: number;
+  topReps: number;
+};
+
+export type SessionSummary = {
+  setCount: number;
+  totalVolumeKg: number;
+  exercises: ExerciseSummary[];
+};
+
+export type HistorySession = Session & { summary: SessionSummary };
+
+/** One day that had training in it. Days with none are not sent. */
+export type TrainingDay = {
+  day: string;
+  sessions: HistorySession[];
+  cardio: CardioSession[];
+};
+
+export type TrainingHistory = {
+  days: TrainingDay[];
+  /** Today in the athlete's timezone, not the device's. */
+  today: string;
+  totals: {
+    sessions: number;
+    cardioSessions: number;
+    cardioMinutes: number;
+    setCount: number;
+    totalVolumeKg: number;
+  };
+};
+
 export type PrescriptionReason =
   | 'first_time'
   | 'increase_load'

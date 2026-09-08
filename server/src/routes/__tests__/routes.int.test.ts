@@ -388,3 +388,31 @@ describe('the routes themselves', () => {
     expect(response.json().results[0].status).toBe('applied');
   });
 });
+
+describe('the history route', () => {
+  it('answers with days and totals, defaulting the window', async () => {
+    const response = await app.inject({ method: 'GET', url: '/history', headers: auth });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      days: [],
+      totals: { sessions: 0, cardioSessions: 0, setCount: 0, totalVolumeKg: 0 },
+    });
+  });
+
+  it('takes a window, and refuses one it cannot serve', async () => {
+    expect((await app.inject({ method: 'GET', url: '/history?days=7', headers: auth })).statusCode)
+      .toBe(200);
+
+    // Not silently clamped: a request for four years is a mistake somewhere,
+    // and answering it with one year's data would hide the mistake.
+    for (const bad of ['days=0', 'days=1500', 'days=week']) {
+      const response = await app.inject({ method: 'GET', url: `/history?${bad}`, headers: auth });
+      expect(response.statusCode).toBe(400);
+    }
+  });
+
+  it('needs a token like everything else', async () => {
+    expect((await app.inject({ method: 'GET', url: '/history' })).statusCode).toBe(401);
+  });
+});

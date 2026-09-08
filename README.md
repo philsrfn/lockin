@@ -105,6 +105,11 @@ rules, and a meal plan built from the fridge you last photographed.
 library, then manual entry. No general nutrition database; the library grows by
 use. Barcode scan via OpenFoodFacts. Protein remaining is the hero number.
 
+**History** — what you actually did, day by day, lifts and cardio together.
+Every session opens to the individual sets without another request, which
+matters when you are standing in a gym on bad wifi wondering what you lifted
+last time.
+
 **Weight** — one number pad, three seconds. The 7-day average is the headline,
 and the chart is a line in a coordinate system: the average is the line, daily
 weigh-ins are dots.

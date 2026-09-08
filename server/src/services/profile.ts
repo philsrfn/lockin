@@ -205,6 +205,25 @@ export async function updateTargets(
  * a zone the runtime does not know would make every date in the app throw at
  * the moment it is read rather than at the moment it is set.
  */
+/**
+ * How many days a week they can train.
+ *
+ * Not a cap on anything — the §7 rest-day floor is that. It is what the weekly
+ * targets are measured against, so somebody whose life changed should be able
+ * to say so rather than fail a target that no longer describes them.
+ */
+export async function setTrainingDays(ctx: Ctx, days: number): Promise<Profile> {
+  if (!Number.isInteger(days) || days < 1 || days > 7) {
+    throw badRequest('Training days must be between 1 and 7');
+  }
+
+  await ctx.db.query(
+    'update profile set training_days_per_week = $2, updated_at = now() where user_id = $1',
+    [ctx.userId, days],
+  );
+  return getProfile(ctx);
+}
+
 export async function setTimezone(ctx: Ctx, zone: string): Promise<Profile> {
   if (!isValidTimeZone(zone)) {
     throw badRequest(`${zone} is not a timezone this server knows`);

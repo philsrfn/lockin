@@ -238,6 +238,9 @@ Declared in `server/src/llm/tools.ts`, each mapping to a validated handler in
 | `get_program` | read the current programme, its days and its movements |
 | `set_program` | switch to another programme, theirs or built-in |
 | `edit_program` | create or replace a programme's days and movements |
+| `undo_entry` | remove one mis-logged meal or set, by id |
+| `add_place` | add a place they train, with what it has |
+| `set_training_days` | how many days a week the weekly targets expect |
 
 `generate_meal_plan` takes **no parameters**, and that is the safety property
 rather than an oversight: it plans from the list the athlete confirmed with

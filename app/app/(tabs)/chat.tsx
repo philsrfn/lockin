@@ -35,6 +35,9 @@ const TOOL_LABELS: Record<string, () => string> = {
   get_program: () => t('toolGetProgram'),
   set_program: () => t('toolSetProgram'),
   edit_program: () => t('toolEditProgram'),
+  undo_entry: () => t('toolUndo'),
+  add_place: () => t('toolAddPlace'),
+  set_training_days: () => t('toolTrainingDays'),
 };
 
 export default function ChatScreen() {

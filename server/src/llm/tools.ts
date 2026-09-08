@@ -200,6 +200,54 @@ export const TOOLS: ToolDeclaration[] = [
     },
   },
   {
+    name: 'undo_entry',
+    description:
+      'Remove something logged by mistake — a meal entered twice, a set typed ' +
+      'into the wrong exercise. Ids come from get_today: meals are in ' +
+      'macros.meals, sets are in openSession.sets. Only ever remove what they ' +
+      'asked you to remove; a mistake in the log is theirs to identify.',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['meal', 'set'], description: 'What to remove' },
+        id: int('The id of that meal or set'),
+      },
+      required: ['kind', 'id'],
+    },
+  },
+  {
+    name: 'add_place',
+    description:
+      'Add a place they train, when they mention one that does not exist yet — ' +
+      'a new city, a hotel gym, a friend\'s garage. set_context only switches ' +
+      'between places that already exist. Say what the place has if they told ' +
+      'you: the substitute list is filtered by it.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: str('What they call it, e.g. Berlin'),
+        equipment: {
+          type: 'array',
+          description: "What is there: barbell, dumbbell, machine, cable, rack, bench, pullup_bar.",
+          items: { type: 'string' },
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'set_training_days',
+    description:
+      'How many days a week they can train. Changes what the weekly targets ' +
+      'expect of them, so use it when their life changes rather than letting ' +
+      'them fail a target that no longer fits.',
+    parameters: {
+      type: 'object',
+      properties: { days: int('Training days per week, 1-7') },
+      required: ['days'],
+    },
+  },
+  {
     name: 'get_program',
     description:
       'The programme they are on: every day, and the movements on each. Read ' +

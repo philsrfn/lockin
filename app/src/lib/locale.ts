@@ -498,6 +498,9 @@ const PHRASES = {
   toolGetProgram: { de: 'Programm gelesen', en: 'read your programme' },
   toolSetProgram: { de: 'Programm gewechselt', en: 'switched programme' },
   toolEditProgram: { de: 'Programm angepasst', en: 'changed your programme' },
+  toolUndo: { de: 'Eintrag entfernt', en: 'removed an entry' },
+  toolAddPlace: { de: 'Ort hinzugefügt', en: 'added a place' },
+  toolTrainingDays: { de: 'Trainingstage geändert', en: 'changed your training days' },
   chatPlaceholder: { de: 'Wie war es?', en: 'How did that feel?' },
 
   gProtein: { de: 'g Protein', en: 'g protein' },

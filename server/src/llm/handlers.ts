@@ -15,14 +15,14 @@ import { generateMealPlan } from './fridge';
 import { latestInventory } from '../services/fridge';
 import { LlmError } from './provider';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
-import { activateContext, listContexts } from '../services/contexts';
+import { activateContext, createContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
 import { type CardioKind, logCardio } from '../services/cardio';
-import { logMeal } from '../services/meals';
-import { getProfile, updateTargets } from '../services/profile';
+import { deleteMeal, logMeal } from '../services/meals';
+import { getProfile, setTrainingDays, updateTargets } from '../services/profile';
 import { addRule, deactivateRule, listRules } from '../services/rules';
 import { createSession, finishSession, listSessions, openSession } from '../services/sessions';
-import { recordSet } from '../services/sets';
+import { deleteSet, recordSet } from '../services/sets';
 import { getToday } from '../services/today';
 import {
   createProgram,
@@ -247,6 +247,50 @@ const HANDLERS: Record<
 
   async deactivate_rule(ctx, args) {
     return { ok: true, rule: await deactivateRule(ctx, Number(args.ruleId)), rules: await listRules(ctx) };
+  },
+
+  /**
+   * Removing something logged by mistake.
+   *
+   * Deliberately narrow: one entry, by id, and only the two kinds a person
+   * actually mis-logs. A tool that could delete a range, or a day, would let a
+   * misread sentence take away work somebody did.
+   */
+  async undo_entry(ctx, args) {
+    const id = Number(args.id);
+    if (!Number.isInteger(id) || id <= 0) return fail('That is not an id');
+
+    if (args.kind === 'meal') {
+      const { today } = await deleteMeal(ctx, id);
+      return { ok: true, removed: 'meal', consumed: today };
+    }
+    if (args.kind === 'set') {
+      return { ok: true, removed: 'set', session: await deleteSet(ctx, id) };
+    }
+    return fail(`Cannot remove a "${String(args.kind)}"`, 'kind is "meal" or "set".');
+  },
+
+  async add_place(ctx, args) {
+    const name = String(args.name ?? '').trim();
+    if (!name) return fail('A place needs a name');
+
+    const equipment = Array.isArray(args.equipment)
+      ? { available: args.equipment.map((item) => String(item)) }
+      : undefined;
+
+    // createContext refuses a duplicate name, which is the right answer: two
+    // places called Berlin would make the history ambiguous.
+    const contexts = await createContext(ctx, { name, equipment });
+    return {
+      ok: true,
+      contexts,
+      hint: 'Added but not switched to. Call set_context if they are there now.',
+    };
+  },
+
+  async set_training_days(ctx, args) {
+    const profile = await setTrainingDays(ctx, Number(args.days));
+    return { ok: true, profile, today: await getToday(ctx) };
   },
 
   async get_program(ctx) {

@@ -72,7 +72,7 @@ export default function TodayScreen() {
         <Text style={styles.placeholder}>
           {today.loading ? 'Loading' : (today.error ?? 'No data')}
         </Text>
-        {today.error ? <Button title="Try again" variant="secondary" onPress={today.reload} /> : null}
+        {today.error ? <Button title={t('tryAgain')} variant="secondary" onPress={today.reload} /> : null}
       </View>
     );
   }

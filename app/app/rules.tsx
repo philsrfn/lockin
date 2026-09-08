@@ -60,12 +60,12 @@ export default function RulesScreen() {
         </Pressable>
         <Text style={styles.title}>Rules</Text>
         <Text style={styles.subtitle}>
-          What the trainer must respect. Hold a rule to edit it.
+          {t('rulesBlurb')}
         </Text>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading ? <Text style={styles.dim}>Loading…</Text> : null}
+      {loading ? <Text style={styles.dim}>{t('loading')}</Text> : null}
 
       {TIERS.map(({ tier, title, blurb }) => {
         const mine = rules.filter((rule) => rule.tier === tier);
@@ -73,7 +73,7 @@ export default function RulesScreen() {
           <Card key={tier} label={title}>
             <Text style={styles.blurb}>{blurb}</Text>
             {mine.length === 0 ? (
-              <Text style={styles.dim}>Nothing here yet.</Text>
+              <Text style={styles.dim}>{t('nothingHereYet')}</Text>
             ) : (
               mine.map((rule) => (
                 <Pressable
@@ -94,9 +94,9 @@ export default function RulesScreen() {
                     <View style={styles.tags}>
                       {rule.scope ? <Text style={styles.tag}>{rule.scope} only</Text> : null}
                       {rule.code ? (
-                        <Text style={[styles.tag, styles.tagEnforced]}>enforced in code</Text>
+                        <Text style={[styles.tag, styles.tagEnforced]}>{t('enforcedInCode')}</Text>
                       ) : (
-                        <Text style={styles.tag}>guidance only</Text>
+                        <Text style={styles.tag}>{t('guidanceOnly')}</Text>
                       )}
                     </View>
                   </View>
@@ -192,7 +192,7 @@ function RuleSheet({
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Say it the way you would say it out loud"
+            placeholder={t('ruleSayItAloud')}
             placeholderTextColor={colors.textFaint}
             style={[styles.input, styles.multiline]}
             multiline
@@ -201,13 +201,13 @@ function RuleSheet({
           <TextInput
             value={scope}
             onChangeText={setScope}
-            placeholder="Only in one place? Name it (optional)"
+            placeholder={t('ruleScopePlaceholder')}
             placeholderTextColor={colors.textFaint}
             style={styles.input}
           />
           {rule?.code ? (
             <Text style={styles.note}>
-              A validator enforces this one. You can reword it; the check behind it stays.
+              {t('validatorNote')}
             </Text>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}

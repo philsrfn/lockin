@@ -57,7 +57,7 @@ import {
   unlinkAppleAccount,
 } from '../services/users';
 import { env } from '../env';
-import { unauthorized } from '../errors';
+import { badRequest, unauthorized } from '../errors';
 import { completeOnboarding } from '../services/onboarding';
 import {
   createSession,
@@ -70,7 +70,15 @@ import { deleteSet, recordSet } from '../services/sets';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
 import { getWeek } from '../services/week';
-import { archiveFood, createFood, getFood, listFoods, updateFood } from '../services/foods';
+import {
+  archiveFood,
+  createFood,
+  getFood,
+  listFoods,
+  rememberPortion,
+  updateFood,
+} from '../services/foods';
+import { describePortion, portionOf } from '../domain/portions';
 import { lookupBarcode, saveScanned } from '../services/barcode';
 import { estimateFood } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
@@ -575,15 +583,25 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post('/meals/from-food', async (request, reply) => {
     const body = LogFoodSchema.parse(request.body);
     const food = await getFood(request.ctx, body.foodId);
+    const basis = { perGrams: food.perGrams, grams: body.grams ?? null };
+
+    // A food measured by weight cannot be logged without one. This used to
+    // post the row's raw numbers, which for a scanned product meant 100g of
+    // it, silently, whatever had been eaten.
+    const macros = portionOf(food, basis);
+    if (!macros) {
+      throw badRequest(`${food.name} is logged by weight — say how many grams`);
+    }
+
     const result = await logMeal(request.ctx, {
       slot: body.slot ?? food.defaultSlot ?? 'snack',
-      description: food.name,
-      kcal: food.kcal,
-      proteinG: food.proteinG,
-      fatG: food.fatG,
-      carbsG: food.carbsG,
+      description: describePortion(food.name, basis),
+      ...macros,
       foodId: food.id,
     });
+
+    if (body.grams) await rememberPortion(request.ctx, food.id, body.grams);
+
     return reply.code(201).send({ meal: result.meal, consumed: result.today });
   });
 

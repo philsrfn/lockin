@@ -15,9 +15,17 @@ import { ApiError, api } from '../api/client';
 import type { BarcodeCandidate, FoodEstimate, MealSlot } from '../api/types';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Button } from './Button';
+import { t } from '../lib/locale';
 import { colors, radius, space, type as typo } from '../theme';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+const SLOT_LABELS = {
+  breakfast: 'slotBreakfast',
+  lunch: 'slotLunch',
+  dinner: 'slotDinner',
+  snack: 'slotSnack',
+} as const;
 
 /** What both routes converge on before anything is written. */
 type Draft = {
@@ -26,10 +34,17 @@ type Draft = {
   proteinG: number;
   fatG: number | null;
   carbsG: number | null;
-  /** Set when scanned: the numbers are per 100g and need a portion. */
   barcode?: string;
-  perHundred?: boolean;
-  note?: string;
+  /**
+   * null = this is one portion. 100 = the numbers describe 100 g and a
+   * weight has to be given.
+   *
+   * It comes from the server now. It used to be inferred from `known` —
+   * "we have seen this before" read as "these numbers are a portion" — so a
+   * second scan hid the weight field and logged 100 g of whatever it was.
+   */
+  perGrams?: number | null;
+  note?: string | null;
 };
 
 export function FoodCapture({
@@ -71,12 +86,15 @@ export function FoodCapture({
         fatG: c.fatG,
         carbsG: c.carbsG,
         barcode: c.barcode,
-        // A saved entry is already a portion; OpenFoodFacts gives per 100g.
-        perHundred: !c.known,
-        note: c.known ? 'From your saved foods' : 'Per 100g — how much did you have?',
+        perGrams: c.perGrams,
+        note: c.known ? t('fromYourFoods') : null,
       });
+      // Last time beats a round number: somebody who had 60 g of this bar on
+      // Tuesday is far likelier to have 60 again than 100, and 100 was never
+      // chosen by anybody — it is the number the label is printed against.
+      setGrams(String(c.lastGrams ?? c.perGrams ?? 100));
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Lookup failed');
+      setError(caught instanceof ApiError ? caught.message : t('lookupFailed'));
     } finally {
       setBusy(false);
     }
@@ -101,17 +119,19 @@ export function FoodCapture({
         carbsG: e.carbsG,
         note:
           e.assumptions ||
-          (e.confidence === 'low' ? 'Rough guess — worth correcting.' : 'Check it looks right.'),
+          (e.confidence === 'low' ? t('roughGuess') : t('checkItLooksRight')),
       });
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not estimate that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotEstimate'));
     } finally {
       setBusy(false);
     }
   }
 
-  // Scanned values are per 100g, so scale by the portion he actually ate.
-  const factor = draft?.perHundred ? (Number(grams) || 0) / 100 : 1;
+  const byWeight = draft?.perGrams != null;
+  // Scaled live as the number is typed, so the macros below the field are
+  // always the macros of the portion on screen.
+  const factor = byWeight ? (Number(grams) || 0) / (draft!.perGrams as number) : 1;
   const scaled = draft
     ? {
         kcal: Math.round(draft.kcal * factor),
@@ -128,7 +148,7 @@ export function FoodCapture({
     try {
       // Keep the scanned product at per-100g values, so the next scan can be
       // scaled to a different portion rather than inheriting this one.
-      if (draft.barcode && draft.perHundred) {
+      if (draft.barcode && byWeight) {
         await api('/foods/scanned', {
           method: 'POST',
           body: {
@@ -146,14 +166,14 @@ export function FoodCapture({
         method: 'POST',
         body: {
           slot,
-          description: draft.perHundred ? `${draft.name} (${grams}g)` : draft.name,
+          description: byWeight ? `${draft.name} (${grams} g)` : draft.name,
           ...scaled,
         },
       });
       reset();
       onLogged();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not log that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotLog'));
     } finally {
       setBusy(false);
     }
@@ -196,15 +216,12 @@ export function FoodCapture({
         <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheet}>
           {!draft ? (
             <>
-              <Text style={styles.label}>DESCRIBE IT</Text>
-              <Text style={styles.help}>
-                In your words, English or German. Give weights if you know them and the estimate
-                gets much better.
-              </Text>
+              <Text style={styles.label}>{t('describeIt')}</Text>
+              <Text style={styles.help}>{t('describeHelp')}</Text>
               <TextInput
                 value={text}
                 onChangeText={setText}
-                placeholder="200g Hähnchen, Reis, Brokkoli"
+                placeholder={t('describePlaceholder')}
                 placeholderTextColor={colors.textFaint}
                 style={[styles.input, styles.multiline]}
                 multiline
@@ -212,34 +229,42 @@ export function FoodCapture({
               />
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <Button
-                title={busy ? 'Working it out…' : 'Estimate macros'}
+                title={busy ? t('estimating') : t('estimateMacros')}
                 onPress={estimate}
                 disabled={busy || text.trim().length < 2}
               />
             </>
           ) : (
             <>
-              <Text style={styles.label}>CHECK THIS BEFORE SAVING</Text>
               <Text style={styles.draftName}>{draft.name}</Text>
               {draft.note ? <Text style={styles.help}>{draft.note}</Text> : null}
 
-              {draft.perHundred ? (
-                <View style={styles.gramsRow}>
-                  <TextInput
-                    value={grams}
-                    onChangeText={setGrams}
-                    keyboardType="number-pad"
-                    style={[styles.input, styles.grams]}
-                  />
-                  <Text style={styles.gramsLabel}>grams eaten</Text>
-                </View>
+              {/* The weight is the only decision on this sheet, so it gets the
+                  size and the keyboard. Everything below it is a consequence
+                  of the number typed here and updates as it is typed. */}
+              {byWeight ? (
+                <>
+                  <Text style={styles.label}>{t('howMuch')}</Text>
+                  <View style={styles.gramsRow}>
+                    <TextInput
+                      value={grams}
+                      onChangeText={(next) => setGrams(next.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                      autoFocus
+                      style={styles.grams}
+                    />
+                    <Text style={styles.gramsUnit}>{t('gramsUnit')}</Text>
+                  </View>
+                  <Text style={styles.help}>{t('perHundredNote')}</Text>
+                </>
               ) : null}
 
               <View style={styles.macroRow}>
-                <Macro label="protein" value={`${scaled!.proteinG}g`} hero />
-                <Macro label="kcal" value={`${scaled!.kcal}`} />
-                <Macro label="fat" value={scaled!.fatG == null ? '—' : `${scaled!.fatG}g`} />
-                <Macro label="carbs" value={scaled!.carbsG == null ? '—' : `${scaled!.carbsG}g`} />
+                <Macro label={t('macroProtein')} value={`${scaled!.proteinG} g`} hero />
+                <Macro label={t('macroKcal')} value={`${scaled!.kcal}`} />
+                <Macro label={t('macroFat')} value={scaled!.fatG == null ? '—' : `${scaled!.fatG} g`} />
+                <Macro label={t('macroCarbs')} value={scaled!.carbsG == null ? '—' : `${scaled!.carbsG} g`} />
               </View>
 
               <View style={styles.slotRow}>
@@ -250,7 +275,7 @@ export function FoodCapture({
                     style={[styles.slotChip, slot === option && styles.slotChipActive]}
                   >
                     <Text style={[styles.slotText, slot === option && styles.slotTextActive]}>
-                      {option}
+                      {t(SLOT_LABELS[option])}
                     </Text>
                   </Pressable>
                 ))}
@@ -258,8 +283,12 @@ export function FoodCapture({
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Button title={busy ? 'Saving…' : 'Log it'} onPress={log} disabled={busy} />
-              <Button title="Start over" variant="ghost" onPress={reset} />
+              <Button
+                title={busy ? t('savingShort') : t('logIt')}
+                onPress={log}
+                disabled={busy || (byWeight && !(Number(grams) > 0))}
+              />
+              <Button title={t('startOver')} variant="ghost" onPress={reset} />
             </>
           )}
 
@@ -309,9 +338,17 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 88, paddingTop: space.md, textAlignVertical: 'top' },
 
-  gramsRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  grams: { width: 110, textAlign: 'center', fontSize: 20, fontWeight: '400' },
-  gramsLabel: { ...typo.body, color: colors.textDim },
+  gramsRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  grams: {
+    minWidth: 110,
+    fontSize: 52,
+    fontWeight: '300',
+    letterSpacing: -1.5,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    paddingVertical: 0,
+  },
+  gramsUnit: { fontSize: 22, color: colors.textDim },
 
   macroRow: { flexDirection: 'row', gap: space.sm },
   macro: {

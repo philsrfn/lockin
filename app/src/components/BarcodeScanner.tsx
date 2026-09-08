@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../lib/locale';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,13 +42,13 @@ export function BarcodeScanner({
       <View style={styles.root}>
         {!permission ? null : !permission.granted ? (
           <View style={[styles.centred, { paddingTop: insets.top + space.xxl }]}>
-            <Text style={styles.title}>Camera access</Text>
+            <Text style={styles.title}>{t('cameraAccess')}</Text>
             <Text style={styles.body}>
               lockin needs the camera to read barcodes. Nothing is recorded — the code is looked up
               and the picture is discarded.
             </Text>
-            <Button title="Allow camera" onPress={requestPermission} />
-            <Button title="Not now" variant="ghost" onPress={onClose} />
+            <Button title={t('allowCamera')} onPress={requestPermission} />
+            <Button title={t('notNow')} variant="ghost" onPress={onClose} />
           </View>
         ) : (
           <>

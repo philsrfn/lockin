@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../lib/locale';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -107,25 +108,25 @@ export function FoodEditor({
       >
         <Pressable style={styles.backdropFill} onPress={onClose} />
         <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheet}>
-          <Text style={styles.label}>EDIT FOOD</Text>
+          <Text style={styles.label}>{t('editFood')}</Text>
 
           <TextInput value={name} onChangeText={setName} style={styles.input} />
 
           <View style={styles.numberRow}>
-            <Field label="protein" value={protein} onChange={setProtein} />
-            <Field label="kcal" value={kcal} onChange={setKcal} />
-            <Field label="fat" value={fat} onChange={setFat} />
-            <Field label="carbs" value={carbs} onChange={setCarbs} />
+            <Field label={t('macroProtein')} value={protein} onChange={setProtein} />
+            <Field label={t('macroKcal')} value={kcal} onChange={setKcal} />
+            <Field label={t('macroFat')} value={fat} onChange={setFat} />
+            <Field label={t('macroCarbs')} value={carbs} onChange={setCarbs} />
           </View>
 
           <Pressable onPress={() => setQuickAdd((v) => !v)} style={styles.toggle}>
             <Text style={[styles.toggleText, quickAdd && styles.toggleOn]}>
               {quickAdd ? '✓  Show as a one-tap tile' : 'Show as a one-tap tile'}
             </Text>
-            <Text style={styles.toggleHint}>Tiles sit at the top of the food screen.</Text>
+            <Text style={styles.toggleHint}>{t('tilesSitAtTop')}</Text>
           </Pressable>
 
-          <Text style={styles.label}>USUAL MEAL</Text>
+          <Text style={styles.label}>{t('usualMeal')}</Text>
           <View style={styles.slotRow}>
             {SLOTS.map((option) => (
               <Pressable
@@ -148,13 +149,13 @@ export function FoodEditor({
           {confirmRemove ? (
             <>
               <Text style={styles.warn}>
-                Remove it from the list? Meals you already logged with it stay in your history.
+                {t('removeFoodAsk')}
               </Text>
-              <Button title="Yes, remove it" variant="secondary" onPress={remove} disabled={busy} />
-              <Button title="Keep it" variant="ghost" onPress={() => setConfirmRemove(false)} />
+              <Button title={t('removeIt')} variant="secondary" onPress={remove} disabled={busy} />
+              <Button title={t('keepIt')} variant="ghost" onPress={() => setConfirmRemove(false)} />
             </>
           ) : (
-            <Button title="Remove from my foods" variant="ghost" onPress={() => setConfirmRemove(true)} />
+            <Button title={t('removeFromMyFoods')} variant="ghost" onPress={() => setConfirmRemove(true)} />
           )}
         </ScrollView>
       </KeyboardAvoidingView>

@@ -23,11 +23,22 @@ export type BarcodeCandidate = {
   proteinG: number;
   fatG: number | null;
   carbsG: number | null;
-  /** True when it came from his library rather than the network. */
+  /** True when it came from their library rather than the network. */
   known: boolean;
   /** What the numbers describe — OpenFoodFacts reports per 100g. */
   basis: string;
   brand: string | null;
+  /**
+   * Always 100 for a barcode: OpenFoodFacts reports per 100g, and saveScanned
+   * stores it that way so the next scan can be a different portion.
+   *
+   * Stated rather than implied. The app used to infer the basis from `known`
+   * — reading "we have seen this before" as "these numbers are a portion" —
+   * and so logged 100g of anything scanned twice. See migration 027.
+   */
+  perGrams: number;
+  /** What they ate last time. The opening offer, better than a round number. */
+  lastGrams: number | null;
 };
 
 type OffProduct = {
@@ -56,8 +67,9 @@ export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeC
     protein_g: number;
     fat_g: number | null;
     carbs_g: number | null;
+    last_grams: number | null;
   }>(
-    `select name, kcal, protein_g, fat_g, carbs_g from foods
+    `select name, kcal, protein_g, fat_g, carbs_g, last_grams from foods
      where user_id = $1 and barcode = $2 and not archived limit 1`,
     [ctx.userId, code],
   );
@@ -72,8 +84,10 @@ export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeC
       fatG: mine.fat_g,
       carbsG: mine.carbs_g,
       known: true,
-      basis: 'your saved entry',
+      basis: 'your saved entry, per 100g',
       brand: null,
+      perGrams: 100,
+      lastGrams: mine.last_grams,
     };
   }
 
@@ -123,6 +137,8 @@ export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeC
     known: false,
     basis: 'per 100g',
     brand,
+    perGrams: 100,
+    lastGrams: null,
   };
 }
 
@@ -137,6 +153,9 @@ export async function saveScanned(
     proteinG: candidate.proteinG,
     fatG: candidate.fatG ?? null,
     carbsG: candidate.carbsG ?? null,
+    // The numbers being stored are per 100g. Saying so is the whole fix: the
+    // row used to look exactly like a portion and be read as one.
+    perGrams: 100,
   });
   await ctx.db.query(
     'update foods set barcode = $3 where id = $1 and user_id = $2 and barcode is null',

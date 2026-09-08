@@ -3,6 +3,7 @@
  * offline sync queue, so the two paths can never drift apart.
  */
 import { z } from 'zod';
+import { MAX_PORTION_G } from './domain/portions';
 
 /**
  * A programme day code — 'A', 'U1', 'Push'. Free text at this layer: which
@@ -259,6 +260,12 @@ export const LogMealSchema = z.object({
 export const LogFoodSchema = z.object({
   foodId: z.number().int().positive(),
   slot: MealSlotSchema.optional(),
+  /**
+   * Required for a food measured by weight, meaningless for one that is
+   * already a portion. The route refuses rather than assuming — see
+   * domain/portions.ts for why assuming is the dangerous option.
+   */
+  grams: z.number().positive().max(MAX_PORTION_G).optional(),
 });
 
 export const BarcodeQuerySchema = z.object({

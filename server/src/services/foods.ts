@@ -18,6 +18,14 @@ export type Food = {
   defaultSlot: MealSlot | null;
   timesUsed: number;
   lastUsedAt: string | null;
+  /**
+   * null = the numbers above are one portion, log them as they stand.
+   * 100 = they describe 100 grams, and a portion has to be given before
+   * anything can be logged. See domain/portions.ts and migration 027.
+   */
+  perGrams: number | null;
+  /** What was eaten last time. The opening offer when asking how much. */
+  lastGrams: number | null;
 };
 
 type FoodRow = {
@@ -31,6 +39,8 @@ type FoodRow = {
   default_slot: string | null;
   times_used: number;
   last_used_at: Date | null;
+  per_grams: number | null;
+  last_grams: number | null;
 };
 
 const toFood = (row: FoodRow): Food => ({
@@ -44,11 +54,13 @@ const toFood = (row: FoodRow): Food => ({
   defaultSlot: (row.default_slot as MealSlot | null) ?? null,
   timesUsed: row.times_used,
   lastUsedAt: row.last_used_at?.toISOString() ?? null,
+  perGrams: row.per_grams,
+  lastGrams: row.last_grams,
 });
 
 const SELECT = `
   select id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
-         times_used, last_used_at
+         times_used, last_used_at, per_grams, last_grams
   from foods
   where not archived and user_id = $1
 `;
@@ -81,6 +93,8 @@ export type SaveFoodInput = {
   carbsG?: number | null;
   quickAdd?: boolean;
   defaultSlot?: MealSlot | null;
+  /** 100 when the macros describe 100g; omit when they are one portion. */
+  perGrams?: number | null;
 };
 
 export async function createFood(ctx: Ctx, input: SaveFoodInput): Promise<Food> {
@@ -92,16 +106,19 @@ export async function createFood(ctx: Ctx, input: SaveFoodInput): Promise<Food> 
   }
 
   const { rows } = await ctx.db.query<FoodRow>(
-    `insert into foods (user_id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `insert into foods (user_id, name, kcal, protein_g, fat_g, carbs_g, quick_add,
+                        default_slot, per_grams)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      -- Saving the same thing twice should update it, not fail. He is not
      -- thinking about primary keys while logging lunch.
      on conflict (user_id, lower(name)) where not archived do update
        set kcal = excluded.kcal, protein_g = excluded.protein_g,
            fat_g = excluded.fat_g, carbs_g = excluded.carbs_g,
-           quick_add = excluded.quick_add, default_slot = excluded.default_slot
+           quick_add = excluded.quick_add, default_slot = excluded.default_slot,
+           -- Re-saving a scanned product must not turn it back into a portion.
+           per_grams = excluded.per_grams
      returning id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
-               times_used, last_used_at`,
+               times_used, last_used_at, per_grams, last_grams`,
     [
       ctx.userId,
       name,
@@ -111,6 +128,7 @@ export async function createFood(ctx: Ctx, input: SaveFoodInput): Promise<Food> 
       input.carbsG == null ? null : Math.round(input.carbsG),
       input.quickAdd ?? false,
       input.defaultSlot ?? null,
+      input.perGrams ?? null,
     ],
   );
   return toFood(rows[0]!);
@@ -126,8 +144,13 @@ export async function updateFood(
     `update foods set name = $3, kcal = $4, protein_g = $5, fat_g = $6, carbs_g = $7,
                       quick_add = $8, default_slot = $9
      where id = $2 and user_id = $1
+     -- per_grams and last_grams are deliberately not in the SET list: editing
+     -- the macros of a scanned product must not turn it back into a portion.
+     -- They are in RETURNING because leaving them out hands the screen an
+     -- undefined basis, which reads as "this is a portion" — the same bug
+     -- migration 027 exists to end.
      returning id, name, kcal, protein_g, fat_g, carbs_g, quick_add, default_slot,
-               times_used, last_used_at`,
+               times_used, last_used_at, per_grams, last_grams`,
     [
       ctx.userId,
       id,
@@ -159,5 +182,20 @@ export async function recordUse(ctx: Ctx, id: number): Promise<void> {
   await ctx.db.query(
     'update foods set times_used = times_used + 1, last_used_at = now() where id = $1 and user_id = $2',
     [id, ctx.userId],
+  );
+}
+
+
+/**
+ * Remember the portion, so the next scan opens on what they actually ate
+ * rather than on the number the label happens to be printed against.
+ *
+ * Best effort by design: this runs after the meal is already written, and
+ * failing to remember a convenience must never fail the log.
+ */
+export async function rememberPortion(ctx: Ctx, foodId: number, grams: number): Promise<void> {
+  await ctx.db.query(
+    'update foods set last_grams = $3 where user_id = $1 and id = $2 and per_grams is not null',
+    [ctx.userId, foodId, Math.round(grams)],
   );
 }

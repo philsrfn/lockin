@@ -18,6 +18,7 @@ import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { FoodCapture } from '../../src/components/FoodCapture';
 import { FoodEditor } from '../../src/components/FoodEditor';
+import { PortionSheet } from '../../src/components/PortionSheet';
 import { t } from '../../src/lib/locale';
 import { colors, radius, space, tabBarHeight, type as typo } from '../../src/theme';
 
@@ -39,6 +40,7 @@ export default function FoodScreen() {
   const [manualOpen, setManualOpen] = useState(false);
   const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
   const [editing, setEditing] = useState<Food | null>(null);
+  const [portioning, setPortioning] = useState<Food | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -51,7 +53,7 @@ export default function FoodScreen() {
       setFoods(f.foods);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load your food');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadFood'));
     } finally {
       setLoading(false);
     }
@@ -67,14 +69,28 @@ export default function FoodScreen() {
     }, [load]),
   );
 
-  async function logFood(food: Food) {
+  /**
+   * One tap is right for a food that *is* a portion, and wrong for one
+   * measured by weight — that used to log 100 g of it without saying so.
+   * The basis now lives on the food, so the tap can branch on it.
+   */
+  function tapFood(food: Food) {
+    if (food.perGrams != null) setPortioning(food);
+    else void logFood(food, null);
+  }
+
+  async function logFood(food: Food, grams: number | null) {
     setBusy(food.id);
     setError(null);
     try {
-      await api('/meals/from-food', { method: 'POST', body: { foodId: food.id } });
+      await api('/meals/from-food', {
+        method: 'POST',
+        body: { foodId: food.id, ...(grams == null ? {} : { grams }) },
+      });
+      setPortioning(null);
       await load();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not log that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotLog'));
     } finally {
       setBusy(null);
     }
@@ -142,7 +158,7 @@ export default function FoodScreen() {
               {quick.map((food) => (
                 <Pressable
                   key={food.id}
-                  onPress={() => logFood(food)}
+                  onPress={() => tapFood(food)}
                   onLongPress={() => setEditing(food)}
                   delayLongPress={450}
                   disabled={busy !== null}
@@ -156,7 +172,8 @@ export default function FoodScreen() {
                         {food.name}
                       </Text>
                       <Text style={styles.tileMacros}>
-                        {food.proteinG}g P · {food.kcal} kcal
+                        {food.proteinG} g P · {food.kcal} kcal
+                        {food.perGrams != null ? ` / ${food.perGrams} g` : ''}
                       </Text>
                     </>
                   )}
@@ -188,7 +205,7 @@ export default function FoodScreen() {
                   </Text>
                 </Pressable>
               ))}
-              <Text style={styles.hint}>Hold a row to remove it.</Text>
+              <Text style={styles.hint}>{t('holdToRemove')}</Text>
             </View>
           </>
         ) : null}
@@ -201,7 +218,7 @@ export default function FoodScreen() {
               {rest.map((food) => (
                 <Pressable
                   key={food.id}
-                  onPress={() => logFood(food)}
+                  onPress={() => tapFood(food)}
                   onLongPress={() => setEditing(food)}
                   delayLongPress={450}
                   disabled={busy !== null}
@@ -235,6 +252,13 @@ export default function FoodScreen() {
         />
         <Button title={t('enterByHand')} variant="ghost" onPress={() => setManualOpen(true)} />
       </ScrollView>
+
+      <PortionSheet
+        food={portioning}
+        busy={busy !== null}
+        onCancel={() => setPortioning(null)}
+        onConfirm={(grams) => portioning && void logFood(portioning, grams)}
+      />
 
       <FoodEditor
         food={editing}
@@ -336,7 +360,7 @@ function ManualEntry({
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Name it — chicken and rice"
+            placeholder={t('nameItPlaceholder')}
             placeholderTextColor={colors.textFaint}
             style={styles.input}
           />
@@ -345,7 +369,7 @@ function ManualEntry({
             <TextInput
               value={protein}
               onChangeText={setProtein}
-              placeholder="protein g"
+              placeholder={t('proteinGShort')}
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               style={[styles.input, styles.numberInput]}
@@ -353,7 +377,7 @@ function ManualEntry({
             <TextInput
               value={kcal}
               onChangeText={setKcal}
-              placeholder="kcal"
+              placeholder={t('macroKcal')}
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               style={[styles.input, styles.numberInput]}
@@ -361,7 +385,7 @@ function ManualEntry({
             <TextInput
               value={fat}
               onChangeText={setFat}
-              placeholder="fat g"
+              placeholder={t('fatGShort')}
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               style={[styles.input, styles.numberInput]}

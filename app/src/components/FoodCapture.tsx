@@ -16,6 +16,7 @@ import type { BarcodeCandidate, FoodEstimate, MealSlot } from '../api/types';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Button } from './Button';
 import { t } from '../lib/locale';
+import { useGramsField } from '../lib/useGramsField';
 import { colors, radius, space, type as typo } from '../theme';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -58,7 +59,13 @@ export function FoodCapture({
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [text, setText] = useState('');
-  const [grams, setGrams] = useState('100');
+  /**
+   * The weight, when the food is measured by one. Suggested from what was
+   * eaten last time and selected on open, so the first keystroke replaces it
+   * rather than landing after it.
+   */
+  const [suggested, setSuggested] = useState<number | null>(null);
+  const gramsField = useGramsField(suggested);
   const [slot, setSlot] = useState<MealSlot>('snack');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +73,7 @@ export function FoodCapture({
   function reset() {
     setDraft(null);
     setText('');
-    setGrams('100');
+    setSuggested(null);
     setError(null);
   }
 
@@ -92,7 +99,7 @@ export function FoodCapture({
       // Last time beats a round number: somebody who had 60 g of this bar on
       // Tuesday is far likelier to have 60 again than 100, and 100 was never
       // chosen by anybody — it is the number the label is printed against.
-      setGrams(String(c.lastGrams ?? c.perGrams ?? 100));
+      setSuggested(c.lastGrams ?? c.perGrams ?? 100);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : t('lookupFailed'));
     } finally {
@@ -131,7 +138,7 @@ export function FoodCapture({
   const byWeight = draft?.perGrams != null;
   // Scaled live as the number is typed, so the macros below the field are
   // always the macros of the portion on screen.
-  const factor = byWeight ? (Number(grams) || 0) / (draft!.perGrams as number) : 1;
+  const factor = byWeight ? gramsField.amount / (draft!.perGrams as number) : 1;
   const scaled = draft
     ? {
         kcal: Math.round(draft.kcal * factor),
@@ -166,7 +173,7 @@ export function FoodCapture({
         method: 'POST',
         body: {
           slot,
-          description: byWeight ? `${draft.name} (${grams} g)` : draft.name,
+          description: byWeight ? `${draft.name} (${gramsField.amount} g)` : draft.name,
           ...scaled,
         },
       });
@@ -246,14 +253,7 @@ export function FoodCapture({
                 <>
                   <Text style={styles.label}>{t('howMuch')}</Text>
                   <View style={styles.gramsRow}>
-                    <TextInput
-                      value={grams}
-                      onChangeText={(next) => setGrams(next.replace(/[^0-9]/g, ''))}
-                      keyboardType="number-pad"
-                      selectTextOnFocus
-                      autoFocus
-                      style={styles.grams}
-                    />
+                    <TextInput {...gramsField.props} autoFocus style={styles.grams} />
                     <Text style={styles.gramsUnit}>{t('gramsUnit')}</Text>
                   </View>
                   <Text style={styles.help}>{t('perHundredNote')}</Text>
@@ -286,7 +286,7 @@ export function FoodCapture({
               <Button
                 title={busy ? t('savingShort') : t('logIt')}
                 onPress={log}
-                disabled={busy || (byWeight && !(Number(grams) > 0))}
+                disabled={busy || (byWeight && !gramsField.valid)}
               />
               <Button title={t('startOver')} variant="ghost" onPress={reset} />
             </>

@@ -5,7 +5,15 @@ import type { WeekDay } from '../api/types';
 import { weekdayShort } from '../lib/format';
 import { colors, space, type as typo } from '../theme';
 
-const TRACK = 84;
+/**
+ * The bar track, in points.
+ *
+ * It was 84, which on a week with one logged day is a hand's width of empty
+ * column and the single largest block of nothing on the home screen. The bar
+ * answers "did I hit protein" — a question 44 points resolves as well as 84,
+ * and the screen gets the rest back.
+ */
+const TRACK = 44;
 
 /**
  * The week, as one object.

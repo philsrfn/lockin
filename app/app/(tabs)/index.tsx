@@ -134,7 +134,6 @@ export default function TodayScreen() {
               {(
                 [
                   ['/progress', t('progress')],
-                  ['/rules', t('rules')],
                 ] as const
               ).map(([href, label]) => (
                 <Pressable

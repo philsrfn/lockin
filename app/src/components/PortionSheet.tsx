@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useGramsField } from '../lib/useGramsField';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from './Button';
 import { t } from '../lib/locale';
@@ -35,17 +35,13 @@ export function PortionSheet({
   onConfirm: (grams: number) => void;
   busy?: boolean;
 }) {
-  const [grams, setGrams] = useState('100');
-
-  // Reopening on a different food must not carry the last one's number over.
-  useEffect(() => {
-    if (food) setGrams(String(food.lastGrams ?? food.perGrams ?? 100));
-  }, [food]);
+  // Reopening on a different food must not carry the last one's number over,
+  // and the suggestion arrives selected so the first keystroke replaces it.
+  const field = useGramsField(food ? (food.lastGrams ?? food.perGrams ?? 100) : null);
 
   if (!food) return null;
 
-  const amount = Number(grams) || 0;
-  const factor = amount / (food.perGrams || 100);
+  const factor = field.amount / (food.perGrams || 100);
   const round = (value: number | null) => (value == null ? null : Math.round(value * factor));
 
   return (
@@ -60,14 +56,7 @@ export function PortionSheet({
           <Text style={styles.label}>{t('howMuch')}</Text>
 
           <View style={styles.row}>
-            <TextInput
-              value={grams}
-              onChangeText={(next) => setGrams(next.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              selectTextOnFocus
-              autoFocus
-              style={styles.grams}
-            />
+            <TextInput {...field.props} autoFocus style={styles.grams} />
             <Text style={styles.unit}>{t('gramsUnit')}</Text>
           </View>
 
@@ -81,8 +70,8 @@ export function PortionSheet({
 
           <Button
             title={busy ? t('savingShort') : t('logIt')}
-            onPress={() => onConfirm(amount)}
-            disabled={busy || amount <= 0}
+            onPress={() => onConfirm(field.amount)}
+            disabled={busy || !field.valid}
           />
           <Button title={t('cancel')} variant="ghost" onPress={onCancel} />
         </View>

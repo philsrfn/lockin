@@ -21,6 +21,8 @@ export type Program = {
   name: string;
   description: string;
   daysPerWeek: number;
+  /** Theirs to edit, rather than one of the built-in three everybody shares. */
+  mine: boolean;
   days: ProgramDay[];
 };
 
@@ -37,8 +39,6 @@ export type ProgramSlot = {
 /** A programme with every day's movements — what the editor loads and saves. */
 export type ProgramWithSlots = Omit<Program, 'days'> & {
   days: (ProgramDay & { slots: ProgramSlot[] })[];
-  /** False for the built-in three, which nobody may edit. */
-  mine: boolean;
 };
 
 export type Exercise = {

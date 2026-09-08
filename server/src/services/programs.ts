@@ -31,6 +31,12 @@ export type Program = {
   name: string;
   description: string;
   daysPerWeek: number;
+  /**
+   * Theirs to edit, rather than one of the built-in three that everybody
+   * shares. Every read here is already restricted to `user_id is null or
+   * user_id = $1`, so an owner at all is this owner.
+   */
+  mine: boolean;
   /** In rotation order. */
   days: ProgramDay[];
 };
@@ -55,11 +61,13 @@ type ProgramRow = {
   name: string;
   description: string;
   days_per_week: number;
+  mine: boolean;
   days: ProgramDay[] | null;
 };
 
 const SELECT_PROGRAMS = `
   select p.id, p.slug, p.name, p.description, p.days_per_week,
+         (p.user_id is not null) as mine,
          coalesce(
            json_agg(
              json_build_object('position', d.position, 'code', d.code, 'name', d.name)
@@ -77,6 +85,7 @@ const toProgram = (row: ProgramRow): Program => ({
   name: row.name,
   description: row.description,
   daysPerWeek: row.days_per_week,
+  mine: row.mine,
   days: row.days ?? [],
 });
 
@@ -406,8 +415,6 @@ export async function deleteProgram(ctx: Ctx, programId: number): Promise<void> 
 
 export type ProgramWithSlots = Omit<Program, 'days'> & {
   days: (ProgramDay & { slots: ProgramSlot[] })[];
-  /** False for the built-in three, which nobody may edit. */
-  mine: boolean;
 };
 
 /**
@@ -422,15 +429,10 @@ export async function programWithSlots(ctx: Ctx, id: number): Promise<ProgramWit
   const program = await byId(ctx, id);
   if (!program) throw notFound(`No programme ${id}`);
 
-  const { rows } = await ctx.db.query<{ mine: boolean }>(
-    'select (user_id = $1) as mine from programs where id = $2 and (user_id is null or user_id = $1)',
-    [ctx.userId, id],
-  );
-
   const days = [];
   for (const day of program.days) {
     days.push({ ...day, slots: await slotsFor(ctx, id, day.code) });
   }
 
-  return { ...program, days, mine: rows[0]?.mine === true };
+  return { ...program, days };
 }

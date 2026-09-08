@@ -53,6 +53,25 @@ describe('building one from nothing', () => {
     expect((await listPrograms(phil)).map((p) => p.name)).toContain('Mein Plan');
   });
 
+  it('marks which of the listed programmes are the athlete\'s own', async () => {
+    // The account screen offers "edit" on one and "use as a template" on the
+    // other, so it has to be able to tell them apart without guessing from
+    // the slug.
+    await createProgram(phil, { name: 'Mein Plan' });
+    const listed = await listPrograms(phil);
+
+    expect(listed.find((p) => p.name === 'Mein Plan')?.mine).toBe(true);
+    expect(listed.filter((p) => !p.mine).length).toBeGreaterThan(0);
+    expect(listed.filter((p) => p.mine)).toHaveLength(1);
+  });
+
+  it('does not mark another athlete\'s programme as anybody else\'s', async () => {
+    await createProgram(sam, { name: 'Sams Plan' });
+
+    expect((await listPrograms(phil)).map((p) => p.name)).not.toContain('Sams Plan');
+    expect((await listPrograms(sam)).find((p) => p.name === 'Sams Plan')?.mine).toBe(true);
+  });
+
   it('fills in days and exercises on save', async () => {
     const created = await createProgram(phil, { name: 'Mein Plan' });
 

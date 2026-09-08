@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
 import type { Program } from '../src/api/types';
@@ -40,6 +40,8 @@ export default function AccountScreen() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [current, setCurrent] = useState<Program | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** A programme is being created; both buttons that create one wait on it. */
+  const [forking, setForking] = useState(false);
 
   const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
   const [healthNote, setHealthNote] = useState<string | null>(null);
@@ -65,9 +67,16 @@ export default function AccountScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  /**
+   * On focus, not just on mount. Building a programme happens on another
+   * screen and comes back here — and a list that still shows three built-ins
+   * after you have just made a fourth reads as the save having failed.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   useEffect(() => {
     void appleSignInAvailable().then(setAppleReady);
@@ -85,6 +94,41 @@ export default function AccountScreen() {
       await api('/programs/choose', { method: 'POST', body: { programId: program.id } });
     } finally {
       await load();
+    }
+  }
+
+  /**
+   * Editing a built-in means taking a copy of it. The three in the catalogue
+   * are shared by everybody, so there is nothing to edit in place — and a
+   * fork is what somebody means anyway when they say they want to change one.
+   */
+  async function forkProgram(program: Program) {
+    setForking(true);
+    try {
+      const { program: created } = await api<{ program: Program }>('/programs', {
+        method: 'POST',
+        body: { name: program.name, fromProgramId: program.id },
+      });
+      router.push(`/programme?id=${created.id}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+    } finally {
+      setForking(false);
+    }
+  }
+
+  async function createBlankProgram() {
+    setForking(true);
+    try {
+      const { program: created } = await api<{ program: Program }>('/programs', {
+        method: 'POST',
+        body: { name: t('newProgrammeName') },
+      });
+      router.push(`/programme?id=${created.id}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+    } finally {
+      setForking(false);
     }
   }
 
@@ -242,8 +286,14 @@ export default function AccountScreen() {
       </Card>
 
       {/*
-        Three programmes, not a builder (§14). Switching keeps every session
-        already logged; the rotation just starts at the top of the new one.
+        Switching keeps every session already logged; the rotation just starts
+        at the top of the new one.
+
+        The built-in three are still here and still the fastest way to start,
+        but they are no longer the whole answer. Each one doubles as a
+        template, because "PPL, but with my gym's machines" is what almost
+        everybody means, and typing thirty exercises before a first session is
+        a reason to give up rather than a feature.
       */}
       {programs.length > 0 ? (
         <Card label={t('programme')}>
@@ -266,9 +316,33 @@ export default function AccountScreen() {
                   {program.days.map((day) => day.name).join(' · ')}
                 </Text>
                 {chosen ? <Text style={styles.programBlurb}>{program.description}</Text> : null}
+                <Pressable
+                  onPress={() =>
+                    program.mine
+                      ? router.push(`/programme?id=${program.id}`)
+                      : void forkProgram(program)
+                  }
+                  // Copying a programme takes a round trip, and two taps
+                  // during it would leave two copies behind.
+                  disabled={forking}
+                  hitSlop={8}
+                  style={styles.programAction}
+                >
+                  <Text style={styles.programActionText}>
+                    {program.mine ? t('editProgramme') : t('forkThis')}
+                  </Text>
+                </Pressable>
               </Pressable>
             );
           })}
+
+          <Text style={styles.blurb}>{t('ownProgrammeBlurb')}</Text>
+          <Button
+            title={t('startBlank')}
+            variant="secondary"
+            disabled={forking}
+            onPress={() => void createBlankProgram()}
+          />
         </Card>
       ) : null}
 
@@ -347,6 +421,8 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
   programCheck: { ...typo.body, color: colors.accent },
+  programAction: { paddingTop: space.sm },
+  programActionText: { fontSize: 13, color: colors.accent },
 
   input: {
     minHeight: 52,

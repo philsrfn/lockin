@@ -62,6 +62,22 @@ async function transactionalTables(): Promise<string[]> {
 export async function resetData(): Promise<void> {
   const tables = await transactionalTables();
   await pool.query(`truncate ${tables.join(', ')} restart identity cascade`);
+
+  // Programmes an athlete built. The catalogue rows stay — truncating this
+  // table would take the training programme with it, which is why it is
+  // exempt above — but a row a test created is a test's row like any other,
+  // and until athletes could own one there were none. Leaving them behind
+  // makes "how many programmes are mine" depend on which tests ran first.
+  //
+  // The profile has to let go of it before it can be deleted: `program_id`
+  // references this table with no cascade, on purpose, so that nothing can
+  // quietly delete the programme somebody is training on.
+  await pool.query(
+    `update profile
+     set program_id = (select id from programs where slug = 'full_body_3' and user_id is null)
+     where program_id in (select id from programs where user_id is not null)`,
+  );
+  await pool.query('delete from programs where user_id is not null');
   // Athletes provisioned by a test, and the rows that came with them. User 1 is
   // the seed and stays — but returns to the shape it was seeded in. A linked
   // Apple ID is state a test wrote, and leaving it behind makes the next test

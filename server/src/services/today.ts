@@ -13,6 +13,7 @@ import { type Meal, macrosToday, mealsToday } from './meals';
 import { getWeek } from './week';
 import { type WorkoutPlan, planFor, templateForToday } from './workouts';
 import { type CoachNote, cachedNote } from '../llm/coach';
+import { noteStillFits } from '../domain/coachNote';
 
 export type Today = {
   date: string;
@@ -116,6 +117,31 @@ export async function getToday(ctx: Ctx): Promise<Today> {
 
   const targets = macroTargets(profile);
 
+  /**
+   * A note that no longer describes today is dropped rather than shown.
+   *
+   * This path deliberately never generates one — a model call on every app
+   * open is the thing the cache exists to prevent — so the only two answers
+   * available here are "show the morning's note" and "show none". Since
+   * programmes became something an athlete edits, the morning's note can name
+   * a day the plan below it no longer has, and the card and the plan then
+   * disagree on the one thing the screen is for. No read is honest; the wrong
+   * read is not. The next generation writes a fresh one.
+   */
+  let stillToday: CoachNote | null = null;
+  if (
+    coach &&
+    noteStillFits(
+      { template: coach.template, contextName: coach.forContext },
+      { contextName: context?.name ?? null, dayCodes: plan.days.map((day) => day.code) },
+    )
+  ) {
+    // `forContext` is how the note is checked, not something to show — the
+    // screen already names the place in its own chip.
+    const { forContext: _written, ...note } = coach;
+    stillToday = note;
+  }
+
   return {
     date: today,
     profile,
@@ -136,7 +162,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
       cardioSessions: week.cardio,
       steps: week.steps,
     },
-    coach,
+    coach: stillToday,
     since,
   };
 }

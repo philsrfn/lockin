@@ -205,6 +205,7 @@ export default function RootLayout() {
         <Stack.Screen name="progress" />
         <Stack.Screen name="rules" />
         <Stack.Screen name="account" />
+        <Stack.Screen name="programme" />
         <Stack.Screen name="fridge" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
     </SafeAreaProvider>

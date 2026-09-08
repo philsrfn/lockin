@@ -48,7 +48,7 @@ jobs:
       - run: npm --prefix server test
 
   app:
-    name: app — typecheck
+    name: app — tests and typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,3 +60,7 @@ jobs:
 
       - run: npm --prefix app ci
       - run: npm --prefix app run typecheck
+      # Pure modules under src/lib only — no React, no renderer. Added when bar
+      # loading had to live on the phone: it answers while the stepper moves,
+      # and in a basement with no signal.
+      - run: npm --prefix app test

@@ -106,6 +106,78 @@ export type Session = {
 
 export type PerformedSet = { weightKg: number; reps: number; rir: number | null };
 
+export type Best = {
+  weightKg: number;
+  reps: number;
+  estimated1rm: number;
+  performedAt: string;
+};
+
+/** All-time bests for one movement. Heaviest and best disagree often. */
+export type ExerciseBests = {
+  exerciseId: number;
+  exerciseName: string;
+  heaviest: Best;
+  strongest: Best;
+};
+
+/**
+ * What the athlete actually burns, measured from logged intake and weight.
+ * Deliberately a yes-or-no rather than a nullable number: when the data
+ * cannot support an answer the screen says which part is missing.
+ */
+export type Expenditure =
+  | {
+      ok: true;
+      tdeeKcal: number;
+      windowDays: number;
+      intakeDays: number;
+      meanIntakeKcal: number;
+      changeKg: number;
+      confidence: 'low' | 'good';
+    }
+  | {
+      ok: false;
+      reason: 'not_enough_intake' | 'not_enough_weight' | 'implausible';
+      intakeDays: number;
+      windowDays: number;
+    };
+export type ExerciseSummary = {
+  exerciseId: number;
+  exerciseName: string;
+  sets: number;
+  topWeightKg: number;
+  topReps: number;
+};
+
+export type SessionSummary = {
+  setCount: number;
+  totalVolumeKg: number;
+  exercises: ExerciseSummary[];
+};
+
+export type HistorySession = Session & { summary: SessionSummary };
+
+/** One day that had training in it. Days with none are not sent. */
+export type TrainingDay = {
+  day: string;
+  sessions: HistorySession[];
+  cardio: CardioSession[];
+};
+
+export type TrainingHistory = {
+  days: TrainingDay[];
+  /** Today in the athlete's timezone, not the device's. */
+  today: string;
+  totals: {
+    sessions: number;
+    cardioSessions: number;
+    cardioMinutes: number;
+    setCount: number;
+    totalVolumeKg: number;
+  };
+};
+
 export type PrescriptionReason =
   | 'first_time'
   | 'increase_load'
@@ -125,6 +197,8 @@ export type ExercisePrescription = {
   restSeconds: number;
   incrementKg: number;
   range: { min: number; max: number };
+  /** Loaded with plates, so the logger can show what to put on the bar. */
+  barbell: boolean;
   last: { performedAt: string; sets: PerformedSet[] } | null;
   substitutes: { id: number; name: string; pattern: string }[];
 };

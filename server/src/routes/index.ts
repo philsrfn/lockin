@@ -67,6 +67,8 @@ import {
   openSession,
 } from '../services/sessions';
 import { deleteSet, recordSet } from '../services/sets';
+import { personalBests } from '../services/records';
+import { expenditure } from '../services/expenditure';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
 import { getWeek } from '../services/week';
@@ -84,6 +86,7 @@ import { estimateFood } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
 import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
 import { saveInventory } from '../services/fridge';
+import { trainingHistory } from '../services/history';
 import { jobHandlers, recentRuns } from '../jobs/handlers';
 import { forceRun } from '../jobs/scheduler';
 import { registerToken, sendPush } from '../push';
@@ -331,10 +334,48 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * Personal bests per movement — heaviest, and best by estimated max. Read
+   * from finished sessions only: a set taken back mid-workout was never a
+   * record.
+   */
+  app.get('/records', async (request) => ({ records: await personalBests(request.ctx) }));
+
+  /**
+   * What the athlete actually burns, measured from intake and weight rather
+   * than assumed from a formula. Answers `{ok: false, reason}` rather than a
+   * number when the data cannot support one — see domain/expenditure.ts.
+   */
+  app.get('/expenditure', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(14).max(90).default(28) })
+      .parse(request.query);
+    // The target comes back with it. A measured figure is only interesting
+    // beside the number the app has been assuming, and fetching the profile
+    // separately to put them next to each other would be a second round trip
+    // for one integer.
+    const [measured, profile] = await Promise.all([
+      expenditure(request.ctx, query.days),
+      getProfile(request.ctx),
+    ]);
+    return { expenditure: measured, calorieTarget: profile.calorieTarget };
+  });
+
   app.get('/progress', async (request) => {
     const query = z.object({ days: z.coerce.number().int().min(7).max(365).default(90) })
       .parse(request.query);
     return progress(request.ctx, query.days);
+  });
+
+  /**
+   * Past training, grouped into the athlete's own days. One request rather
+   * than a list call plus a detail call per row: the sets are already loaded
+   * to summarise them, so sending them costs nothing and means tapping a
+   * session opens instantly instead of waiting on gym wifi.
+   */
+  app.get('/history', async (request) => {
+    const query = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) })
+      .parse(request.query);
+    return trainingHistory(request.ctx, query.days);
   });
 
   app.get('/sessions', async (request) => {

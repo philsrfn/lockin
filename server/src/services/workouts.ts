@@ -1,4 +1,5 @@
 import type { Ctx } from '../db';
+import { estimated1RM } from '../domain/records';
 import { notFound } from '../errors';
 import {
   type JointPainGate,
@@ -32,6 +33,12 @@ export type ExercisePrescription = {
   restSeconds: number;
   incrementKg: number;
   range: RepRange;
+  /**
+   * Whether this is loaded with plates. The logger shows a bar loading for
+   * these and nothing for the rest — offering "2 × 20 and a 5" for a cable
+   * pulldown would be nonsense dressed as help.
+   */
+  barbell: boolean;
   /** What he did last time this movement came up, for the "(last: …)" line. */
   last: { performedAt: string; sets: PerformedSet[] } | null;
   substitutes: { id: number; name: string; pattern: string }[];
@@ -233,6 +240,7 @@ export async function planFor(
       restSeconds: slot.restSeconds,
       incrementKg: slot.incrementKg,
       range: slot.range,
+      barbell: exercise.equipment.includes('barbell'),
       last: last ? { performedAt: last.performedAt.toISOString(), sets: last.sets } : null,
       substitutes: exercise.substitutes
         .map((id) => byId.get(id))
@@ -308,6 +316,7 @@ export async function prescribeExercise(
     restSeconds: defaults.restSeconds,
     incrementKg: defaults.incrementKg,
     range: defaults.range,
+    barbell: exercise.equipment.includes('barbell'),
     last: last ? { performedAt: last.performedAt.toISOString(), sets: last.sets } : null,
     substitutes: exercise.substitutes
       .map((id) => byId.get(id))
@@ -389,7 +398,7 @@ export async function progress(ctx: Ctx, days = 90, zone?: string): Promise<Prog
     }
 
     const key = `${row.exercise_id}:${row.performed_on}`;
-    const estimated1rm = Math.round(row.weight_kg * (1 + row.reps / 30) * 10) / 10;
+    const estimated1rm = estimated1RM(row.weight_kg, row.reps);
     const current = best.get(key);
     if (!current || estimated1rm > current.estimated1rm) {
       best.set(key, { date: row.performed_on, weightKg: row.weight_kg, reps: row.reps, estimated1rm });

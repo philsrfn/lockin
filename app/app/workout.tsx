@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { t } from '../src/lib/locale';
 import { useRouter } from 'expo-router';
 import {
   Modal,
@@ -17,6 +16,8 @@ import { RestTimer } from '../src/components/RestTimer';
 import { RirChips } from '../src/components/RirChips';
 import { Stepper } from '../src/components/Stepper';
 import { kg, performedLine } from '../src/lib/format';
+import { describeLoading, loadBar } from '../src/lib/plates';
+import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
 import { useWorkout } from '../src/workout/useWorkout';
 
@@ -162,6 +163,11 @@ export default function WorkoutScreen() {
           decimals={exercise.incrementKg < 2.5 ? 2 : 1}
           onChange={(weightKg) => updateDraft({ weightKg })}
         />
+
+        {/* What to actually put on the bar. Computed on the phone rather than
+            fetched, because it has to answer while the stepper is moving and
+            in a basement with no signal — see src/lib/plates.ts. */}
+        <BarLoading targetKg={draft.weightKg} show={exercise.barbell} />
 
         <Stepper
           value={draft.reps}
@@ -374,6 +380,31 @@ const RPE_HINTS: Record<number, string> = {
   10: 'nothing left',
 };
 
+/**
+ * One line under the weight stepper: what goes on each side.
+ *
+ * Only for barbell movements, and silent when the loading is exact — the
+ * shortfall is the part worth words, because 82.5 offered for 83 without
+ * saying so leaves somebody believing they lifted half a kilo more.
+ */
+function BarLoading({ targetKg, show }: { targetKg: number; show: boolean }) {
+  const loading = show ? loadBar(targetKg) : null;
+  if (!loading) return null;
+
+  const plates = describeLoading(loading.perSide);
+
+  return (
+    <Text style={styles.loading}>
+      {plates ? `${t('perSide')}  ${plates}` : t('emptyBar')}
+      {loading.shortByKg > 0 ? (
+        <Text style={styles.loadingShort}>
+          {`   ${kg(loading.achievedKg)} kg · ${kg(loading.shortByKg)} kg ${t('kgShort')}`}
+        </Text>
+      ) : null}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   centred: {
@@ -418,6 +449,14 @@ const styles = StyleSheet.create({
   titleBlock: { gap: space.xs, marginBottom: space.xs },
   exerciseName: { fontSize: 30, fontWeight: '300', color: colors.text, letterSpacing: -1 },
   target: { ...typo.body, color: colors.textDim },
+  loading: {
+    fontSize: 13,
+    color: colors.textDim,
+    fontVariant: ['tabular-nums'],
+    marginTop: -space.sm,
+    marginBottom: space.sm,
+  },
+  loadingShort: { color: colors.warn },
   lastLine: { fontSize: 14, color: colors.textFaint },
 
   loggedBlock: {

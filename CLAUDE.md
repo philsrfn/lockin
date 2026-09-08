@@ -369,7 +369,11 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
 - **Workout logger** — used one-handed, sweaty, between sets, on bad wifi.
   Steppers pre-filled from the prescription so hitting the target is one tap.
   Auto-starting rest timer, RIR chips, swap filtered by movement pattern, RPE +
-  joint-pain finish. **Offline-first**: writes go to local SQLite immediately
+  joint-pain finish. Barbell movements show what to put on each side —
+  computed on the phone (`app/src/lib/plates.ts`), because it has to answer
+  while the stepper moves and in a basement with no signal. That is the one
+  exception to "numbers live in `server/src/domain/`", and it has its own
+  tests: `npm --prefix app test`. **Offline-first**: writes go to local SQLite immediately
   and a queue drains to the backend. Never block a set on the network.
 - **Food** — quick-add tiles for actual staples, then recents, then the
   athlete's own library, then manual entry. **No general nutrition database.**
@@ -378,6 +382,16 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
 - **Weight** — one number pad, three seconds. The 7-day average is the
   headline, and the chart is a line in a coordinate system: the average is the
   line, daily weigh-ins are dots.
+- **Progress** — per-exercise estimated 1RM over time, the weight trend, the
+  Sunday review, and **measured expenditure**: what the athlete actually burns,
+  from logged intake and the smoothed weight trend rather than from the
+  onboarding formula. It refuses to answer rather than guess — see
+  `domain/expenditure.ts`, where the refusals are the point.
+- **History** — what was actually done, newest first, grouped into the
+  athlete's own days with lifts and cardio interleaved. Sets expand in place
+  rather than opening a detail screen: the list already carries them, so it
+  works with no signal. Progress answers whether the numbers are going up;
+  this answers what happened, which is the question asked more often.
 - **Rules** — the §5 editor, three tiered lists, scope selector. Only rules.
 - **Account** — profile, language, programme, Apple ID, Health, sign out,
   admin pairing.

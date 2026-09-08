@@ -71,11 +71,12 @@ npm --prefix server run dev          # tsx watch — no build step, no dist/
 npm --prefix app run ios
 ```
 
-Before every commit, all three of these, all green:
+Before every commit, all four of these, all green:
 
 ```bash
 npm --prefix server test
 npm --prefix server run typecheck
+npm --prefix app test
 npm --prefix app run typecheck
 ```
 
@@ -89,6 +90,11 @@ seconds. It splits into two projects:
 The integration suite builds one template database with every migration
 applied, then hands each test file its own copy. If it fails immediately and
 loudly, the database is not running. `docker compose up -d db`.
+
+`npm --prefix app test` covers **pure modules under `app/src/lib/` only** — no
+React, no renderer. It exists because bar loading cannot live on the server: it
+has to answer while the stepper is moving, and in a basement with no signal.
+Everything else that computes a number still belongs in `server/src/domain/`.
 
 There is no linter and no formatter config. Match the file you are editing.
 
@@ -156,7 +162,7 @@ cost a day.
 
 ## Before you open a PR
 
-- [ ] All three checks green (tests, both typechecks)
+- [ ] All four checks green (both test runs, both typechecks)
 - [ ] New behaviour has a test. **Bugs get the test first** — write it, watch
       it fail, then fix it. Then break your fix deliberately and confirm the
       test catches it. A test that passes both ways tested nothing.

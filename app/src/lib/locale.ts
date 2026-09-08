@@ -354,6 +354,39 @@ const PHRASES = {
   somethingWentWrong: { de: 'Da ist etwas schiefgelaufen', en: 'Something went wrong' },
   whichSession: { de: 'WELCHE EINHEIT HEUTE?', en: 'WHICH SESSION TODAY?' },
   suggested: { de: 'vorgeschlagen', en: 'suggested' },
+
+  // ——— building your own programme ———
+  ownProgramme: { de: 'Eigenes Programm', en: 'Your own programme' },
+  ownProgrammeBlurb: {
+    de: 'Bau dir einen Plan, der zu deinem Gym und deinen Leuten passt — oder fang bei einem der obigen an und ändere ihn.',
+    en: 'Build a plan that fits your gym and the people you train with — or start from one above and change it.',
+  },
+  startBlank: { de: 'Leer anfangen', en: 'Start blank' },
+  forkThis: { de: 'Als Vorlage nehmen', en: 'Use as a template' },
+  editProgramme: { de: 'Bearbeiten', en: 'Edit' },
+  deleteProgramme: { de: 'Programm löschen', en: 'Delete programme' },
+  programmeName: { de: 'NAME DES PROGRAMMS', en: 'PROGRAMME NAME' },
+  dayName: { de: 'Name des Tages', en: 'Day name' },
+  addDay: { de: 'Tag hinzufügen', en: 'Add a day' },
+  addExercise: { de: 'Übung hinzufügen', en: 'Add an exercise' },
+  removeDay: { de: 'Tag entfernen', en: 'Remove day' },
+  setsAndReps: { de: 'Sätze × Wdh.', en: 'Sets × reps' },
+  saveProgramme: { de: 'Programm sichern', en: 'Save programme' },
+  pickExercise: { de: 'WELCHE ÜBUNG?', en: 'WHICH EXERCISE?' },
+  searchExercise: { de: 'Suchen…', en: 'Search…' },
+  programmeNeedsWork: {
+    de: 'Jeder Tag braucht einen Namen und mindestens eine Übung.',
+    en: 'Every day needs a name and at least one exercise.',
+  },
+  couldNotSaveProgramme: {
+    de: 'Konnte das Programm nicht sichern',
+    en: 'Could not save the programme',
+  },
+  newProgrammeName: { de: 'Mein Programm', en: 'My programme' },
+  deleteProgrammeAsk: {
+    de: 'Programm löschen? Deine eingetragenen Einheiten bleiben.',
+    en: 'Delete this programme? The sessions you logged stay.',
+  },
   chosenDayUnavailable: {
     de: 'Diesen Tag hat dieses Handy noch nie geladen. Einmal mit Empfang öffnen, dann geht er auch offline.',
     en: 'This phone has never loaded that day. Open it once with signal and it works offline after that.',

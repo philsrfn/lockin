@@ -24,6 +24,30 @@ export type Program = {
   days: ProgramDay[];
 };
 
+export type ProgramSlot = {
+  exerciseId: number;
+  exerciseName: string;
+  pattern: string;
+  sets: number;
+  incrementKg: number;
+  restSeconds: number;
+  range: { min: number; max: number };
+};
+
+/** A programme with every day's movements — what the editor loads and saves. */
+export type ProgramWithSlots = Omit<Program, 'days'> & {
+  days: (ProgramDay & { slots: ProgramSlot[] })[];
+  /** False for the built-in three, which nobody may edit. */
+  mine: boolean;
+};
+
+export type Exercise = {
+  id: number;
+  name: string;
+  pattern: string;
+  equipment: string[];
+};
+
 export type Profile = {
   name: string | null;
   /** IANA zone. The server measures every "today" against this, not the device. */

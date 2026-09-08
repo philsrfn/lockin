@@ -401,3 +401,64 @@ describe('the records route', () => {
     expect((await app.inject({ method: 'GET', url: '/records' })).statusCode).toBe(401);
   });
 });
+
+describe('the expenditure route', () => {
+  it('answers with a refusal and the target beside it when there is no data', async () => {
+    const response = await app.inject({ method: 'GET', url: '/expenditure', headers: auth });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      expenditure: { ok: false, reason: 'not_enough_intake', windowDays: 28 },
+      calorieTarget: 2300,
+    });
+  });
+
+  it('takes a window between a fortnight and three months', async () => {
+    for (const good of ['days=14', 'days=90']) {
+      expect(
+        (await app.inject({ method: 'GET', url: `/expenditure?${good}`, headers: auth }))
+          .statusCode,
+      ).toBe(200);
+    }
+    // Under a fortnight the weight trend is water; over three months the
+    // person is no longer the same person.
+    for (const bad of ['days=7', 'days=180', 'days=lots']) {
+      expect(
+        (await app.inject({ method: 'GET', url: `/expenditure?${bad}`, headers: auth }))
+          .statusCode,
+      ).toBe(400);
+    }
+  });
+
+  it('needs a token like everything else', async () => {
+    expect((await app.inject({ method: 'GET', url: '/expenditure' })).statusCode).toBe(401);
+  });
+});
+
+describe('the history route', () => {
+  it('answers with days and totals, defaulting the window', async () => {
+    const response = await app.inject({ method: 'GET', url: '/history', headers: auth });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      days: [],
+      totals: { sessions: 0, cardioSessions: 0, setCount: 0, totalVolumeKg: 0 },
+    });
+  });
+
+  it('takes a window, and refuses one it cannot serve', async () => {
+    expect((await app.inject({ method: 'GET', url: '/history?days=7', headers: auth })).statusCode)
+      .toBe(200);
+
+    // Not silently clamped: a request for four years is a mistake somewhere,
+    // and answering it with one year's data would hide the mistake.
+    for (const bad of ['days=0', 'days=1500', 'days=week']) {
+      const response = await app.inject({ method: 'GET', url: `/history?${bad}`, headers: auth });
+      expect(response.statusCode).toBe(400);
+    }
+  });
+
+  it('needs a token like everything else', async () => {
+    expect((await app.inject({ method: 'GET', url: '/history' })).statusCode).toBe(401);
+  });
+});

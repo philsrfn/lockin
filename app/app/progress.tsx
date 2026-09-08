@@ -5,6 +5,7 @@ import { ApiError, api } from '../src/api/client';
 import type {
   ExerciseBests,
   ExerciseProgress,
+  Expenditure,
   Progress,
   WeeklyReview,
   WeightSummary,
@@ -25,13 +26,15 @@ export default function ProgressScreen() {
   const [weight, setWeight] = useState<WeightSummary | null>(null);
   const [review, setReview] = useState<WeeklyReview | null>(null);
   const [bests, setBests] = useState<Map<number, ExerciseBests>>(new Map());
+  const [burn, setBurn] = useState<Expenditure | null>(null);
+  const [calorieTarget, setCalorieTarget] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [p, w, r, b] = await Promise.all([
+      const [p, w, r, b, e] = await Promise.all([
         api<Progress>(`/progress?days=${days}`),
         api<WeightSummary>(`/bodyweight?days=${Math.min(days, 365)}`),
         // The Sunday review is the most considered thing the trainer produces.
@@ -40,11 +43,18 @@ export default function ProgressScreen() {
         // Not scoped by the range chips: a personal best is a personal best,
         // and hiding one because it fell outside ninety days would be absurd.
         api<{ records: ExerciseBests[] }>('/records').catch(() => ({ records: [] })),
+        // Its own window, not the one the range chips set: expenditure needs
+        // four weeks to mean anything, and 30/90/365 is about lift history.
+        api<{ expenditure: Expenditure; calorieTarget: number }>('/expenditure').catch(
+          () => null,
+        ),
       ]);
       setData(p);
       setWeight(w);
       setReview(r.review);
       setBests(new Map(b.records.map((record) => [record.exerciseId, record])));
+      setBurn(e?.expenditure ?? null);
+      setCalorieTarget(e?.calorieTarget ?? null);
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : t('couldNotLoadHistory'));
@@ -135,6 +145,8 @@ export default function ProgressScreen() {
         )}
       </Card>
 
+      {burn ? <ExpenditureCard burn={burn} target={calorieTarget} /> : null}
+
       <Card label={t('training')}>
         <View style={styles.statRow}>
           <Stat value={String(data?.sessionCount ?? 0)} label={t('sessions')} />
@@ -164,6 +176,68 @@ export default function ProgressScreen() {
         </Card>
       )}
     </Screen>
+  );
+}
+
+/**
+ * What they actually burn, beside what the app has been assuming.
+ *
+ * The number is a measurement, so it is allowed to be the loudest thing in
+ * the card — but only when it is one. Below the coverage bar it says which
+ * half of the data is missing, because "not enough data" is useless advice
+ * and "nineteen of twenty-eight days" is actionable.
+ */
+function ExpenditureCard({ burn, target }: { burn: Expenditure; target: number | null }) {
+  if (!burn.ok) {
+    const message =
+      burn.reason === 'not_enough_intake'
+        ? t('needMoreIntake', {
+            days: burn.intakeDays,
+            window: burn.windowDays,
+            needed: Math.ceil(burn.windowDays * 0.75),
+          })
+        : burn.reason === 'not_enough_weight'
+          ? t('needMoreWeight')
+          : t('measurementImplausible');
+
+    return (
+      <Card label={t('expenditure')}>
+        <Text style={styles.dim}>{message}</Text>
+      </Card>
+    );
+  }
+
+  return (
+    <Card label={t('expenditure')}>
+      <View style={styles.row}>
+        <View>
+          <Text style={styles.numeral}>{burn.tdeeKcal}</Text>
+          <Text style={styles.dim}>{t('kcalPerDay')}</Text>
+        </View>
+        <View style={styles.alignEnd}>
+          <Text style={styles.footnote}>{t('measuredBurn')}</Text>
+          <Text style={styles.footnote}>
+            {t('fromDaysLogged', { days: burn.intakeDays, window: burn.windowDays })}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={styles.footnote}>
+        {t('atePerDay', { kcal: burn.meanIntakeKcal })}
+        {'   ·   '}
+        {signedKg(burn.changeKg)} kg
+      </Text>
+
+      {target ? (
+        <Text style={styles.footnote}>{t('targetIsNow', { target: `${target} kcal` })}</Text>
+      ) : null}
+
+      {/* A measurement worth showing is not always one worth acting on, and
+          the difference is coverage rather than arithmetic. */}
+      {burn.confidence === 'low' ? (
+        <Text style={[styles.footnote, { color: colors.warn }]}>{t('stillSettling')}</Text>
+      ) : null}
+    </Card>
   );
 }
 

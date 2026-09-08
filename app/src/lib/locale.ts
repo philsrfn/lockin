@@ -352,6 +352,12 @@ const PHRASES = {
   noReadYet: { de: 'Noch keine Einschätzung für heute.', en: 'No read on today yet.' },
   lookingItUp: { de: 'Wird nachgeschlagen…', en: 'Looking it up…' },
   somethingWentWrong: { de: 'Da ist etwas schiefgelaufen', en: 'Something went wrong' },
+  whichSession: { de: 'WELCHE EINHEIT HEUTE?', en: 'WHICH SESSION TODAY?' },
+  suggested: { de: 'vorgeschlagen', en: 'suggested' },
+  chosenDayUnavailable: {
+    de: 'Diesen Tag hat dieses Handy noch nie geladen. Einmal mit Empfang öffnen, dann geht er auch offline.',
+    en: 'This phone has never loaded that day. Open it once with signal and it works offline after that.',
+  },
 
   rpe5: { de: 'locker — viel übrig', en: 'easy — plenty left' },
   rpe6: { de: 'angenehm', en: 'comfortable' },

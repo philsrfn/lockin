@@ -208,6 +208,8 @@ export type WorkoutPlan = {
   /** What to call this day on screen: 'Full body A', 'Upper', 'Push'. */
   dayName: string;
   programName: string;
+  /** Every day of the programme, so today's can be chosen rather than assumed. */
+  days: { code: string; name: string; isToday: boolean }[];
   rampIn: { active: boolean; maxWorkingSets: number | null; minRir: number };
   jointPain: {
     consecutiveFlags: number;

@@ -19,6 +19,7 @@ import { ContextChip } from '../../src/components/ContextChip';
 import { CardioSheet } from '../../src/components/CardioSheet';
 import { FoodCapture } from '../../src/components/FoodCapture';
 import { WeekPager } from '../../src/components/WeekPager';
+import { DayPicker } from '../../src/components/DayPicker';
 import { SessionPreview } from '../../src/components/SessionPreview';
 import { greeting, initials, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
@@ -50,6 +51,7 @@ export default function TodayScreen() {
   const [selected, setSelected] = useState<WeekDay | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
   /** Bumped to send the strip back to this week along with the numbers. */
   const [goHome, setGoHome] = useState(0);
@@ -82,6 +84,16 @@ export default function TodayScreen() {
   const inProgress = openSession !== null;
   const doneToday = !inProgress && (completedToday?.length ?? 0) > 0;
   const resting = !!coach && coach.sessionType !== 'strength' && !doneToday && !inProgress;
+
+  /**
+   * Start the logger, optionally on a day the athlete picked rather than the
+   * one the rotation proposed. An already-open session ignores the choice —
+   * the logger keeps the day its logged sets belong to.
+   */
+  function startSession(template?: string) {
+    setDayPickerOpen(false);
+    router.push(template ? { pathname: '/workout', params: { template } } : '/workout');
+  }
 
   const active = selected ?? week.data?.days.find((day) => day.date === date) ?? null;
   const isToday = !active || active.date === date;
@@ -244,7 +256,7 @@ export default function TodayScreen() {
         {isToday ? (
           <View style={styles.section}>
             <Text style={styles.label}>{caps(t('todaysSession'))}</Text>
-            <SessionPreview plan={plan} />
+            <SessionPreview plan={plan} onPickDay={() => setDayPickerOpen(true)} />
           </View>
         ) : null}
       </ScrollView>
@@ -280,7 +292,7 @@ export default function TodayScreen() {
               inProgress ? 'resume' : doneToday ? 'trainAgain' : resting ? 'liftAnyway' : 'start',
             )}
             variant={!inProgress && (doneToday || resting) ? 'secondary' : 'primary'}
-            onPress={() => router.push('/workout')}
+            onPress={() => startSession()}
             style={styles.primaryAction}
           />
           {/*
@@ -296,6 +308,13 @@ export default function TodayScreen() {
           </Pressable>
         </View>
       </View>
+
+      <DayPicker
+        days={plan?.days ?? []}
+        visible={dayPickerOpen}
+        onPick={(code) => startSession(code)}
+        onClose={() => setDayPickerOpen(false)}
+      />
 
       <CardioSheet
         visible={cardioOpen}

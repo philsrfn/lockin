@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Modal,
   Pressable,
@@ -29,7 +29,10 @@ type Draft = { weightKg: number; reps: number; rir: number | null };
 export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const workout = useWorkout();
+  // A day chosen on the home screen. Absent when the rotation's suggestion
+  // was accepted, which is the ordinary case.
+  const { template } = useLocalSearchParams<{ template?: string }>();
+  const workout = useWorkout(template);
 
   const [index, setIndex] = useState(0);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});

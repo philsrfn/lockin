@@ -26,7 +26,8 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "eas-cli": "^23.2.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^2.1.8"
   },
   "scripts": {
     "start": "expo start",
@@ -34,7 +35,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "eas": "eas"
+    "eas": "eas",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "private": true
 }

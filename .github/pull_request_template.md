@@ -8,6 +8,7 @@
 
 - [ ] `npm --prefix server test` green
 - [ ] `npm --prefix server run typecheck` green
+- [ ] `npm --prefix app test` green
 - [ ] `npm --prefix app run typecheck` green
 - [ ] New behaviour has a test — and if this is a bug fix, the test was written
       first and watched to fail

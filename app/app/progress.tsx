@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError, api } from '../src/api/client';
 import type {
+  ExerciseBests,
   ExerciseProgress,
   Expenditure,
   Progress,
@@ -24,6 +25,7 @@ export default function ProgressScreen() {
   const [data, setData] = useState<Progress | null>(null);
   const [weight, setWeight] = useState<WeightSummary | null>(null);
   const [review, setReview] = useState<WeeklyReview | null>(null);
+  const [bests, setBests] = useState<Map<number, ExerciseBests>>(new Map());
   const [burn, setBurn] = useState<Expenditure | null>(null);
   const [calorieTarget, setCalorieTarget] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +34,15 @@ export default function ProgressScreen() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [p, w, r, e] = await Promise.all([
+      const [p, w, r, b, e] = await Promise.all([
         api<Progress>(`/progress?days=${days}`),
         api<WeightSummary>(`/bodyweight?days=${Math.min(days, 365)}`),
         // The Sunday review is the most considered thing the trainer produces.
         // It has been landing in a database column nobody reads.
         api<{ review: WeeklyReview | null }>('/review').catch(() => ({ review: null })),
+        // Not scoped by the range chips: a personal best is a personal best,
+        // and hiding one because it fell outside ninety days would be absurd.
+        api<{ records: ExerciseBests[] }>('/records').catch(() => ({ records: [] })),
         // Its own window, not the one the range chips set: expenditure needs
         // four weeks to mean anything, and 30/90/365 is about lift history.
         api<{ expenditure: Expenditure; calorieTarget: number }>('/expenditure').catch(
@@ -47,6 +52,7 @@ export default function ProgressScreen() {
       setData(p);
       setWeight(w);
       setReview(r.review);
+      setBests(new Map(b.records.map((record) => [record.exerciseId, record])));
       setBurn(e?.expenditure ?? null);
       setCalorieTarget(e?.calorieTarget ?? null);
       setError(null);
@@ -155,7 +161,13 @@ export default function ProgressScreen() {
       </Card>
 
       {data?.exercises.length ? (
-        data.exercises.map((exercise) => <ExerciseCard key={exercise.exerciseId} exercise={exercise} />)
+        data.exercises.map((exercise) => (
+          <ExerciseCard
+            key={exercise.exerciseId}
+            exercise={exercise}
+            best={bests.get(exercise.exerciseId) ?? null}
+          />
+        ))
       ) : (
         <Card label={t('liftsHeading')}>
           <Text style={styles.dim}>
@@ -243,7 +255,13 @@ function Stat({ value, label }: { value: string; label: string }) {
  * a heavier set of three does not read as progress over a much harder set of
  * eight.
  */
-function ExerciseCard({ exercise }: { exercise: ExerciseProgress }) {
+function ExerciseCard({
+  exercise,
+  best,
+}: {
+  exercise: ExerciseProgress;
+  best: ExerciseBests | null;
+}) {
   const points = exercise.points;
   if (points.length === 0) return null;
 
@@ -296,6 +314,18 @@ function ExerciseCard({ exercise }: { exercise: ExerciseProgress }) {
       ) : (
         <Text style={styles.footnote}>{t('oneSessionSoFar')}</Text>
       )}
+
+      {/* All-time, not this window. The heaviest and the best set are printed
+          separately only when they disagree — which is exactly when the
+          distinction is worth a reader's attention. */}
+      {best ? (
+        <Text style={styles.footnote}>
+          {t('heaviestSet')} {kg(best.heaviest.weightKg)} kg × {best.heaviest.reps}
+          {best.strongest.estimated1rm > best.heaviest.estimated1rm
+            ? `   ·   ${t('bestSet')} ${kg(best.strongest.weightKg)} kg × ${best.strongest.reps}`
+            : ''}
+        </Text>
+      ) : null}
     </Card>
   );
 }

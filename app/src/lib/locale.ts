@@ -155,6 +155,19 @@ const PHRASES = {
   sets: { de: 'Sätze', en: 'sets' },
   volumeLifted: { de: 'bewegt', en: 'volume lifted' },
 
+  perSide: { de: 'PRO SEITE', en: 'PER SIDE' },
+  emptyBar: { de: 'NUR DIE STANGE', en: 'JUST THE BAR' },
+  // Composed rather than interpolated: the number leads and the word follows
+  // in both languages, so "0,5 kg fehlen" and "0.5 kg short" both come out
+  // right without a placeholder mechanism this branch does not have.
+  kgShort: { de: 'fehlen', en: 'short' },
+  personalBests: { de: 'BESTLEISTUNGEN', en: 'PERSONAL BESTS' },
+  heaviestSet: { de: 'schwerster Satz', en: 'heaviest set' },
+  bestSet: { de: 'bester Satz', en: 'best set' },
+  noBestsYet: {
+    de: 'Noch keine abgeschlossene Einheit. Bestleistungen zählen erst, wenn du sie beendest.',
+    en: 'No finished session yet. Bests only count once you close one out.',
+  },
   expenditure: { de: 'VERBRAUCH', en: 'EXPENDITURE' },
   measuredBurn: { de: 'gemessen, nicht geschätzt', en: 'measured, not assumed' },
   kcalPerDay: { de: 'kcal/Tag', en: 'kcal/day' },

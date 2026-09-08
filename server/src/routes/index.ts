@@ -67,6 +67,7 @@ import {
   openSession,
 } from '../services/sessions';
 import { deleteSet, recordSet } from '../services/sets';
+import { personalBests } from '../services/records';
 import { expenditure } from '../services/expenditure';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
@@ -324,6 +325,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }),
     };
   });
+
+  /**
+   * Personal bests per movement — heaviest, and best by estimated max. Read
+   * from finished sessions only: a set taken back mid-workout was never a
+   * record.
+   */
+  app.get('/records', async (request) => ({ records: await personalBests(request.ctx) }));
 
   /**
    * What the athlete actually burns, measured from intake and weight rather

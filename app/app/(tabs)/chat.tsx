@@ -129,7 +129,7 @@ export default function ChatScreen() {
 
         {loaded && messages.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Talk to your trainer</Text>
+            <Text style={styles.emptyTitle}>{t('talkToTrainer')}</Text>
             <Text style={styles.emptyBody}>
               He knows your last two weeks, where you are, and what you have eaten today. Tell him
               how you feel, what you ate, or where you are — he'll change the plan, not just agree

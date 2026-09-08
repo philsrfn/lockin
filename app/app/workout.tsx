@@ -63,7 +63,7 @@ export default function WorkoutScreen() {
       <View style={[styles.centred, { paddingTop: insets.top }]}>
         <Text style={styles.dim}>{workout.error ?? 'Getting your session ready…'}</Text>
         {workout.error ? (
-          <Button title="Back" variant="secondary" onPress={() => router.back()} />
+          <Button title={t('back')} variant="secondary" onPress={() => router.back()} />
         ) : null}
       </View>
     );
@@ -98,7 +98,7 @@ export default function WorkoutScreen() {
           {(workout.plan?.dayName ?? '').toUpperCase()}
         </Text>
         <Pressable onPress={() => setFinishing(true)} hitSlop={12} style={styles.headerButton}>
-          <Text style={[styles.headerAction, styles.headerFinish]}>FINISH</Text>
+          <Text style={[styles.headerAction, styles.headerFinish]}>{t('finishSession')}</Text>
         </Pressable>
       </View>
 
@@ -137,7 +137,7 @@ export default function WorkoutScreen() {
       >
         {workout.stale ? (
           <Text style={styles.offline}>
-            Offline — working from the last plan this phone saw.
+            {t('offlineLastPlan')}
           </Text>
         ) : null}
 
@@ -152,7 +152,7 @@ export default function WorkoutScreen() {
           {exercise.last ? (
             <Text style={styles.lastLine}>last: {performedLine(exercise.last.sets)}</Text>
           ) : (
-            <Text style={styles.lastLine}>no history — find a weight you can hold form on</Text>
+            <Text style={styles.lastLine}>{t('noHistoryYet')}</Text>
           )}
         </View>
 
@@ -202,12 +202,12 @@ export default function WorkoutScreen() {
                   {kg(set.weightKg)} kg × {set.reps}
                   {set.rir != null ? `  ·  ${set.rir} RIR` : ''}
                 </Text>
-                {set.sync === 'queued' ? <Text style={styles.pending}>queued</Text> : null}
-                {set.sync === 'failed' ? <Text style={styles.failed}>not saved</Text> : null}
+                {set.sync === 'queued' ? <Text style={styles.pending}>{t('queued')}</Text> : null}
+                {set.sync === 'failed' ? <Text style={styles.failed}>{t('notSaved')}</Text> : null}
               </View>
             ))}
             <Pressable onPress={() => workout.undoLastSet(exercise.exerciseId)} hitSlop={8}>
-              <Text style={styles.undo}>Undo last set</Text>
+              <Text style={styles.undo}>{t('undoLastSet')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -216,7 +216,7 @@ export default function WorkoutScreen() {
           <SwapButton exercise={exercise} onSwap={workout.swap} />
           {index < exercises.length - 1 ? (
             <Button
-              title="Next exercise"
+              title={t('nextExercise')}
               variant="secondary"
               style={styles.flex}
               onPress={() => {
@@ -277,7 +277,7 @@ function SwapButton({
 
   return (
     <>
-      <Button title="Swap" variant="secondary" style={styles.flex} onPress={() => setOpen(true)} />
+      <Button title={t('swapExercise')} variant="secondary" style={styles.flex} onPress={() => setOpen(true)} />
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
@@ -319,7 +319,7 @@ function FinishSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
         <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-          <Text style={styles.sheetLabel}>HOW HARD WAS THAT</Text>
+          <Text style={styles.sheetLabel}>{t('howHardWasThat')}</Text>
           {/* Chips rather than a slider: no extra dependency, and easier to hit. */}
           <View style={styles.rpeRow}>
             {[5, 6, 7, 8, 9, 10].map((value) => (
@@ -341,13 +341,13 @@ function FinishSheet({
             <Text style={[styles.toggleText, jointPain && styles.toggleTextActive]}>
               {jointPain ? '✓  Joint pain' : 'Joint pain'}
             </Text>
-            <Text style={styles.toggleHint}>knees, elbows, shoulders, back</Text>
+            <Text style={styles.toggleHint}>{t('jointHint')}</Text>
           </Pressable>
 
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Anything worth remembering (optional)"
+            placeholder={t('sessionNotePlaceholder')}
             placeholderTextColor={colors.textFaint}
             style={styles.notes}
             multiline

@@ -171,7 +171,7 @@ export default function ProgressScreen() {
       ) : (
         <Card label={t('liftsHeading')}>
           <Text style={styles.dim}>
-            Nothing logged in this window yet. Finish a session and it shows up here.
+            {t('nothingLoggedWindow')}
           </Text>
         </Card>
       )}
@@ -290,7 +290,7 @@ function ExerciseCard({
             <Text style={[styles.change, { color: delta >= 0 ? colors.accent : colors.warn }]}>
               {signedKg(delta)} kg
             </Text>
-            <Text style={styles.dim}>est. 1RM</Text>
+            <Text style={styles.dim}>{t('estOneRm')}</Text>
           </View>
         ) : null}
       </View>

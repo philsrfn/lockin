@@ -155,6 +155,151 @@ const PHRASES = {
   sets: { de: 'Sätze', en: 'sets' },
   volumeLifted: { de: 'bewegt', en: 'volume lifted' },
 
+  // ——— shared words ———
+  macroProtein: { de: 'Protein', en: 'protein' },
+  macroKcal: { de: 'kcal', en: 'kcal' },
+  macroFat: { de: 'Fett', en: 'fat' },
+  macroCarbs: { de: 'Kohlenhydrate', en: 'carbs' },
+  slotBreakfast: { de: 'Frühstück', en: 'breakfast' },
+  slotLunch: { de: 'Mittag', en: 'lunch' },
+  slotDinner: { de: 'Abend', en: 'dinner' },
+  slotSnack: { de: 'Snack', en: 'snack' },
+  optional: { de: 'optional', en: 'optional' },
+  loading: { de: 'Lädt…', en: 'Loading…' },
+  tryAgain: { de: 'Nochmal versuchen', en: 'Try again' },
+
+  // ——— logging food ———
+  describeHelp: {
+    de: 'In deinen Worten, deutsch oder englisch. Mit Gewichtsangabe wird die Schätzung deutlich besser.',
+    en: 'In your words, English or German. Give weights if you know them and the estimate gets much better.',
+  },
+  describePlaceholder: { de: '200g Hähnchen, Reis, Brokkoli', en: '200g chicken, rice, broccoli' },
+  estimateMacros: { de: 'Makros schätzen', en: 'Estimate macros' },
+  estimating: { de: 'Rechne…', en: 'Working it out…' },
+  howMuch: { de: 'WIE VIEL?', en: 'HOW MUCH?' },
+  gramsUnit: { de: 'g', en: 'g' },
+  perHundredNote: {
+    de: 'Die Werte gelten für 100 g. Trag ein, was du wirklich gegessen hast.',
+    en: 'These numbers are per 100 g. Enter what you actually ate.',
+  },
+  fromYourFoods: { de: 'Aus deinen gespeicherten Lebensmitteln', en: 'From your saved foods' },
+  lastTimeYouHad: { de: 'Letztes Mal: {grams} g', en: 'Last time: {grams} g' },
+  checkBeforeSaving: { de: 'PRÜFEN', en: 'CHECK IT' },
+  savingShort: { de: 'Sichern…', en: 'Saving…' },
+  couldNotLog: { de: 'Konnte das nicht eintragen', en: 'Could not log that' },
+  couldNotEstimate: { de: 'Konnte das nicht schätzen', en: 'Could not estimate that' },
+  lookupFailed: { de: 'Suche fehlgeschlagen', en: 'Lookup failed' },
+  roughGuess: { de: 'Grobe Schätzung — lohnt sich zu korrigieren.', en: 'Rough guess — worth correcting.' },
+  checkItLooksRight: { de: 'Sieht das richtig aus?', en: 'Check it looks right.' },
+  weighedFood: { de: 'nach Gewicht', en: 'by weight' },
+  couldNotLoadFood: { de: 'Konnte dein Essen nicht laden', en: 'Could not load your food' },
+
+  // ——— onboarding: the first screen anybody sees ———
+  obWhoTitle: { de: 'Wer trainiert', en: 'Who is training' },
+  obWhoBlurb: { de: 'Damit die Zahlen von Anfang an stimmen.', en: "Let's get your numbers right." },
+  obName: { de: 'Name', en: 'Name' },
+  obSex: { de: 'Geschlecht', en: 'Sex' },
+  obFemale: { de: 'Weiblich', en: 'Female' },
+  obMale: { de: 'Männlich', en: 'Male' },
+  obBorn: { de: 'Geburtsjahr', en: 'Born' },
+  obYearPlaceholder: { de: 'JJJJ', en: 'YYYY' },
+  obWhereTitle: { de: 'Wo du gerade stehst', en: 'Where you are now' },
+  obWhereBlurb: { de: 'Zwei Angaben.', en: 'Two measurements.' },
+  obHeight: { de: 'Größe', en: 'Height' },
+  obWeightToday: { de: 'Gewicht heute', en: 'Weight today' },
+  obGoalTitle: { de: 'Was du willst', en: 'What you are after' },
+  obGoalBlurb: { de: 'Und wie oft du trainieren kannst.', en: 'And how often you can train.' },
+  obGoal: { de: 'Ziel', en: 'Goal' },
+  obLoseFat: { de: 'Abnehmen', en: 'Lose fat' },
+  obHold: { de: 'Halten', en: 'Hold' },
+  obBuild: { de: 'Aufbauen', en: 'Build' },
+  obGoalWeight: { de: 'Zielgewicht', en: 'Goal weight' },
+  obTrainingDays: { de: 'Trainingstage pro Woche', en: 'Training days a week' },
+  obContinue: { de: 'Weiter', en: 'Continue' },
+  obStart: { de: 'Los geht’s', en: 'Start' },
+  obTargetsTitle: { de: 'Deine Tagesziele', en: 'Your daily targets' },
+  obCalories: { de: 'Kalorien', en: 'Calories' },
+  obProtein: { de: 'Protein', en: 'Protein' },
+  obFatFloor: { de: 'Fett, mindestens', en: 'Fat, at least' },
+
+  // ——— the logger ———
+  finishSession: { de: 'FERTIG', en: 'FINISH' },
+  noHistoryYet: {
+    de: 'Keine Historie — nimm ein Gewicht, das du sauber halten kannst',
+    en: 'no history — find a weight you can hold form on',
+  },
+  queued: { de: 'in der Warteschlange', en: 'queued' },
+  notSaved: { de: 'nicht gesichert', en: 'not saved' },
+  undoLastSet: { de: 'Letzten Satz zurücknehmen', en: 'Undo last set' },
+  nextExercise: { de: 'Nächste Übung', en: 'Next exercise' },
+  swapExercise: { de: 'Tauschen', en: 'Swap' },
+  howHardWasThat: { de: 'WIE HART WAR DAS', en: 'HOW HARD WAS THAT' },
+  jointHint: { de: 'Knie, Ellbogen, Schultern, Rücken', en: 'knees, elbows, shoulders, back' },
+  sessionNotePlaceholder: {
+    de: 'Etwas, das erwähnenswert ist (optional)',
+    en: 'Anything worth remembering (optional)',
+  },
+  offlineLastPlan: {
+    de: 'Offline — der Plan stammt vom letzten Stand auf diesem Handy.',
+    en: 'Offline — working from the last plan this phone saw.',
+  },
+
+  // ——— rules ———
+  ruleSayItAloud: {
+    de: 'Sag es so, wie du es aussprechen würdest',
+    en: 'Say it the way you would say it out loud',
+  },
+  ruleScopePlaceholder: {
+    de: 'Nur an einem Ort? Name (optional)',
+    en: 'Only in one place? Name it (optional)',
+  },
+  rulesBlurb: {
+    de: 'Woran der Trainer sich halten muss. Halte eine Regel gedrückt, um sie zu ändern.',
+    en: 'What the trainer must respect. Hold a rule to edit it.',
+  },
+  nothingHereYet: { de: 'Noch nichts hier.', en: 'Nothing here yet.' },
+  enforcedInCode: { de: 'im Code erzwungen', en: 'enforced in code' },
+
+  // ——— food editor ———
+  removeIt: { de: 'Ja, entfernen', en: 'Yes, remove it' },
+  keepIt: { de: 'Behalten', en: 'Keep it' },
+  nameItPlaceholder: { de: 'Benenn es — Hähnchen mit Reis', en: 'Name it — chicken and rice' },
+  holdToRemove: { de: 'Halte eine Zeile gedrückt, um sie zu entfernen.', en: 'Hold a row to remove it.' },
+
+  // ——— camera ———
+  cameraAccess: { de: 'Kamerazugriff', en: 'Camera access' },
+  allowCamera: { de: 'Kamera erlauben', en: 'Allow camera' },
+  notNow: { de: 'Jetzt nicht', en: 'Not now' },
+
+  // ——— misc ———
+  talkToTrainer: { de: 'Sprich mit deinem Trainer', en: 'Talk to your trainer' },
+  nothingLoggedWindow: {
+    de: 'In diesem Zeitraum noch nichts eingetragen. Schließ eine Einheit ab, dann steht sie hier.',
+    en: 'Nothing logged in this window yet. Finish a session and it shows up here.',
+  },
+  estOneRm: { de: 'gesch. 1RM', en: 'est. 1RM' },
+  editFood: { de: 'LEBENSMITTEL BEARBEITEN', en: 'EDIT FOOD' },
+  removeFromMyFoods: { de: 'Aus meinen Lebensmitteln entfernen', en: 'Remove from my foods' },
+  removeFoodAsk: {
+    de: 'Aus der Liste entfernen? Bereits eingetragene Mahlzeiten bleiben in deiner Historie.',
+    en: 'Remove it from the list? Meals you already logged with it stay in your history.',
+  },
+  tilesSitAtTop: {
+    de: 'Kacheln stehen oben auf dem Essen-Screen.',
+    en: 'Tiles sit at the top of the food screen.',
+  },
+  usualMeal: { de: 'ÜBLICHE MAHLZEIT', en: 'USUAL MEAL' },
+  proteinGShort: { de: 'Protein g', en: 'protein g' },
+  fatGShort: { de: 'Fett g', en: 'fat g' },
+  guidanceOnly: { de: 'nur Orientierung', en: 'guidance only' },
+  validatorNote: {
+    de: 'Diese hier prüft ein Validator. Du kannst sie umformulieren; die Prüfung dahinter bleibt.',
+    en: 'A validator enforces this one. You can reword it; the check behind it stays.',
+  },
+  proteinMattersMost: {
+    de: 'Protein ist die Zahl, auf die es am meisten ankommt. Triff sie, der Rest ist Detail.',
+    en: 'Protein is the number that matters most. Hit it and the rest is detail.',
+  },
   perSide: { de: 'PRO SEITE', en: 'PER SIDE' },
   emptyBar: { de: 'NUR DIE STANGE', en: 'JUST THE BAR' },
   // Composed rather than interpolated: the number leads and the word follows
@@ -306,7 +451,6 @@ const PHRASES = {
     de: 'lockin liest, was drin ist, und plant darum herum. Das Foto wird gelesen und dann verworfen — nichts wird gespeichert.',
     en: 'lockin reads what is in there and plans around it. The photo is sent to be read and then discarded — nothing is stored.',
   },
-  allowCamera: { de: 'Kamera erlauben', en: 'Allow camera' },
   back: { de: 'Zurück', en: 'Back' },
   fridgeHint: {
     de: 'Tür auf, die Fächer ins Bild',

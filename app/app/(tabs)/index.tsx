@@ -72,7 +72,7 @@ export default function TodayScreen() {
         <Text style={styles.placeholder}>
           {today.loading ? 'Loading' : (today.error ?? 'No data')}
         </Text>
-        {today.error ? <Button title="Try again" variant="secondary" onPress={today.reload} /> : null}
+        {today.error ? <Button title={t('tryAgain')} variant="secondary" onPress={today.reload} /> : null}
       </View>
     );
   }
@@ -135,7 +135,6 @@ export default function TodayScreen() {
                 [
                   ['/history', t('history')],
                   ['/progress', t('progress')],
-                  ['/rules', t('rules')],
                 ] as const
               ).map(([href, label]) => (
                 <Pressable

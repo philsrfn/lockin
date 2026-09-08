@@ -266,6 +266,10 @@ export type Food = {
   defaultSlot: MealSlot | null;
   timesUsed: number;
   lastUsedAt: string | null;
+  /** null = one portion, log as it stands. 100 = the numbers are per 100 g. */
+  perGrams: number | null;
+  /** What was eaten last time. The opening offer when asking how much. */
+  lastGrams: number | null;
 };
 
 export type Meal = {
@@ -291,6 +295,14 @@ export type BarcodeCandidate = {
   known: boolean;
   basis: string;
   brand: string | null;
+  /**
+   * Always 100 for a barcode. Stated by the server rather than inferred here:
+   * reading `known` as "already a portion" is what made a second scan log
+   * 100 g of anything, silently.
+   */
+  perGrams: number;
+  /** What was eaten last time, if ever. The opening offer. */
+  lastGrams: number | null;
 };
 
 export type FoodEstimate = {

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import type { Goal, OnboardingAnswers, OnboardingResult, Sex } from '../api/types';
 import { Button } from './Button';
-import { systemLocale } from '../lib/locale';
+import { systemLocale, t } from '../lib/locale';
 import { caps, colors, space, type as typo } from '../theme';
 
 /**
@@ -105,38 +105,38 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       >
         {step === 0 && (
           <>
-            <Eyebrow>Who is training</Eyebrow>
-            <Question>Let's get your numbers right.</Question>
+            <Eyebrow>{t('obWhoTitle')}</Eyebrow>
+            <Question>{t('obWhoBlurb')}</Question>
 
-            <Field label="Name">
+            <Field label={t('obName')}>
               <Line
                 value={name}
                 onChange={setName}
-                placeholder="Optional"
+                placeholder={t('optional')}
                 autoCapitalize="words"
                 text
               />
             </Field>
 
             <Field
-              label="Sex"
+              label={t('obSex')}
               hint="The resting-metabolism formula uses it. It moves the daily number by about 160 kcal."
             >
               <Choice
                 options={[
-                  { value: 'female', label: 'Female' },
-                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: t('obFemale') },
+                  { value: 'male', label: t('obMale') },
                 ]}
                 selected={sex}
                 onSelect={(value) => setSex(value as Sex)}
               />
             </Field>
 
-            <Field label="Born" hint={age ? `${age} years old.` : undefined}>
+            <Field label={t('obBorn')} hint={age ? `${age} years old.` : undefined}>
               <Line
                 value={birthYear}
                 onChange={setBirthYear}
-                placeholder="YYYY"
+                placeholder={t('obYearPlaceholder')}
                 keyboardType="number-pad"
                 maxLength={4}
               />
@@ -146,15 +146,15 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
         {step === 1 && (
           <>
-            <Eyebrow>Where you are now</Eyebrow>
-            <Question>Two measurements.</Question>
+            <Eyebrow>{t('obWhereTitle')}</Eyebrow>
+            <Question>{t('obWhereBlurb')}</Question>
 
-            <Field label="Height">
+            <Field label={t('obHeight')}>
               <Line value={heightCm} onChange={setHeightCm} placeholder="—" unit="cm" keyboardType="decimal-pad" />
             </Field>
 
             <Field
-              label="Weight today"
+              label={t('obWeightToday')}
               hint="The first point of your trend. The seven-day average is the number that counts, so a heavy morning does not matter."
             >
               <Line value={weightKg} onChange={setWeightKg} placeholder="—" unit="kg" keyboardType="decimal-pad" />
@@ -164,15 +164,15 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
         {step === 2 && (
           <>
-            <Eyebrow>What you are after</Eyebrow>
-            <Question>And how often you can train.</Question>
+            <Eyebrow>{t('obGoalTitle')}</Eyebrow>
+            <Question>{t('obGoalBlurb')}</Question>
 
-            <Field label="Goal">
+            <Field label={t('obGoal')}>
               <Choice
                 options={[
-                  { value: 'lose', label: 'Lose fat' },
-                  { value: 'maintain', label: 'Hold' },
-                  { value: 'gain', label: 'Build' },
+                  { value: 'lose', label: t('obLoseFat') },
+                  { value: 'maintain', label: t('obHold') },
+                  { value: 'gain', label: t('obBuild') },
                 ]}
                 selected={goal}
                 onSelect={(value) => setGoal(value as Goal)}
@@ -180,7 +180,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
             </Field>
 
             {goal !== 'maintain' && (
-              <Field label="Goal weight" hint="Optional. You can change it whenever.">
+              <Field label={t('obGoalWeight')} hint="Optional. You can change it whenever.">
                 <Line
                   value={goalWeightKg}
                   onChange={setGoalWeightKg}
@@ -192,7 +192,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
             )}
 
             <Field
-              label="Training days a week"
+              label={t('obTrainingDays')}
               hint="Weekly targets, not fixed weekdays — travel makes fixed days fail."
             >
               <Choice
@@ -214,12 +214,12 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         {step < 2 && (
-          <Button title="Continue" onPress={() => setStep((step + 1) as Step)} disabled={!canContinue} />
+          <Button title={t('obContinue')} onPress={() => setStep((step + 1) as Step)} disabled={!canContinue} />
         )}
         {step === 2 && (
           <Button title={saving ? 'Working it out…' : 'Set my targets'} onPress={submit} disabled={saving} />
         )}
-        {step === 3 && <Button title="Start" onPress={onDone} />}
+        {step === 3 && <Button title={t('obStart')} onPress={onDone} />}
       </View>
     </KeyboardAvoidingView>
   );
@@ -232,12 +232,12 @@ function Numbers({ result }: { result: OnboardingResult }) {
 
   return (
     <>
-      <Eyebrow>Your daily targets</Eyebrow>
+      <Eyebrow>{t('obTargetsTitle')}</Eyebrow>
 
       <View style={styles.targets}>
-        <Target value={profile.calorieTarget} unit="kcal" label="Calories" />
-        <Target value={profile.proteinTargetG} unit="g" label="Protein" hero />
-        <Target value={profile.fatFloorG} unit="g" label="Fat, at least" />
+        <Target value={profile.calorieTarget} unit="kcal" label={t('obCalories')} />
+        <Target value={profile.proteinTargetG} unit="g" label={t('obProtein')} hero />
+        <Target value={profile.fatFloorG} unit="g" label={t('obFatFloor')} />
       </View>
 
       <View style={styles.rule} />
@@ -251,7 +251,7 @@ function Numbers({ result }: { result: OnboardingResult }) {
           : ' Your target holds you there.'}
       </Text>
       <Text style={styles.working}>
-        Protein is the number that matters most. Hit it and the rest is detail.
+        {t('proteinMattersMost')}
       </Text>
 
       {/*

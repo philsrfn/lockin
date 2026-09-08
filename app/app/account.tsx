@@ -210,6 +210,21 @@ export default function AccountScreen() {
         Passive data is the antidote to logging fatigue, which is the main
         reason fitness apps are deleted in week three.
       */}
+      {/*
+        Rules used to be a chip in the home screen masthead, beside Progress,
+        while a tab bar and this screen both also offered navigation. Three
+        places to go, none of them obviously the right one. What the trainer
+        must respect is a setting, so it lives with the settings.
+      */}
+      <Card label={t('rules')}>
+        <Text style={styles.blurb}>{t('rulesBlurb')}</Text>
+        <Button
+          title={t('rules')}
+          variant="secondary"
+          onPress={() => router.push('/rules')}
+        />
+      </Card>
+
       <Card label={t('appleHealth')}>
         <Text style={styles.blurb}>{t('healthBlurb')}</Text>
         {health === 'unsupported' ? (

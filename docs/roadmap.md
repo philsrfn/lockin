@@ -12,6 +12,22 @@ Ordered by ratio of value to effort. Sizes are honest: **S** is an afternoon,
 
 ## Done since this list was written
 
+**The scan bug, and the language (2026-09-08).** Scanning a product a second
+time logged 100 g of it silently, with the weight field hidden. The cause was
+that `foods` rows had no unit basis: barcode rows held per-100 g figures and
+looked exactly like portions, so both readers guessed and both guessed 100.
+Migration 027 records the basis; `domain/portions.ts` refuses rather than
+assumes. Production had **14 foods** affected, across both athletes.
+
+Found alongside it: **71 user-facing strings were hardcoded English**, 22 of
+them in onboarding. All now go through `locale.ts`. And the grams field
+appended without limit — 1050250 g offering 651155 kcal with the button still
+enabled.
+
+**Shipped as TestFlight build 19**, together with the three branches that had
+been sitting unmerged: the History screen, measured expenditure, and the bar
+loading with personal bests.
+
 **`generate_meal_plan` (2026-09-04).** The trainer can plan the rest of today
 from the fridge. Doing it turned up the reason it had never been done:
 `fridge_inventory` was in the schema and in the tenancy guard but **nothing
@@ -48,23 +64,18 @@ before the switch.
 
 ## Next
 
-### 1. A TestFlight build carrying the redesign — S
+### 1. Server error messages are English — S
 
-The last build is **17**, which predates the redesign, the weight line chart,
-the account avatar and the PPL fix. All of that is committed and the server
-side is deployed; none of it is on anybody's phone.
+The app shows `caught.message` from the server straight to the athlete, and
+every `badRequest`/`notFound` string is English. Most are edge cases, but the
+barcode ones are not: *"No product with that barcode"* and *"That product has
+no usable nutrition data. Enter it by hand."* are exactly what somebody new
+hits while scanning things to see what happens, and they arrive in English on
+an otherwise German screen.
 
-Read [deploy.md](deploy.md) § "Adding a native capability" first if anything
-native has changed since. Nothing has, so this should be a plain build.
-
-**Also unverified:** the account avatar renders (top right, circle with an
-initial) but its tap has never been exercised — the simulator's floating
-dev-menu button sits exactly on it and swallows the touch. Check it on a real
-device.
-
----
-
-## After that
+The profile already carries a locale, so the server could answer in it. The
+cheaper route is codes on `HttpError` and a lookup in `locale.ts`, which keeps
+the words where the other words are.
 
 ### 2. `regenerate_week` — M
 
@@ -177,5 +188,5 @@ Written down so nobody rediscovers them as gaps:
 | The rules editor sheet | placeholders are hardcoded English, not in `locale.ts` |
 | Rate limiter | in-memory, single process only |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |
-| Last TestFlight build | 17, predates the redesign |
+| App test runner | covers `src/lib/` only — no React, no renderer |
 | The server has 961 MB | a docker build starves sshd; see deploy.md |

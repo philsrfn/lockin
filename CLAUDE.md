@@ -383,6 +383,11 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
   from logged intake and the smoothed weight trend rather than from the
   onboarding formula. It refuses to answer rather than guess — see
   `domain/expenditure.ts`, where the refusals are the point.
+- **History** — what was actually done, newest first, grouped into the
+  athlete's own days with lifts and cardio interleaved. Sets expand in place
+  rather than opening a detail screen: the list already carries them, so it
+  works with no signal. Progress answers whether the numbers are going up;
+  this answers what happened, which is the question asked more often.
 - **Rules** — the §5 editor, three tiered lists, scope selector. Only rules.
 - **Account** — profile, language, programme, Apple ID, Health, sign out,
   admin pairing.

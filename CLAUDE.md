@@ -235,12 +235,28 @@ Declared in `server/src/llm/tools.ts`, each mapping to a validated handler in
 | `swap_exercise` | substitute within the same movement pattern |
 | `add_rule` / `deactivate_rule` | mutate the rules document |
 | `generate_meal_plan` | plan the rest of today from the confirmed fridge list |
+| `get_program` | read the current programme, its days and its movements |
+| `set_program` | switch to another programme, theirs or built-in |
+| `edit_program` | create or replace a programme's days and movements |
 
 `generate_meal_plan` takes **no parameters**, and that is the safety property
 rather than an oversight: it plans from the list the athlete confirmed with
 their own hands, or it refuses. A parameter would let the model hand it a
 fridge, which is the mistake §9 exists to prevent, one step further back. It
 also refuses a list older than four days — see `domain/fridge.ts`.
+
+**The trainer may change anything that is a preference or a plan.** What it
+may not change is what those are measured against: the §7 floors refuse it and
+it has to relay the refusal, and the numbers progression runs on — load
+increments, rest, the rep maths — stay derived in code per §1. A tool that let
+the model set an increment would hand it the one job §1 keeps away from it.
+Nothing destructive at the account level is a tool either.
+
+`edit_program` replaces rather than merges, and resolves every exercise name
+against the library before writing — a movement the model invented fails
+loudly instead of becoming a day nobody can train. Day codes survive edits, so
+sessions stay attached to the day they were logged against; see
+`domain/programDraft.ts`.
 
 **Missing, and deliberately absent rather than half-built:**
 `regenerate_week`, which needs a stored week plan. See

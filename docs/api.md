@@ -90,6 +90,14 @@ each `llm_usage` row. Rates are per million tokens and overridable per model —
 are reported as unpriced rather than counted as free, because a dashboard
 reading `$0.00` looks exactly like not having spent anything.
 
+A programme is saved whole rather than in pieces: an editor is a form, and one
+replace inside a transaction cannot leave a programme half-edited. A day's
+`code` is history — `sessions.template` stores it — so codes are derived once
+from the name and never move again. A code the client invents for a day that
+never existed is ignored rather than trusted; accepting it would let a caller
+re-point an old code at different movements and rewrite what those sessions
+meant.
+
 Routes are thin wrappers over `server/src/services/`. The offline sync queue and
 the LLM tool handlers call the same service functions — there is never a second
 code path to a table.
@@ -145,6 +153,10 @@ which is a separate question and lives on the profile.
 | GET | `/week` | `ending=YYYY-MM-DD`, optional | the seven-day window ending on that day; today when absent |
 | GET | `/exercises` | — | `{exercises}` with substitute ids and equipment |
 | GET | `/programs` | — | `{programs, current}` — the catalogue and the one he is on |
+| GET | `/programs/:id` | — | `{program}` with every day's movements, plus `mine`. What the editor loads. |
+| POST | `/programs` | `{name, fromProgramId?}` | `{program}` — 201. Forks when given a source. |
+| PUT | `/programs/:id` | `{name, days:[{code?, name, slots}]}` | `{program}`. Replaces whole; own programmes only. |
+| DELETE | `/programs/:id` | — | `{deleted}`. Refused while it is the current programme. |
 | POST | `/programs/choose` | `{programId}` | `{current}`. History keeps its day codes; the rotation restarts. |
 | GET | `/workouts/next` | `?template=<day code>` | prescriptions; defaults to the next in rotation |
 | GET | `/exercises/:id/prescription` | `?excludeSessionId&sets` | one movement's load, from its own history |

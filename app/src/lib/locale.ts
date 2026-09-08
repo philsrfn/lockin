@@ -495,6 +495,9 @@ const PHRASES = {
   toolGetToday: { de: 'heute nachgesehen', en: 'checked today' },
   toolGetHistory: { de: 'Historie gelesen', en: 'read your history' },
   toolMealPlan: { de: 'aus dem Kühlschrank geplant', en: 'planned from your fridge' },
+  toolGetProgram: { de: 'Programm gelesen', en: 'read your programme' },
+  toolSetProgram: { de: 'Programm gewechselt', en: 'switched programme' },
+  toolEditProgram: { de: 'Programm angepasst', en: 'changed your programme' },
   chatPlaceholder: { de: 'Wie war es?', en: 'How did that feel?' },
 
   gProtein: { de: 'g Protein', en: 'g protein' },

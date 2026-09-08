@@ -404,7 +404,7 @@ export async function deleteProgram(ctx: Ctx, programId: number): Promise<void> 
 }
 
 
-export type ProgramWithSlots = Program & {
+export type ProgramWithSlots = Omit<Program, 'days'> & {
   days: (ProgramDay & { slots: ProgramSlot[] })[];
   /** False for the built-in three, which nobody may edit. */
   mine: boolean;

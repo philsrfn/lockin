@@ -201,7 +201,7 @@ export default function FoodScreen() {
                     <Text style={styles.mealSlot}>{meal.slot}</Text>
                   </View>
                   <Text style={styles.mealMacros}>
-                    {meal.proteinG ?? 0}g · {meal.kcal ?? 0}
+                    {meal.proteinG ?? 0} g P · {meal.kcal ?? 0} kcal
                   </Text>
                 </Pressable>
               ))}
@@ -228,7 +228,7 @@ export default function FoodScreen() {
                     {food.name}
                   </Text>
                   <Text style={styles.mealMacros}>
-                    {food.proteinG}g · {food.kcal}
+                    {food.proteinG} g P · {food.kcal} kcal
                   </Text>
                 </Pressable>
               ))}
@@ -341,7 +341,7 @@ function ManualEntry({
       setFat('');
       onLogged();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not save that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
     } finally {
       setBusy(false);
     }

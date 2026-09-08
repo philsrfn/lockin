@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import { api } from '../api/client';
+import { t } from '../lib/locale';
 import type { ExercisePrescription, Today, WorkoutPlan } from '../api/types';
 import {
   type LocalSession,
@@ -49,12 +50,27 @@ export type Workout = {
 const PLAN_CACHE_KEY = '/today';
 
 /**
+ * A chosen day's plan, cached under its own key.
+ *
+ * The rotation's plan arrives with /today; any other day has to be asked for.
+ * Cached per day so that a session picked once works in the same basement the
+ * second time — the logger's whole promise is that it does not need signal.
+ */
+const planCacheKey = (template: string) => `/workouts/next?template=${template}`;
+
+/**
  * Local-first. A set is written to SQLite and rendered before the network is
  * touched at all; the queue carries it to the backend whenever it can.
  *
  * The screen above this hook does not know or care whether there is signal.
  */
-export function useWorkout(): Workout {
+/**
+ * @param chosenTemplate a day the athlete picked instead of the one the
+ *   rotation proposed. Applied only when starting a *new* session — an
+ *   already-open one keeps the day it was started with, because changing it
+ *   underneath logged sets would re-file work that has already happened.
+ */
+export function useWorkout(chosenTemplate?: string): Workout {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
@@ -104,8 +120,6 @@ export function useWorkout(): Workout {
         return;
       }
 
-      setPlan(today.plan);
-
       let current = openLocalSession();
 
       // The server knows about a session this device has not seen: adopt it
@@ -137,7 +151,7 @@ export function useWorkout(): Workout {
         current = {
           clientId: randomUUID(),
           serverId: null,
-          template: today.plan.template,
+          template: chosenTemplate ?? today.plan.template,
           performedAt: new Date().toISOString(),
           finished: false,
         };
@@ -148,6 +162,43 @@ export function useWorkout(): Workout {
           payload: { template: current.template, performedAt: current.performedAt },
         });
       }
+
+      /**
+       * The plan follows the session, never the other way round.
+       *
+       * A session already open keeps the day its logged sets belong to — a
+       * choice made on the home screen cannot re-file work that has already
+       * happened. Only a session started now takes the chosen day. Getting
+       * this backwards showed one day's exercises while writing them into
+       * another day's session, which is worse than not offering the choice.
+       */
+      if (current.template === today.plan.template) {
+        setPlan(today.plan);
+      } else {
+        const key = planCacheKey(current.template);
+        try {
+          const forSession = await api<WorkoutPlan>(
+            `/workouts/next?template=${encodeURIComponent(current.template)}`,
+          );
+          cacheWrite(key, forSession);
+          if (!cancelled) setPlan(forSession);
+        } catch {
+          const cached = cacheRead<WorkoutPlan>(key);
+          if (!cached) {
+            if (!cancelled) {
+              setError(t('chosenDayUnavailable'));
+              setLoading(false);
+            }
+            return;
+          }
+          if (!cancelled) {
+            setPlan(cached);
+            setStale(true);
+          }
+        }
+      }
+
+      if (cancelled) return;
 
       setSession(current);
       reloadSets(current.clientId);

@@ -29,6 +29,13 @@ export const colors = {
 
   /** Bone, not white. Paper rather than screen. */
   text: '#EDEAE3',
+  /**
+   * Long-form reading. Between `text` and `textDim`, and the gap it fills is
+   * real: a paragraph set in bone is heavy on this ground, and one set in
+   * textDim makes the primary content of a screen its faintest element — the
+   * trainer's replies were both in turn.
+   */
+  textBody: '#C6C1B8',
   textDim: '#918D85',
   textFaint: '#57544E',
 
@@ -85,7 +92,15 @@ export const type = {
   /**
    * Section headings. Small, wide, quiet — they name the thing and then stop.
    */
-  label: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8 },
+  /**
+   * Section headings. Small, wide, quiet — they name the thing and then stop.
+   *
+   * The tracking was 1.8, which at 11pt is wide enough that a heading reads
+   * as a texture rather than a word, and there are three or four on most
+   * screens. At 1.1 they still read as labels and stop being the most
+   * distinctive thing on the page.
+   */
+  label: { fontSize: 11, fontWeight: '600', letterSpacing: 1.1 },
   body: { fontSize: 16, fontWeight: '400' },
   bodyDim: { fontSize: 15, fontWeight: '400' },
   title: { fontSize: 22, fontWeight: '600', letterSpacing: -0.2 },

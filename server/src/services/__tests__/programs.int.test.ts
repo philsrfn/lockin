@@ -370,3 +370,32 @@ describe('the coach note can store any day the catalogue offers', () => {
     }
   });
 });
+
+describe('the plan carries every day, not only the next one', () => {
+  /**
+   * The rotation proposes; it does not get to insist. Somebody whose friends
+   * are doing Pull today will train Pull either way — the only question the
+   * app answers is whether it is logged as Pull or as whatever came next.
+   */
+  it('lists the programme\'s days in rotation order, marking the suggestion', async () => {
+    const plan = await planFor(phil, 'A');
+
+    expect(plan.days.map((day) => day.code)).toEqual(['A', 'B', 'C']);
+    expect(plan.days.filter((day) => day.isToday).map((day) => day.code)).toEqual(['A']);
+  });
+
+  it('marks whichever day is being planned, not a fixed one', async () => {
+    const plan = await planFor(phil, 'C');
+
+    expect(plan.days.find((day) => day.isToday)?.code).toBe('C');
+  });
+
+  it('follows the athlete onto another programme', async () => {
+    await setProgram(phil, (await programBySlug(pool, 'push_pull_legs'))!.id);
+
+    const plan = await planFor(phil, 'Pull');
+
+    expect(plan.days.map((day) => day.code)).toEqual(['Push', 'Pull', 'Legs']);
+    expect(plan.days.find((day) => day.isToday)?.code).toBe('Pull');
+  });
+});

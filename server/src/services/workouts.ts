@@ -52,6 +52,16 @@ export type WorkoutPlan = {
   /** What to call it on screen. 'Full body A', 'Upper', 'Push'. */
   dayName: string;
   programName: string;
+  /**
+   * Every day of the programme, in rotation order.
+   *
+   * The plan proposes the next one; it does not get to insist. Somebody
+   * standing in a gym with friends who are doing Pull today is not going to
+   * do Full Body B because a rotation says so — they will either train Pull
+   * and log nothing, or log it against the wrong day. Both are worse than
+   * letting them pick, and picking is what makes the history honest.
+   */
+  days: { code: DayCode; name: string; isToday: boolean }[];
   rampIn: RampInGate;
   jointPain: JointPainGate;
   exercises: ExercisePrescription[];
@@ -254,6 +264,11 @@ export async function planFor(
     deload,
     dayName: day.name,
     programName: program.name,
+    days: program.days.map((option) => ({
+      code: option.code,
+      name: option.name,
+      isToday: option.code === template,
+    })),
     rampIn: ramp,
     jointPain: gate,
     exercises,

@@ -50,7 +50,7 @@ export default function ChatScreen() {
       setMessages(result.messages);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not reach your trainer');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotReachTrainer'));
     } finally {
       setLoaded(true);
     }
@@ -99,10 +99,10 @@ export default function ChatScreen() {
       setDraft(text);
       setError(
         caught instanceof ApiError && caught.status === 503
-          ? 'Your trainer is unreachable right now. Try again in a moment.'
+          ? t('trainerUnreachable')
           : caught instanceof ApiError
             ? caught.message
-            : 'Something went wrong',
+            : t('somethingWentWrong'),
       );
     } finally {
       setSending(false);
@@ -141,7 +141,7 @@ export default function ChatScreen() {
         {messages.map((message) => (
           <View
             key={message.id}
-            style={[styles.bubble, message.role === 'user' ? styles.mine : styles.theirs]}
+            style={message.role === 'user' ? [styles.bubble, styles.mine] : styles.theirs}
           >
             <Text style={message.role === 'user' ? styles.mineText : styles.theirsText}>
               {plainText(message.text)}
@@ -196,32 +196,44 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  thread: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.md },
+  thread: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.lg },
 
   empty: { gap: space.sm, marginTop: space.xxl },
   emptyTitle: { ...typo.title, color: colors.text },
   emptyBody: { fontSize: 15, color: colors.textDim, lineHeight: 22 },
 
-  bubble: { maxWidth: '86%', borderRadius: radius.lg, paddingVertical: space.md, paddingHorizontal: space.lg },
-  // A raised surface, not amber. Amber means "on target" everywhere else in
-  // the app, and spending it on every message he sends leaves nothing for the
-  // numbers that earned it — two solid amber slabs on one screen shout.
-  // `surface` is documented as the colour for things you type into, which is
-  // exactly what a sent message is.
+  /**
+   * Only one side is a bubble.
+   *
+   * Both used to be, one step of surface apart — and on this ground
+   * #141417 and #1F1F23 are the same colour at arm's length, so a thread read
+   * as one undifferentiated wall of grey with the text alternating sides. The
+   * trainer also writes paragraphs, and boxing a paragraph adds a container
+   * without adding a distinction.
+   *
+   * So the athlete's own words are a bubble, because they are short and
+   * because it is worth seeing what you asked. The trainer's answer sits on
+   * the page, which is what a page is for. The shape is the speaker; no
+   * second colour is spent, and amber stays on the numbers that earned it.
+   */
+  bubble: {
+    maxWidth: '84%',
+    borderRadius: radius.lg,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.md + 2,
+  },
   mine: {
     alignSelf: 'flex-end',
     backgroundColor: colors.surfaceHigh,
     borderBottomRightRadius: radius.sm,
   },
-  // Filled, not outlined. An outline on the page is a box drawn around
-  // nothing; a surface one step lighter is the same object with less ink.
-  theirs: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: radius.sm,
-  },
-  mineText: { fontSize: 16, color: colors.text, lineHeight: 22 },
-  theirsText: { fontSize: 16, color: colors.text, lineHeight: 23 },
+  theirs: { alignSelf: 'stretch', paddingRight: space.md },
+
+  mineText: { fontSize: 15, color: colors.text, lineHeight: 21 },
+  // A shade below the athlete's own words: the trainer talks far more, and at
+  // full strength a paragraph of it outweighs the question that prompted it.
+  // Not textDim either — this is the content of the screen, not a caption.
+  theirsText: { fontSize: 16, color: colors.textBody, lineHeight: 25 },
   tools: { fontSize: 12, color: colors.accent, marginTop: space.sm, fontWeight: '600' },
 
   thinking: { flexDirection: 'row', alignItems: 'center', gap: space.sm },

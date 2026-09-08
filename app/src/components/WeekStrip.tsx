@@ -55,10 +55,16 @@ export function WeekStrip({
             style={styles.col}
             hitSlop={4}
           >
-            <Text style={[styles.letter, !day.lifted && styles.letterEmpty]}>
-              {day.template ?? '·'}
-            </Text>
+            {/* Only a day that was actually trained gets a letter. A row of
+                seven interpuncts was punctuation standing in for information
+                nobody has. The row keeps its height either way, so the bars
+                stay on one baseline. */}
+            <Text style={styles.letter}>{day.lifted ? (day.template ?? '') : ''}</Text>
 
+            {/* The track is drawn, not implied. Seven faint columns read as a
+                week with nothing in it yet; seven two-pixel rules read as a
+                week that went wrong — and for anybody new, every week starts
+                empty. */}
             <View style={styles.track}>
               <View
                 style={[
@@ -70,7 +76,7 @@ export function WeekStrip({
                         // amber just reads as brown.
                         backgroundColor: hit ? colors.accent : colors.textDim,
                       }
-                    : { height: 2, backgroundColor: colors.border },
+                    : { height: 0 },
                   isSelected && logged && { backgroundColor: hit ? colors.accent : colors.text },
                 ]}
               />
@@ -98,11 +104,17 @@ const styles = StyleSheet.create({
   col: { flex: 1, alignItems: 'center', gap: space.xs },
 
   letter: { fontSize: 12, color: colors.text, height: 16, lineHeight: 16, letterSpacing: 0.5 },
-  letterEmpty: { color: colors.textFaint },
 
   // Full-width columns. Thin bars were more restrained but read as a
   // sparkline; these read as a week, which is the point of the screen.
-  track: { height: TRACK, width: '100%', justifyContent: 'flex-end' },
+  track: {
+    height: TRACK,
+    width: '100%',
+    justifyContent: 'flex-end',
+    backgroundColor: colors.surface,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
   fill: { width: '100%' },
 
   day: { fontSize: 11, letterSpacing: 0.6, color: colors.textFaint },

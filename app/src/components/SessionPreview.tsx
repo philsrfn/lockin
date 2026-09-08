@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { WorkoutPlan } from '../api/types';
 import { t } from '../lib/locale';
 import { colors, radius, space, type as typo } from '../theme';
@@ -14,7 +14,14 @@ import { colors, radius, space, type as typo } from '../theme';
  * where it is the target you are chasing; here it would be two numbers per row
  * and no glance.
  */
-export function SessionPreview({ plan }: { plan: WorkoutPlan }) {
+export function SessionPreview({
+  plan,
+  onPickDay,
+}: {
+  plan: WorkoutPlan;
+  /** Absent on a past day, where the session is a record and not a choice. */
+  onPickDay?: () => void;
+}) {
   if (plan.exercises.length === 0) {
     return (
       <View style={styles.card}>
@@ -26,10 +33,21 @@ export function SessionPreview({ plan }: { plan: WorkoutPlan }) {
 
   return (
     <View style={styles.card}>
-      <View style={styles.head}>
-        <Text style={styles.day}>{plan.dayName}</Text>
+      {/* The day is a suggestion, and tapping it says so. Somebody whose
+          friends are doing Pull today will train Pull either way; the only
+          question is whether the app lets them log it as Pull. */}
+      <Pressable
+        onPress={onPickDay}
+        disabled={!onPickDay || plan.days.length < 2}
+        style={styles.head}
+        hitSlop={8}
+      >
+        <Text style={styles.day}>
+          {plan.dayName}
+          {onPickDay && plan.days.length > 1 ? <Text style={styles.caret}>  ⌄</Text> : null}
+        </Text>
         <Text style={styles.programme}>{plan.programName}</Text>
-      </View>
+      </Pressable>
 
       {plan.exercises.map((exercise, index) => (
         <View
@@ -55,6 +73,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg },
   head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   day: { fontSize: 20, fontWeight: '600', color: colors.text, letterSpacing: -0.3 },
+  caret: { color: colors.textDim, fontSize: 15 },
   programme: { fontSize: 13, color: colors.textFaint },
 
   row: {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Modal,
   Pressable,
@@ -29,7 +29,10 @@ type Draft = { weightKg: number; reps: number; rir: number | null };
 export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const workout = useWorkout();
+  // A day chosen on the home screen. Absent when the rotation's suggestion
+  // was accepted, which is the ordinary case.
+  const { template } = useLocalSearchParams<{ template?: string }>();
+  const workout = useWorkout(template);
 
   const [index, setIndex] = useState(0);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -61,7 +64,7 @@ export default function WorkoutScreen() {
   if (workout.loading || !exercise) {
     return (
       <View style={[styles.centred, { paddingTop: insets.top }]}>
-        <Text style={styles.dim}>{workout.error ?? 'Getting your session ready…'}</Text>
+        <Text style={styles.dim}>{workout.error ?? t('preparingSession')}</Text>
         {workout.error ? (
           <Button title={t('back')} variant="secondary" onPress={() => router.back()} />
         ) : null}
@@ -91,7 +94,7 @@ export default function WorkoutScreen() {
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
-          <Text style={styles.headerAction}>CLOSE</Text>
+          <Text style={styles.headerAction}>{t('close')}</Text>
         </Pressable>
         {/* The day's name, not its code: 'Push' reads, 'DAY Push' does not. */}
         <Text style={styles.headerTitle}>
@@ -147,10 +150,12 @@ export default function WorkoutScreen() {
             {exercise.sets}×{exercise.targetReps}
             {exercise.weightKg != null ? ` @ ${kg(exercise.weightKg)}kg` : ''}
             {' · '}
-            {REASONS[exercise.reason]}
+            {REASONS[exercise.reason]()}
           </Text>
           {exercise.last ? (
-            <Text style={styles.lastLine}>last: {performedLine(exercise.last.sets)}</Text>
+            <Text style={styles.lastLine}>
+              {t('lastTime')}: {performedLine(exercise.last.sets)}
+            </Text>
           ) : (
             <Text style={styles.lastLine}>{t('noHistoryYet')}</Text>
           )}
@@ -171,7 +176,7 @@ export default function WorkoutScreen() {
 
         <Stepper
           value={draft.reps}
-          unit="reps"
+          unit={t('repsUnit')}
           step={1}
           min={1}
           max={100}
@@ -181,7 +186,11 @@ export default function WorkoutScreen() {
         <RirChips value={draft.rir} onChange={(rir) => updateDraft({ rir })} />
 
         <Button
-          title={complete ? `Log extra set ${setNumber}` : `Log set ${setNumber} of ${exercise.sets}`}
+          title={
+            complete
+              ? t('logExtraSet', { n: setNumber })
+              : t('logSetOf', { n: setNumber, total: exercise.sets })
+          }
           onPress={confirmSet}
         />
 
@@ -227,18 +236,15 @@ export default function WorkoutScreen() {
           ) : null}
         </View>
 
+        {/* Pluralised through the locale rather than by appending an "s",
+            which German does not do and which was the reason these two lines
+            could not be translated in the first sweep. */}
         {workout.pending > 0 ? (
-          <Text style={styles.offline}>
-            {workout.pending} write{workout.pending === 1 ? '' : 's'} waiting on the server. Saved
-            on the phone either way — keep going.
-          </Text>
+          <Text style={styles.offline}>{t('writesWaiting', { n: countOfWrites(workout.pending) })}</Text>
         ) : null}
 
         {workout.failed > 0 ? (
-          <Text style={styles.failedNotice}>
-            {workout.failed} write{workout.failed === 1 ? '' : 's'} the server refused. Still on
-            this phone, but not in your history — worth a look after the session.
-          </Text>
+          <Text style={styles.failedNotice}>{t('writesRefused', { n: countOfWrites(workout.failed) })}</Text>
         ) : null}
       </ScrollView>
 
@@ -255,13 +261,16 @@ export default function WorkoutScreen() {
   );
 }
 
-const REASONS: Record<ExercisePrescription['reason'], string> = {
-  first_time: 'first time',
-  increase_load: 'add weight',
-  increase_reps: 'one more rep',
-  hold: 'hold',
-  deload: 'deload',
-  joint_pain: 'load cut — joint pain',
+/** "One write is" / "3 writes are" — the subject and its verb together. */
+const countOfWrites = (n: number) => (n === 1 ? t('oneWrite') : t('manyWrites', { n }));
+
+const REASONS: Record<ExercisePrescription['reason'], () => string> = {
+  first_time: () => t('reasonFirstTime'),
+  increase_load: () => t('reasonAddWeight'),
+  increase_reps: () => t('reasonOneMoreRep'),
+  hold: () => t('reasonHold'),
+  deload: () => t('reasonDeload'),
+  joint_pain: () => t('reasonJointPain'),
 };
 
 function SwapButton({
@@ -332,14 +341,14 @@ function FinishSheet({
               </Pressable>
             ))}
           </View>
-          <Text style={styles.rpeHint}>{RPE_HINTS[rpe] ?? ''}</Text>
+          <Text style={styles.rpeHint}>{RPE_HINTS[rpe]?.() ?? ''}</Text>
 
           <Pressable
             onPress={() => setJointPain((current) => !current)}
             style={[styles.toggle, jointPain && styles.toggleActive]}
           >
             <Text style={[styles.toggleText, jointPain && styles.toggleTextActive]}>
-              {jointPain ? '✓  Joint pain' : 'Joint pain'}
+              {jointPain ? `✓  ${t('jointPainToggle')}` : t('jointPainToggle')}
             </Text>
             <Text style={styles.toggleHint}>{t('jointHint')}</Text>
           </Pressable>
@@ -354,7 +363,7 @@ function FinishSheet({
           />
 
           <Button
-            title={saving ? 'Saving…' : 'Finish session'}
+            title={saving ? t('savingShort') : t('finishSessionButton')}
             disabled={saving}
             onPress={async () => {
               setSaving(true);
@@ -371,13 +380,13 @@ function FinishSheet({
   );
 }
 
-const RPE_HINTS: Record<number, string> = {
-  5: 'easy — plenty left',
-  6: 'comfortable',
-  7: 'solid working session',
-  8: 'hard, a couple of reps left in most sets',
-  9: 'very hard, close to failure',
-  10: 'nothing left',
+const RPE_HINTS: Record<number, () => string> = {
+  5: () => t('rpe5'),
+  6: () => t('rpe6'),
+  7: () => t('rpe7'),
+  8: () => t('rpe8'),
+  9: () => t('rpe9'),
+  10: () => t('rpe10'),
 };
 
 /**

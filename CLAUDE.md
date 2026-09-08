@@ -378,6 +378,11 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
 - **Weight** — one number pad, three seconds. The 7-day average is the
   headline, and the chart is a line in a coordinate system: the average is the
   line, daily weigh-ins are dots.
+- **Progress** — per-exercise estimated 1RM over time, the weight trend, the
+  Sunday review, and **measured expenditure**: what the athlete actually burns,
+  from logged intake and the smoothed weight trend rather than from the
+  onboarding formula. It refuses to answer rather than guess — see
+  `domain/expenditure.ts`, where the refusals are the point.
 - **History** — what was actually done, newest first, grouped into the
   athlete's own days with lifts and cardio interleaved. Sets expand in place
   rather than opening a detail screen: the list already carries them, so it

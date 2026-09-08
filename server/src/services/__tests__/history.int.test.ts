@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Ctx } from '../../db';
 import { pool } from '../../db';
 import { anotherAthlete, exerciseIdByName, phil, resetData, resetProfile } from '../../test/helpers';
+import { dayIn } from '../../domain/time';
 import { logCardio } from '../cardio';
 import { trainingHistory } from '../history';
 import { setTimezone } from '../profile';
@@ -131,15 +132,15 @@ describe('reading back what was done', () => {
     // The screen labels the first rows "Today" and "Yesterday". Deriving that
     // from the phone would disagree with the grouping done here the moment
     // somebody's profile zone and their handset differ.
+    // Checked against the same helper the service uses rather than against
+    // the other zone: Auckland and Honolulu are 22 hours apart, so they share
+    // a calendar date for two hours of every day. Asserting they always
+    // differ made this test pass for 22 hours and fail for two.
     await setTimezone(phil, 'Pacific/Auckland');
-    const auckland = await trainingHistory(phil, 30);
+    expect((await trainingHistory(phil, 30)).today).toBe(dayIn('Pacific/Auckland'));
 
     await setTimezone(phil, 'Pacific/Honolulu');
-    const honolulu = await trainingHistory(phil, 30);
-
-    expect(auckland.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    // Nearly a full day apart: these two are never the same calendar date.
-    expect(auckland.today).not.toBe(honolulu.today);
+    expect((await trainingHistory(phil, 30)).today).toBe(dayIn('Pacific/Honolulu'));
   });
 
   it('never shows one athlete another\'s training', async () => {

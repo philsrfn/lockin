@@ -154,6 +154,29 @@ const PHRASES = {
   sessions: { de: 'Einheiten', en: 'sessions' },
   sets: { de: 'Sätze', en: 'sets' },
   volumeLifted: { de: 'bewegt', en: 'volume lifted' },
+
+  expenditure: { de: 'VERBRAUCH', en: 'EXPENDITURE' },
+  measuredBurn: { de: 'gemessen, nicht geschätzt', en: 'measured, not assumed' },
+  kcalPerDay: { de: 'kcal/Tag', en: 'kcal/day' },
+  fromDaysLogged: { de: 'aus {days} von {window} Tagen', en: 'from {days} of {window} days' },
+  atePerDay: { de: 'Ø {kcal} kcal gegessen', en: '{kcal} kcal eaten on average' },
+  targetIsNow: { de: 'Dein Ziel steht auf {target}.', en: 'Your target is set to {target}.' },
+  stillSettling: {
+    de: 'Noch nicht genug Tage, um darauf ein Ziel zu ändern.',
+    en: 'Not enough days yet to change a target on it.',
+  },
+  needMoreIntake: {
+    de: 'Erst {days} von {window} Tagen mit Essen erfasst. Ab {needed} kann ich rechnen.',
+    en: 'Only {days} of {window} days have food logged. I can measure from {needed}.',
+  },
+  needMoreWeight: {
+    de: 'Zu wenige Wiegungen am Anfang oder Ende des Zeitraums.',
+    en: 'Too few weigh-ins at one end of the window.',
+  },
+  measurementImplausible: {
+    de: 'Die Zahlen ergeben keinen plausiblen Verbrauch — vermutlich ein Tippfehler beim Gewicht.',
+    en: 'The numbers do not give a plausible figure — most likely a mistyped weight.',
+  },
   historyTitle: { de: 'Verlauf', en: 'History' },
   history: { de: 'Verlauf', en: 'History' },
   nothingTrainedYet: {
@@ -388,8 +411,26 @@ const PHRASES = {
   },
 } satisfies Record<string, Phrase>;
 
-export function t(key: keyof typeof PHRASES): string {
-  return PHRASES[key][language()];
+/**
+ * Values to drop into a phrase, by their `{name}` placeholder.
+ *
+ * Added because the alternative is splitting a sentence into fragments and
+ * concatenating them at the call site, which only works while two languages
+ * happen to share a word order. "aus 19 von 28 Tagen" and "from 19 of 28
+ * days" already do not: German puts the noun last.
+ */
+type Values = Record<string, string | number>;
+
+export function t(key: keyof typeof PHRASES, values?: Values): string {
+  const phrase = PHRASES[key][language()];
+  if (!values) return phrase;
+
+  // A placeholder with no value is left as it is rather than blanked: seeing
+  // {b} in the interface says which value was forgotten, where an empty gap
+  // says only that something is wrong.
+  return phrase.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    name in values ? String(values[name]) : whole,
+  );
 }
 
 /** Greetings that shift through the day, so ten a day does not wear thin. */

@@ -1,12 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { t } from '../lib/locale';
 import { colors, radius, space } from '../theme';
 
-/** Reps in reserve, in the words he would actually use. Optional by design. */
-const OPTIONS: { label: string; value: number }[] = [
-  { label: 'easy', value: 4 },
-  { label: '2', value: 2 },
-  { label: '1', value: 1 },
-  { label: 'failure', value: 0 },
+/** Reps in reserve, in the words they would actually use. Optional by design. */
+const OPTIONS: { label: () => string; value: number }[] = [
+  { label: () => t('rirEasy'), value: 4 },
+  { label: () => '2', value: 2 },
+  { label: () => '1', value: 1 },
+  { label: () => t('rirFailure'), value: 0 },
 ];
 
 export function RirChips({
@@ -22,12 +23,12 @@ export function RirChips({
         const active = value === option.value;
         return (
           <Pressable
-            key={option.label}
+            key={option.label()}
             // Tapping the active chip clears it — RIR is never mandatory.
             onPress={() => onChange(active ? null : option.value)}
             style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && styles.pressed]}
           >
-            <Text style={[styles.text, active && styles.textActive]}>{option.label}</Text>
+            <Text style={[styles.text, active && styles.textActive]}>{option.label()}</Text>
           </Pressable>
         );
       })}

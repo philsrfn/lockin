@@ -81,7 +81,7 @@ export function FoodEditor({
       });
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not save that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
     } finally {
       setBusy(false);
     }
@@ -94,7 +94,7 @@ export function FoodEditor({
       await api(`/foods/${food.id}`, { method: 'DELETE' });
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not remove that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotRemove'));
     } finally {
       setBusy(false);
     }
@@ -121,7 +121,7 @@ export function FoodEditor({
 
           <Pressable onPress={() => setQuickAdd((v) => !v)} style={styles.toggle}>
             <Text style={[styles.toggleText, quickAdd && styles.toggleOn]}>
-              {quickAdd ? '✓  Show as a one-tap tile' : 'Show as a one-tap tile'}
+              {quickAdd ? `✓  ${t('showAsTile')}` : t('showAsTile')}
             </Text>
             <Text style={styles.toggleHint}>{t('tilesSitAtTop')}</Text>
           </Pressable>

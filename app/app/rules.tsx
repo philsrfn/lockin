@@ -37,7 +37,7 @@ export default function RulesScreen() {
       setRules(fetched);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not load your rules');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadRules'));
     } finally {
       setLoading(false);
     }
@@ -176,7 +176,7 @@ function RuleSheet({
       }
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Could not save that');
+      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
     } finally {
       setBusy(false);
     }

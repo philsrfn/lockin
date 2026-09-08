@@ -186,9 +186,13 @@ export default function TodayScreen() {
 
         {/* Driven by the strip. Today by default, any day on tap. */}
         <View style={styles.section}>
-          <Text style={styles.label}>
-            {isToday ? caps(t('today')) : shortDate(active!.date).toUpperCase()}
-          </Text>
+          {/* Only when it is news. On today's screen a label reading TODAY
+              above today's numbers is a caption for something nobody was
+              confused about; scrolled back to Thursday, the date is the whole
+              point. */}
+          {isToday ? null : (
+            <Text style={styles.label}>{shortDate(active!.date).toUpperCase()}</Text>
+          )}
 
           {isToday ? (
             <>

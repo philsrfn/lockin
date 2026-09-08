@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { t } from '../lib/locale';
 import type { CoachNote } from '../api/types';
 import { colors, radius, space, type as typo } from '../theme';
 
@@ -25,7 +26,7 @@ export function CoachCard({ note, loading }: { note: CoachNote | null; loading: 
         <View style={styles.pendingRow}>
           {loading ? <ActivityIndicator size="small" color={colors.textFaint} /> : null}
           <Text style={styles.pending}>
-            {loading ? 'Your trainer is looking at the last two weeks…' : 'No read on today yet.'}
+            {loading ? t('coachThinking') : t('noReadYet')}
           </Text>
         </View>
       </View>

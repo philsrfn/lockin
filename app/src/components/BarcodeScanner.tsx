@@ -61,7 +61,7 @@ export function BarcodeScanner({
             <View style={styles.overlay} pointerEvents="box-none">
               <View style={[styles.top, { paddingTop: insets.top + space.md }]}>
                 <Text style={styles.hint}>
-                  {locked ? 'Looking it up…' : 'Point at the barcode'}
+                  {locked ? t('lookingItUp') : t('pointAtBarcode')}
                 </Text>
               </View>
               <View style={styles.reticle} />

@@ -120,7 +120,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
             <Field
               label={t('obSex')}
-              hint="The resting-metabolism formula uses it. It moves the daily number by about 160 kcal."
+              hint={t('obSexHint')}
             >
               <Choice
                 options={[
@@ -155,7 +155,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
             <Field
               label={t('obWeightToday')}
-              hint="The first point of your trend. The seven-day average is the number that counts, so a heavy morning does not matter."
+              hint={t('obWeightHint')}
             >
               <Line value={weightKg} onChange={setWeightKg} placeholder="—" unit="kg" keyboardType="decimal-pad" />
             </Field>
@@ -180,7 +180,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
             </Field>
 
             {goal !== 'maintain' && (
-              <Field label={t('obGoalWeight')} hint="Optional. You can change it whenever.">
+              <Field label={t('obGoalWeight')} hint={t('obGoalWeightHint')}>
                 <Line
                   value={goalWeightKg}
                   onChange={setGoalWeightKg}
@@ -242,13 +242,19 @@ function Numbers({ result }: { result: OnboardingResult }) {
 
       <View style={styles.rule} />
 
-      <Text style={styles.workingLabel}>{caps('Where these came from')}</Text>
+      <Text style={styles.workingLabel}>{caps(t('obWhereFrom'))}</Text>
       <Text style={styles.working}>
-        Maintenance for you is about {explanation.maintenanceKcal} kcal a day, training{' '}
-        {profile.trainingDaysPerWeek ?? 3} times a week.
+        {t('obMaintenance', {
+          kcal: explanation.maintenanceKcal,
+          days: profile.trainingDaysPerWeek ?? 3,
+        })}
         {rate > 0
-          ? ` Eating ${profile.calorieTarget} puts you ${explanation.maintenanceKcal - profile.calorieTarget} under that — roughly ${rate.toFixed(2)} kg a week.`
-          : ' Your target holds you there.'}
+          ? t('obDeficit', {
+              target: profile.calorieTarget,
+              gap: explanation.maintenanceKcal - profile.calorieTarget,
+              rate: rate.toFixed(2),
+            })
+          : t('obHoldsYouThere')}
       </Text>
       <Text style={styles.working}>
         {t('proteinMattersMost')}

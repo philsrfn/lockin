@@ -278,6 +278,87 @@ const PHRASES = {
     en: 'Nothing logged in this window yet. Finish a session and it shows up here.',
   },
   estOneRm: { de: 'gesch. 1RM', en: 'est. 1RM' },
+
+  // ——— the logger, second pass ———
+  // Template literals and constant tables, which the first sweep did not see.
+  close: { de: 'SCHLIESSEN', en: 'CLOSE' },
+  logSetOf: { de: 'Satz {n} von {total} eintragen', en: 'Log set {n} of {total}' },
+  logExtraSet: { de: 'Zusatzsatz {n} eintragen', en: 'Log extra set {n}' },
+  finishSessionButton: { de: 'Einheit abschließen', en: 'Finish session' },
+  jointPainToggle: { de: 'Gelenkschmerz', en: 'Joint pain' },
+  lastTime: { de: 'zuletzt', en: 'last' },
+  writesWaiting: {
+    de: '{n} noch nicht beim Server. Auf dem Handy gesichert — mach weiter.',
+    en: '{n} not on the server yet. Saved on the phone either way — keep going.',
+  },
+  writesRefused: {
+    de: '{n} hat der Server abgelehnt. Liegt auf diesem Handy, aber nicht in deiner Historie — nach der Einheit anschauen.',
+    en: '{n} the server refused. Still on this phone, but not in your history — worth a look after the session.',
+  },
+  oneWrite: { de: 'Ein Eintrag ist', en: 'One write is' },
+  manyWrites: { de: '{n} Einträge sind', en: '{n} writes are' },
+
+  reasonFirstTime: { de: 'zum ersten Mal', en: 'first time' },
+  reasonAddWeight: { de: 'mehr Gewicht', en: 'add weight' },
+  reasonOneMoreRep: { de: 'eine Wiederholung mehr', en: 'one more rep' },
+  reasonHold: { de: 'halten', en: 'hold' },
+  reasonDeload: { de: 'Deload', en: 'deload' },
+  reasonJointPain: { de: 'Last reduziert — Gelenkschmerz', en: 'load cut — joint pain' },
+
+  rirEasy: { de: 'locker', en: 'easy' },
+  rirFailure: { de: 'Versagen', en: 'failure' },
+  repsUnit: { de: 'Wdh.', en: 'reps' },
+
+  // ——— onboarding hints and the working-out block ———
+  obSexHint: {
+    de: 'Die Grundumsatz-Formel braucht es. Es verschiebt die Tageszahl um rund 160 kcal.',
+    en: 'The resting-metabolism formula uses it. It moves the daily number by about 160 kcal.',
+  },
+  obWeightHint: {
+    de: 'Der erste Punkt deines Trends. Es zählt der 7-Tage-Schnitt, ein schwerer Morgen macht also nichts.',
+    en: 'The first point of your trend. The seven-day average is the number that counts, so a heavy morning does not matter.',
+  },
+  obGoalWeightHint: {
+    de: 'Optional. Du kannst es jederzeit ändern.',
+    en: 'Optional. You can change it whenever.',
+  },
+  obWhereFrom: { de: 'Wie das zustande kommt', en: 'Where these came from' },
+  obMaintenance: {
+    de: 'Dein Erhaltungsbedarf liegt bei etwa {kcal} kcal am Tag, bei {days} Trainingstagen pro Woche.',
+    en: 'Maintenance for you is about {kcal} kcal a day, training {days} times a week.',
+  },
+  obDeficit: {
+    de: ' Mit {target} kcal liegst du {gap} darunter — grob {rate} kg pro Woche.',
+    en: ' Eating {target} puts you {gap} under that — roughly {rate} kg a week.',
+  },
+  obHoldsYouThere: { de: ' Dein Ziel hält dich dort.', en: ' Your target holds you there.' },
+
+  // ——— errors the athlete actually sees ———
+  couldNotReachTrainer: { de: 'Konnte deinen Trainer nicht erreichen', en: 'Could not reach your trainer' },
+  trainerUnreachable: {
+    de: 'Dein Trainer ist gerade nicht erreichbar. Versuch es gleich nochmal.',
+    en: 'Your trainer is unreachable right now. Try again in a moment.',
+  },
+  couldNotSave: { de: 'Konnte das nicht sichern', en: 'Could not save that' },
+  couldNotRemove: { de: 'Konnte das nicht entfernen', en: 'Could not remove that' },
+  couldNotLoadRules: { de: 'Konnte deine Regeln nicht laden', en: 'Could not load your rules' },
+  preparingSession: { de: 'Deine Einheit wird vorbereitet…', en: 'Getting your session ready…' },
+  pointAtBarcode: { de: 'Auf den Barcode halten', en: 'Point at the barcode' },
+  coachThinking: {
+    de: 'Dein Trainer schaut sich die letzten zwei Wochen an…',
+    en: 'Your trainer is looking at the last two weeks…',
+  },
+  showAsTile: { de: 'Als Kachel zum Antippen zeigen', en: 'Show as a one-tap tile' },
+  noReadYet: { de: 'Noch keine Einschätzung für heute.', en: 'No read on today yet.' },
+  lookingItUp: { de: 'Wird nachgeschlagen…', en: 'Looking it up…' },
+  somethingWentWrong: { de: 'Da ist etwas schiefgelaufen', en: 'Something went wrong' },
+
+  rpe5: { de: 'locker — viel übrig', en: 'easy — plenty left' },
+  rpe6: { de: 'angenehm', en: 'comfortable' },
+  rpe7: { de: 'solide Einheit', en: 'solid working session' },
+  rpe8: { de: 'hart, in den meisten Sätzen zwei übrig', en: 'hard, a couple of reps left in most sets' },
+  rpe9: { de: 'sehr hart, nah am Versagen', en: 'very hard, close to failure' },
+  rpe10: { de: 'nichts mehr übrig', en: 'nothing left' },
   editFood: { de: 'LEBENSMITTEL BEARBEITEN', en: 'EDIT FOOD' },
   removeFromMyFoods: { de: 'Aus meinen Lebensmitteln entfernen', en: 'Remove from my foods' },
   removeFoodAsk: {

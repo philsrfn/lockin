@@ -86,7 +86,7 @@ export function SignInScreen({
           ? t('tokenRejected')
           : status === 0
             ? t('serverUnreachable')
-            : `Something went wrong (${status ?? '?'}).`,
+            : t('signInFailedCode', { status: status ?? '?' }),
       );
     } finally {
       setBusy(false);

@@ -268,7 +268,7 @@ function Numbers({ result }: { result: OnboardingResult }) {
       */}
       {explanation.notes.length > 0 && (
         <>
-          <Text style={[styles.workingLabel, styles.adjustedLabel]}>{caps('Adjusted')}</Text>
+          <Text style={[styles.workingLabel, styles.adjustedLabel]}>{caps(t('obAdjusted'))}</Text>
           {explanation.notes.map((note) => (
             <Text key={note} style={styles.note}>
               {note}

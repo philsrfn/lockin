@@ -43,10 +43,7 @@ export function BarcodeScanner({
         {!permission ? null : !permission.granted ? (
           <View style={[styles.centred, { paddingTop: insets.top + space.xxl }]}>
             <Text style={styles.title}>{t('cameraAccess')}</Text>
-            <Text style={styles.body}>
-              lockin needs the camera to read barcodes. Nothing is recorded — the code is looked up
-              and the picture is discarded.
-            </Text>
+            <Text style={styles.body}>{t('cameraWhy')}</Text>
             <Button title={t('allowCamera')} onPress={requestPermission} />
             <Button title={t('notNow')} variant="ghost" onPress={onClose} />
           </View>

@@ -409,7 +409,7 @@ function ManualEntry({
 
           <Pressable onPress={() => setSave((current) => !current)} style={styles.saveToggle}>
             <Text style={[styles.saveText, save && styles.saveTextOn]}>
-              {save ? '✓  Keep in my foods' : 'Keep in my foods'}
+              {save ? `✓  ${t('keepInMyFoods')}` : t('keepInMyFoods')}
             </Text>
           </Pressable>
 

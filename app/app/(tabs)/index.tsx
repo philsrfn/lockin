@@ -24,7 +24,7 @@ import { SessionPreview } from '../../src/components/SessionPreview';
 import { greeting, initials, kg, longDate, shortDate, signedKg } from '../../src/lib/format';
 import { rememberLocale } from '../../src/api/config';
 import { t } from '../../src/lib/locale';
-import { caps, colors, radius, space, type as typo } from '../../src/theme';
+import { colors, radius, space, type as typo } from '../../src/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -84,6 +84,29 @@ export default function TodayScreen() {
   const inProgress = openSession !== null;
   const doneToday = !inProgress && (completedToday?.length ?? 0) > 0;
   const resting = !!coach && coach.sessionType !== 'strength' && !doneToday && !inProgress;
+
+  /**
+   * Which direction is the good one.
+   *
+   * This used to be "down is amber, up is red", full stop — correct for the
+   * one athlete the app was written for and wrong for anybody trying to gain.
+   * The goal is on the profile; where onboarding never asked (a profile that
+   * predates it), the goal weight answers instead, and losing is the fallback
+   * because that is what every athlete on this server is doing.
+   */
+  const wantsToGain =
+    profile.goal === 'gain' ||
+    (profile.goal == null &&
+      profile.goalWeightKg != null &&
+      weight.average7 != null &&
+      profile.goalWeightKg > weight.average7.avgKg);
+  const change = weight.changeKg ?? 0;
+  const trendColour =
+    profile.goal === 'maintain'
+      ? colors.textDim
+      : (wantsToGain ? change >= 0 : change <= 0)
+        ? colors.accent
+        : colors.danger;
 
   /**
    * Start the logger, optionally on a day the athlete picked rather than the
@@ -164,7 +187,7 @@ export default function TodayScreen() {
 
         {plan.jointPain.recommendDoctor ? (
           <Text style={styles.alert}>
-            Joint pain twice running · load cut {plan.jointPain.reduceLoadPct}% · see someone
+            {t('jointPainAlert', { pct: plan.jointPain.reduceLoadPct })}
           </Text>
         ) : null}
 
@@ -208,40 +231,61 @@ export default function TodayScreen() {
 
           {isToday ? (
             <>
-              <View style={styles.heroRow}>
-                <Text style={styles.hero}>{macros.remaining.proteinG}</Text>
-                <Text style={styles.heroUnit}>{t('proteinLeft')}</Text>
-                <View style={styles.heroSpacer} />
-                {/*
-                  The number is the question and a barcode is the fastest
-                  answer to it, so the two sit together rather than a tab away.
-                */}
-                <Pressable
-                  onPress={() => setCapture('scan')}
-                  hitSlop={10}
-                  style={({ pressed }) => [styles.scan, pressed && styles.chipOn]}
-                >
-                  <Text style={styles.scanText}>{t('scan')}</Text>
-                </Pressable>
+              {/*
+                Calories belong under the protein, not beside a body weight.
+                They are the same question in another unit — how much of today
+                is left to eat — and they were sitting in a column next to a
+                seven-day average, which is a different question about a
+                different thing on a different timescale. Three equal columns
+                said those were three facts of one kind. They were two.
+              */}
+              <View style={styles.foodGroup}>
+                <View style={styles.heroRow}>
+                  <Text style={styles.hero}>{macros.remaining.proteinG}</Text>
+                  <Text style={styles.heroUnit}>{t('proteinLeft')}</Text>
+                  <View style={styles.heroSpacer} />
+                  {/*
+                    The number is the question and a barcode is the fastest
+                    answer to it, so the two sit together rather than a tab
+                    away.
+                  */}
+                  <Pressable
+                    onPress={() => setCapture('scan')}
+                    hitSlop={10}
+                    style={({ pressed }) => [styles.scan, pressed && styles.chipOn]}
+                  >
+                    <Text style={styles.scanText}>{t('scan')}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.heroSupport}>
+                  {macros.remaining.kcal} {t('kcalLeftOf')} {macros.targets.kcal}
+                </Text>
               </View>
-              <View style={styles.facts}>
-                <Fact value={`${macros.remaining.kcal}`} label={t('kcalLeft')} />
-                <Fact
-                  value={weight.average7 ? kg(weight.average7.avgKg) : '—'}
-                  label={t('sevenDayAvg')}
-                />
-                <Fact
-                  value={signedKg(weight.changeKg)}
-                  label={t('thisWeekShort')}
-                  tone={(weight.changeKg ?? 0) <= 0 ? 'signal' : 'alert'}
-                />
+
+              {/*
+                The body, in one line. Weight and its weekly change are not two
+                facts either — "95.1, down 0.4" is one sentence, and splitting
+                it into two boxes made the reader assemble it.
+              */}
+              <View style={styles.bodyRow}>
+                {weight.average7 ? (
+                  <>
+                    <Text style={styles.bodyValue}>{kg(weight.average7.avgKg)} kg</Text>
+                    {weight.changeKg != null ? (
+                      <Text style={[styles.bodyDelta, { color: trendColour }]}>
+                        {signedKg(weight.changeKg)} {t('thisWeekInline')}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text style={styles.bodyAbsent}>{t('noWeighInYet')}</Text>
+                )}
                 {/* Only once the phone shares them. A zero here would be a
                     claim we cannot make. */}
                 {today.data.health?.steps != null ? (
-                  <Fact
-                    value={`${(today.data.health.steps / 1000).toFixed(1)}k`}
-                    label={t('steps')}
-                  />
+                  <Text style={styles.bodyAside}>
+                    · {(today.data.health.steps / 1000).toFixed(1)}k {t('stepsLower')}
+                  </Text>
                 ) : null}
               </View>
             </>
@@ -250,12 +294,18 @@ export default function TodayScreen() {
           )}
         </View>
 
-        {/* What the Start button will actually start. This screen used to end
-            here with a third of it empty, and the only way to find out whether
-            today was squats or a rest day was to press the button. */}
+        {/*
+          What the Start button will actually start. This screen used to end
+          here with a third of it empty, and the only way to find out whether
+          today was squats or a rest day was to press the button.
+
+          No label above it. The card names the day and the programme in its
+          own header, and the whole screen is today — the same argument the
+          date label above makes for itself: a caption for something nobody
+          was confused about is a line of screen spent on nothing.
+        */}
         {isToday ? (
           <View style={styles.section}>
-            <Text style={styles.label}>{caps(t('todaysSession'))}</Text>
             <SessionPreview plan={plan} onPickDay={() => setDayPickerOpen(true)} />
           </View>
         ) : null}
@@ -453,6 +503,21 @@ const styles = StyleSheet.create({
   scanText: { fontSize: 14, fontWeight: '600', color: colors.text },
   hero: { fontSize: 62, fontWeight: '300', color: colors.text, letterSpacing: -3, ...typo.mono },
   heroUnit: { fontSize: 15, color: colors.textDim },
+
+  /**
+   * Hero and calories are one group and sit tight together; the body line is
+   * a different subject and gets the section's own gap. Three lines evenly
+   * spaced read as three unrelated facts, which is the arrangement this
+   * replaced.
+   */
+  foodGroup: { gap: space.xs },
+  heroSupport: { fontSize: 14, color: colors.textDim },
+
+  bodyRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, flexWrap: 'wrap' },
+  bodyValue: { fontSize: 18, color: colors.text, ...typo.mono },
+  bodyDelta: { fontSize: 14, ...typo.mono },
+  bodyAside: { fontSize: 14, color: colors.textFaint, ...typo.mono },
+  bodyAbsent: { fontSize: 15, color: colors.textFaint },
 
   facts: { flexDirection: 'row', gap: space.lg },
   fact: { flex: 1, gap: 2 },

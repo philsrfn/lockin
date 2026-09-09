@@ -60,11 +60,8 @@ const PHRASES = {
   lifts: { de: 'Einheiten', en: 'lifts' },
   weighIns: { de: 'Wiegen', en: 'weigh-ins' },
   proteinLeft: { de: 'g Protein übrig', en: 'g protein left' },
-  kcalLeft: { de: 'KCAL ÜBRIG', en: 'KCAL LEFT' },
   // Short enough to sit on one line beside three others. German compounds are
   // long, and a label that wraps turns a calm row of numbers into a paragraph.
-  sevenDayAvg: { de: 'Ø 7 TAGE', en: '7-DAY AVG' },
-  thisWeekShort: { de: 'WOCHE', en: 'WEEK' },
 
   tabToday: { de: 'Heute', en: 'Today' },
   tabTrainer: { de: 'Trainer', en: 'Trainer' },
@@ -114,7 +111,6 @@ const PHRASES = {
     de: 'Noch nichts geteilt. In der Health-App kannst du festlegen, was lockin lesen darf.',
     en: 'Nothing shared yet. The Health app is where you choose what lockin may read.',
   },
-  steps: { de: 'SCHRITTE', en: 'STEPS' },
 
   logWeight: { de: 'Heutiges Gewicht sichern', en: "Log today's weight" },
   saving: { de: 'Sichern…', en: 'Saving…' },
@@ -396,6 +392,39 @@ const PHRASES = {
     de: 'Damit kann der Server nichts anfangen. Probier es anders.',
     en: 'The server could not make sense of that. Try it differently.',
   },
+
+  // ——— the last five that were still English ———
+  jointPainAlert: {
+    de: 'Gelenkschmerzen zweimal in Folge · Last {pct}% runter · lass das anschauen',
+    en: 'Joint pain twice running · load cut {pct}% · get it looked at',
+  },
+  keepInMyFoods: { de: 'In meinen Lebensmitteln behalten', en: 'Keep in my foods' },
+  // The trainer has no gender, and neither does the athlete reading this.
+  trainerIntro: {
+    de: 'Er kennt deine letzten zwei Wochen, wo du bist und was du heute gegessen hast. Sag, wie du dich fühlst, was du gegessen hast oder wo du gerade bist — der Plan ändert sich dann wirklich, statt dass dir nur zugestimmt wird.',
+    en: 'It knows your last two weeks, where you are, and what you have eaten today. Say how you feel, what you ate, or where you are — the plan actually changes, rather than somebody agreeing with you.',
+  },
+  cameraWhy: {
+    de: 'lockin braucht die Kamera, um Barcodes zu lesen. Nichts wird aufgezeichnet — der Code wird nachgeschlagen, das Bild verworfen.',
+    en: 'lockin needs the camera to read barcodes. Nothing is recorded — the code is looked up and the picture is discarded.',
+  },
+  // `signInFailed` already exists below and says the same thing without a
+  // number. This one is for the case where there is a status worth quoting
+  // back to whoever runs the server.
+  signInFailedCode: {
+    de: 'Da ist etwas schiefgelaufen ({status}).',
+    en: 'Something went wrong ({status}).',
+  },
+
+  // ——— the body, as a sentence rather than a column of figures ———
+  // `thisWeekLower` above is a caption under a number — "Woche". This one
+  // sits inside a sentence, where German wants the article.
+  thisWeekInline: { de: 'diese Woche', en: 'this week' },
+  stepsLower: { de: 'Schritte', en: 'steps' },
+  noWeighInYet: { de: 'noch nicht gewogen', en: 'not weighed yet' },
+  // Onboarding's badge on a target the §7 floors moved. The last English
+  // literal in the app, and on the first screen anybody sees.
+  obAdjusted: { de: 'Angepasst', en: 'Adjusted' },
 
   // ——— the rules editor ———
   // The tier names are the app's own vocabulary and stay as they are; what a
@@ -791,7 +820,6 @@ const PHRASES = {
     en: 'An ordered list of days that rotates. How often it rotates is how often you train.',
   },
 
-  todaysSession: { de: 'HEUTE AUF DEM PLAN', en: "TODAY'S SESSION" },
   restDay: { de: 'Ruhetag', en: 'Rest day' },
   restDayBlurb: {
     de: 'Nichts geplant. Bewegung schadet nie, aber heute zählt Erholung.',

@@ -12,12 +12,27 @@ import { runTool } from './handlers';
 import { trainerSystemInstruction } from './prompts/trainer';
 import { generateFor } from './metered';
 import { LlmError, type ToolCall, type ToolResult, type Turn } from './provider';
-import { usableHistory } from './history';
+import { compactOldToolResults, usableHistory } from './history';
+import { plainText } from '../domain/plainText';
 import { TOOLS } from './tools';
 
 /** How many model→tool→model rounds before we stop and answer with what we have. */
 const MAX_TOOL_ROUNDS = 5;
-const HISTORY_TURNS = 24;
+/**
+ * How much of the conversation is replayed to the model.
+ *
+ * Was 24, which is a long time to carry: measured across the athletes on this
+ * server, a prompt grew from 3k tokens on somebody's first message to over
+ * 14k by their thirtieth, and every one of those tokens is latency before the
+ * first word arrives — read standing in a gym, on gym wifi.
+ *
+ * Twelve is the thread rather than the archive. What the trainer knows about
+ * an athlete does not live here: the system instruction is assembled fresh
+ * per request with the last fortnight of sessions, the weight trend, today's
+ * macros, the rules and the place. History only has to carry what is being
+ * talked about right now.
+ */
+const HISTORY_TURNS = 12;
 
 export type ChatMessage = {
   id: number;
@@ -76,7 +91,7 @@ async function loadHistory(ctx: Ctx): Promise<Turn[]> {
 
   // The window above is a slice of rows, and its boundary lands wherever it
   // lands — including inside a tool exchange, which the provider refuses.
-  return usableHistory(replayed);
+  return compactOldToolResults(usableHistory(replayed));
 }
 
 /** What the app shows in the chat tab. */
@@ -142,8 +157,19 @@ export async function sendMessage(ctx: Ctx, text: string): Promise<ChatReply> {
     turns.push(modelTurn);
 
     if (output.toolCalls.length === 0) {
-      await persist(ctx, 'model', { text: output.text, opaque: output.opaque, ranTools });
-      return { text: output.text, ranTools, usage };
+      /**
+       * Swept once, on the way out, so the stored transcript and the reply
+       * the athlete reads are the same string. The persona forbids markdown
+       * and the model does it anyway about one turn in seven — §1.3 puts
+       * hard rules in a validator rather than in wording.
+       *
+       * `opaque` keeps the model's own parts untouched: it is the provider's
+       * state, it never reaches a screen, and Gemini rejects a follow-up that
+       * has been edited.
+       */
+      const reply = plainText(output.text);
+      await persist(ctx, 'model', { text: reply, opaque: output.opaque, ranTools });
+      return { text: reply, ranTools, usage };
     }
 
     await persist(ctx, 'model', {

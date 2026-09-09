@@ -3,7 +3,7 @@
  *
  * The pipeline is deliberately interrupted in the middle. Step 3 of §9:
  * "User confirms/edits the list. Never generate a plan off an unconfirmed
- * vision pass — mis-detected ingredients produce plans he can't actually
+ * vision pass — mis-detected ingredients produce plans nobody can actually
  * cook." So vision returns candidates and stops; the plan is a separate call
  * that runs only against a list the athlete has confirmed.
  *
@@ -218,11 +218,11 @@ Never moralise about food.`;
   let plan = await ask();
 
   // §5: validate, re-prompt once naming the violation, then fall back rather
-  // than surfacing something that breaks his rules.
+  // than surfacing something that breaks their rules.
   /**
    * The validator checks a whole day, but this plan only covers what is left of
-   * one. Validating the plan alone made it re-add a breakfast he had already
-   * eaten, just to satisfy the Skyr rule — a plan that would have him eat it
+   * one. Validating the plan alone made it re-add a breakfast they had already
+   * eaten, just to satisfy the Skyr rule — a plan that would have them eat it
    * twice. So the check runs against the logged meals plus the planned ones.
    */
   const asDay = (current: MealPlan) => ({
@@ -252,7 +252,7 @@ Never moralise about food.`;
 
     violations = validateMealPlan(asDay(plan), rules, contextName);
     if (violations.length > 0) {
-      // Say so rather than quietly presenting a plan that breaks his rules.
+      // Say so rather than quietly presenting a plan that breaks their rules.
       const detail = violations.map((v) => v.message).join(' ');
       plan.note =
         `${plan.note} (This still breaks a rule: ${detail} Treat it as a suggestion, not a plan.)`.trim();

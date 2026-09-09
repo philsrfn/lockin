@@ -41,12 +41,13 @@ const SCHEMA = {
     },
     wentWell: {
       type: 'string',
-      description: 'One specific thing he did well this week. Concrete, from the data, not flattery.',
+      description:
+        'One specific thing they did well this week. Concrete, from the data, not flattery.',
     },
     oneChange: {
       type: 'string',
       description:
-        'Exactly one concrete change for next week. Something he can act on Monday, not a list.',
+        'Exactly one concrete change for next week. Something they can act on Monday, not a list.',
     },
     calorieTarget: {
       type: 'integer',
@@ -62,10 +63,18 @@ const SCHEMA = {
   required: ['trend', 'wentWell', 'oneChange', 'calorieTarget', 'targetsNote'],
 };
 
-const INSTRUCTION = `You are Phil's trainer, writing his Sunday review.
+/**
+ * The name used to be in here — "You are Phil's trainer" — from when there was
+ * one athlete and it was his. Every review generated for anybody else told the
+ * model it was writing for him, and §8 calls this the most important job in
+ * the app. Nameless rather than interpolated, to match the persona in
+ * `prompts/trainer.ts`: the brief that follows is entirely about the person it
+ * is for, and a name adds nothing the numbers do not.
+ */
+const INSTRUCTION = `You are this athlete's trainer, writing their Sunday review.
 
-You have worked with him for months. Direct and warm, no cheerleading, no
-moralising about food. He reads this on his phone, so keep it tight — this is
+You have worked with them for months. Direct and warm, no cheerleading, no
+moralising about food. They read this on a phone, so keep it tight — this is
 four short paragraphs, not an essay.
 
 Every number you need is given to you. Do not calculate anything yourself and
@@ -77,7 +86,7 @@ ${MAX_WEEKLY_LOSS_KG}kg a week for two weeks running means eating more, not
 less. Stalling for two weeks on good adherence means eating less. A single
 flat week is noise — say so and leave it alone.
 
-Pick ONE change. A list of five is a list he will ignore.`;
+Pick ONE change. A list of five is a list they will ignore.`;
 
 type Brief = {
   weekEnding: string;
@@ -89,7 +98,7 @@ type Brief = {
 async function buildBrief(ctx: Ctx): Promise<Brief> {
   const profile = await getProfile(ctx);
   const zone = profile.timezone;
-  // The week the review is filed under is his week, not the server's.
+  // The week the review is filed under is the athlete's week, not the server's.
   const asOf = dayIn(zone);
 
   const [entries, sessions] = await Promise.all([
@@ -124,7 +133,7 @@ async function buildBrief(ctx: Ctx): Promise<Brief> {
 
   const finished = sessions.filter((session) => session.finished);
   // performedAt is an ISO instant; slicing it would give the UTC date, which
-  // is not the day he trained.
+  // is not the day they trained.
   const lastSeven = finished.filter(
     (session) => dayIn(zone, new Date(session.performedAt)) >= addDays(asOf, -6),
   );
@@ -155,10 +164,10 @@ async function buildBrief(ctx: Ctx): Promise<Brief> {
       ? `Joint pain was flagged on ${jointPainDays} of those sessions.`
       : 'No joint pain flagged.',
     loggedDays
-      ? `Food logged on ${loggedDays} of the last 14 days, averaging ${avgKcal} kcal and ${avgProtein}g protein on the days he logged.`
+      ? `Food logged on ${loggedDays} of the last 14 days, averaging ${avgKcal} kcal and ${avgProtein}g protein on the days they logged.`
       : 'No food logged in the last 14 days, so nothing can be said about intake.',
     loggedDays
-      ? `He hit the ${profile.proteinTargetG}g protein target on ${proteinHitDays} of ${loggedDays} logged days.`
+      ? `They hit the ${profile.proteinTargetG}g protein target on ${proteinHitDays} of ${loggedDays} logged days.`
       : '',
   ].filter(Boolean);
 

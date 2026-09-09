@@ -30,14 +30,14 @@ export const TOOLS: ToolDeclaration[] = [
     description:
       "Today's plan, the active city, macros consumed and remaining, and the " +
       'current weight trend. Call this before giving any advice that depends ' +
-      'on what he has already done today.',
+      'on what they have already done today.',
     parameters: { type: 'object', properties: {} },
   },
   {
     name: 'get_history',
     description:
       'Recent training sessions with their top sets, bodyweight entries, and ' +
-      'logged meals. Use it before judging whether he is progressing or stalling.',
+      'logged meals. Use it before judging whether they are progressing or stalling.',
     parameters: {
       type: 'object',
       properties: { days: int('How many days back to read. Default 14, max 90.') },
@@ -81,7 +81,7 @@ export const TOOLS: ToolDeclaration[] = [
         exerciseName: str('Exercise name, e.g. "Back Squat"'),
         weightKg: num('Load in kg'),
         reps: int('Reps completed'),
-        rir: int('Reps left in reserve. 0 means failure. Omit if he did not say.'),
+        rir: int('Reps left in reserve. 0 means failure. Omit if they did not say.'),
       },
       required: ['exerciseName', 'weightKg', 'reps'],
     },
@@ -109,18 +109,18 @@ export const TOOLS: ToolDeclaration[] = [
   },
   {
     name: 'log_meal',
-    description: 'Record something he ate, with your best macro estimate.',
+    description: 'Record something they ate, with your best macro estimate.',
     parameters: {
       type: 'object',
       properties: {
         slot: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] },
-        description: str('What he ate, in his words'),
+        description: str('What they ate, in their words'),
         kcal: int('Estimated calories'),
         proteinG: int('Estimated protein in grams'),
         source: {
           type: 'string',
           enum: ['moms_food', 'own', 'other'],
-          description: "moms_food when it came off his mother's stove",
+          description: "moms_food when somebody else cooked it — a parent, a canteen",
         },
       },
       required: ['slot', 'description'],
@@ -131,7 +131,7 @@ export const TOOLS: ToolDeclaration[] = [
     description:
       'Record cardio: a zone-2 treadmill session, intervals, football, a run, ' +
       'a walk. Minutes is the only number that matters — distance and heart ' +
-      'rate go in when he happens to have them.',
+      'rate go in when they happen to have them.',
     parameters: {
       type: 'object',
       properties: {
@@ -143,10 +143,10 @@ export const TOOLS: ToolDeclaration[] = [
             'or similar, walk = does not count towards the weekly target',
         },
         minutes: int('How long, in minutes'),
-        description: str('What it was, in his words'),
-        distanceKm: int('Kilometres, if he said'),
-        avgHr: int('Average heart rate, if he said'),
-        rpe: int('How hard it felt, 1-10, if he said'),
+        description: str('What it was, in their words'),
+        distanceKm: int('Kilometres, if they said'),
+        avgHr: int('Average heart rate, if they said'),
+        rpe: int('How hard it felt, 1-10, if they said'),
       },
       required: ['kind', 'minutes'],
     },
@@ -156,7 +156,7 @@ export const TOOLS: ToolDeclaration[] = [
     description:
       'Replace one exercise in today\'s session with a substitute in the same ' +
       'movement pattern — for a busy machine, or a gym that lacks it. Returns ' +
-      'the substitute with the load his own history says to use.',
+      'the substitute with the load their own history says to use.',
     parameters: {
       type: 'object',
       properties: {
@@ -171,14 +171,14 @@ export const TOOLS: ToolDeclaration[] = [
     description:
       'Change the daily calorie or protein target, or the goal weight. Floors ' +
       'are enforced below you: a request under them is refused and you must ' +
-      'tell him it was refused and why.',
+      'tell them it was refused and why.',
     parameters: {
       type: 'object',
       properties: {
         calorieTarget: int('New daily calorie target'),
         proteinTargetG: int('New daily protein target in grams'),
         goalWeightKg: num('New goal weight in kg'),
-        reason: str('Why you are changing it. Required — he should always know.'),
+        reason: str('Why you are changing it. Required — they should always know.'),
       },
       required: ['reason'],
     },
@@ -186,14 +186,14 @@ export const TOOLS: ToolDeclaration[] = [
   {
     name: 'add_rule',
     description:
-      'Add a rule he has just stated. hard = always, soft = a preference, ' +
-      'never = an absolute prohibition. Only do this when he has actually asked ' +
+      'Add a rule they have just stated. hard = always, soft = a preference, ' +
+      'never = an absolute prohibition. Only do this when they have actually asked ' +
       'for a standing rule, not for a one-off.',
     parameters: {
       type: 'object',
       properties: {
         tier: { type: 'string', enum: ['hard', 'soft', 'never'] },
-        text: str('The rule, in his words'),
+        text: str('The rule, in their words'),
         scope: str('A city name to scope it to, or omit for everywhere'),
       },
       required: ['tier', 'text'],
@@ -330,7 +330,7 @@ export const TOOLS: ToolDeclaration[] = [
   },
   {
     name: 'deactivate_rule',
-    description: 'Turn off a rule. Use get_today or ask him to identify which.',
+    description: 'Turn off a rule. Use get_today or ask them to identify which.',
     parameters: {
       type: 'object',
       properties: { ruleId: int('The rule id') },

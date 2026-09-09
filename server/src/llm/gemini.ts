@@ -106,7 +106,7 @@ export const geminiProvider: LlmProvider = {
       /*
        * A sentence, not the provider's JSON. Phil read
        * `{"error":{"code":400,"message":"Please ensure that function call turn
-       * comes immediately after..."}}` in his chat, which tells him nothing he
+       * comes immediately after..."}}` in the chat, which tells the athlete nothing they
        * can act on and names a provider §2 wants nothing outside this
        * directory to know about. The original is on `source` and in the log
        * line above, where it is actually useful.

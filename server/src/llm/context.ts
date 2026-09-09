@@ -2,8 +2,8 @@
  * Context assembly, per §10. Built fresh per request and kept under ~3k tokens.
  *
  * The point is that the trainer never has to ask a question the database can
- * already answer. It knows where he is, what he lifted last week, what he
- * weighs, and what he has eaten today before it says a word.
+ * already answer. It knows where they are, what they lifted last week, what
+ * they weigh, and what they have eaten today before it says a word.
  */
 import { remaining } from '../domain/macros';
 import { movingAverage, weeklyChangeKg } from '../domain/trend';
@@ -82,7 +82,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
     scoped.filter((rule) => rule.tier === tier).map((rule) => `- ${rule.text}`).join('\n') || '- none';
 
   // Read rather than asked about. Resting heart rate drifting up over a block
-  // is the signal that arrives before he feels it.
+  // is the signal that arrives before they feel it.
   const recoveryLines = [
     recovery.avgSteps == null
       ? '- steps: not shared'
@@ -96,7 +96,7 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
           recovery.restingHrTrend == null
             ? ''
             : ` (${recovery.restingHrTrend >= 0 ? '+' : ''}${recovery.restingHrTrend} vs the fortnight before${
-                recovery.restingHrTrend >= 3 ? ' — that is a real rise, ask how he feels' : ''
+                recovery.restingHrTrend >= 3 ? ' — that is a real rise, ask how they feel' : ''
               })`
         }`,
   ].join('\n');
@@ -182,7 +182,7 @@ ${byTier('soft')}
 
 TRAINING STATE
 - ramp-in: ${ramp.active ? `ACTIVE — cap ${ramp.maxWorkingSets} working sets, keep ${ramp.minRir}+ reps in reserve` : 'over'}
-- joint pain: ${gate.consecutiveFlags} consecutive flagged session(s)${gate.recommendDoctor ? ' — LOAD CUT AND HE MUST SEE A DOCTOR' : gate.holdLoad ? ' — hold load, do not add weight' : ''}
+- joint pain: ${gate.consecutiveFlags} consecutive flagged session(s)${gate.recommendDoctor ? ' — LOAD CUT AND THEY MUST SEE A DOCTOR' : gate.holdLoad ? ' — hold load, do not add weight' : ''}
 - this week: ${strengthThisWeek} of ${WEEKLY_TARGETS.strengthSessions} strength sessions, ${week.cardio.done} of ${week.cardio.target} cardio sessions (${week.cardio.minutes} min logged)
 
 RECENT (last 14 days)
@@ -197,7 +197,7 @@ ${recoveryLines}
 TODAY (${asOf})
 - session in progress: ${open ? `yes, day ${open.template}, ${open.sets.length} sets logged` : 'no'}
 - next session would be day ${plan.template}:
-${plan.exercises.map((e) => `  - ${e.name} ${e.sets}×${e.targetReps}${e.weightKg == null ? ' (no history — he picks the weight)' : ` @ ${kg(e.weightKg)}kg`} [${e.reason}]`).join('\n')}
+${plan.exercises.map((e) => `  - ${e.name} ${e.sets}×${e.targetReps}${e.weightKg == null ? ' (no history — they pick the weight)' : ` @ ${kg(e.weightKg)}kg`} [${e.reason}]`).join('\n')}
 - eaten today:
 ${mealLines}
 - remaining: ${left.kcal} kcal, ${left.proteinG}g protein, ${left.fatToFloorG}g to the fat floor`;

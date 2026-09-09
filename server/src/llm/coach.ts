@@ -32,7 +32,7 @@ export type CoachSwap = { from: string; to: string; reason: string };
 export type CoachNote = {
   forDate: string;
   sessionType: 'strength' | 'cardio' | 'rest';
-  /** A day code from his programme, or null on a cardio or rest day. */
+  /** A day code from their programme, or null on a cardio or rest day. */
   template: string | null;
   headline: string;
   body: string;
@@ -41,7 +41,7 @@ export type CoachNote = {
 
 /**
  * Built per request, because the days it may choose from are the days of the
- * programme he is running. Handing it a fixed A/B/C would let it name a day
+ * programme they are running. Handing it a fixed A/B/C would let it name a day
  * that does not exist for anyone on upper/lower.
  */
 const responseSchema = (dayCodes: string[]) => ({
@@ -60,14 +60,14 @@ const responseSchema = (dayCodes: string[]) => ({
     },
     headline: {
       type: 'string',
-      description: 'Under 8 words. What today is, in his trainer\'s voice.',
+      description: 'Under 8 words. What today is, in their trainer\'s voice.',
     },
     body: {
       type: 'string',
       description:
         'Two or three sentences at most. Why today looks like this, given the last two ' +
         'weeks. Direct and warm. No pep talk, no moralising, no restating the numbers ' +
-        'he can already see on screen.',
+        'they can already see on screen.',
     },
     swaps: {
       type: 'array',
@@ -88,17 +88,17 @@ const responseSchema = (dayCodes: string[]) => ({
 
 const INSTRUCTION = `You are the athlete's personal trainer, deciding what today should be.
 
-His weekly targets are 3 strength sessions, 2 zone-2 treadmill sessions of 35
-minutes, and a 9-10k daily step average. Not fixed weekdays — he travels, and
-fixed days fail.
+Their weekly targets are 3 strength sessions, 2 zone-2 treadmill sessions of
+35 minutes, and a 9-10k daily step average. Not fixed weekdays — people
+travel, and fixed days fail.
 
 Decide whether today is a lifting day, a treadmill day, or a rest day. Weigh:
-- how many strength sessions he has already done in the last 7 days
-- how recently he lifted, and how hard it was (RPE)
+- how many strength sessions they have already done in the last 7 days
+- how recently they lifted, and how hard it was (RPE)
 - any joint pain flags
-- whether he is still in the two-week ramp-in
+- whether they are still in the two-week ramp-in
 
-Rest is a real answer. Two rest days a week is a floor, not a target. If he
+Rest is a real answer. Two rest days a week is a floor, not a target. If they
 lifted yesterday at RPE 9, today is not another lift.
 
 Then write a headline and two or three sentences. You are talking to someone
@@ -106,8 +106,8 @@ you have trained for months: no preamble, no "great job", no explaining what
 progressive overload is. If something in the last two weeks is worth naming —
 a stall, a jump, three sessions in four days, a week of no weigh-ins — name it.
 
-Do not state working weights. He can see them on screen and they are computed
-for you, not by you.
+Do not state working weights. The athlete can see them on screen, and they
+are computed for you, not by you.
 
 Never comment on how they look, and never describe a day of eating as good or
 bad. If the numbers are short, say what to do next, not what went wrong.`;
@@ -176,7 +176,7 @@ async function sanitise(
   let template: CoachNote['template'] = null;
   if (sessionType === 'strength') {
     // The model may name a day; it may only name one that exists in the
-    // programme he is actually running. Anything else falls back to the
+    // programme they are actually running. Anything else falls back to the
     // rotation, which is the answer it should have given.
     const named = program.days.find((day) => day.code === String(raw.template));
     template = named ? named.code : await upcomingTemplate(ctx, program);
@@ -232,7 +232,7 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
           `${WEEKLY_TARGETS.strengthSessions}. Cardio sessions: ${week.cardio.done} of ` +
           `${week.cardio.target}, ${week.cardio.minutes} minutes logged. ` +
           'Use these numbers; do not count them yourself.\n\n' +
-          `He is running ${program.name}: ` +
+          `They are running ${program.name}: ` +
           `${program.days.map((day) => `${day.code} (${day.name})`).join(', ')}.\n\n` +
           'Decide what today is.',
       },

@@ -16,6 +16,7 @@ import type { ChatMessage, ChatReply } from '../../src/api/types';
 import { plainText } from '../../src/lib/format';
 import { t } from '../../src/lib/locale';
 import { colors, radius, space, type as typo } from '../../src/theme';
+import { messageFor } from '../../src/lib/apiError';
 
 /** What each tool call reads as when the trainer actually did something. */
 const TOOL_LABELS: Record<string, () => string> = {
@@ -56,7 +57,7 @@ export default function ChatScreen() {
       setMessages(result.messages);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotReachTrainer'));
+      setError(messageFor(caught, 'couldNotReachTrainer'));
     } finally {
       setLoaded(true);
     }
@@ -103,12 +104,12 @@ export default function ChatScreen() {
     } catch (caught) {
       setMessages((current) => current.filter((message) => message.id !== pending.id));
       setDraft(text);
+      // 503 is the trainer specifically, which has its own words. Everything
+      // else is whatever went wrong, in the athlete's language.
       setError(
         caught instanceof ApiError && caught.status === 503
           ? t('trainerUnreachable')
-          : caught instanceof ApiError
-            ? caught.message
-            : t('somethingWentWrong'),
+          : messageFor(caught, 'somethingWentWrong'),
       );
     } finally {
       setSending(false);

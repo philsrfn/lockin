@@ -352,6 +352,83 @@ const PHRASES = {
   noReadYet: { de: 'Noch keine Einschätzung für heute.', en: 'No read on today yet.' },
   lookingItUp: { de: 'Wird nachgeschlagen…', en: 'Looking it up…' },
   somethingWentWrong: { de: 'Da ist etwas schiefgelaufen', en: 'Something went wrong' },
+
+  // ——— what the server says, in the athlete's language ———
+  // Only the failures somebody can actually walk into. See
+  // `lib/apiError.ts` and `server/src/errors.ts`.
+  errOffline: {
+    de: 'Keine Verbindung zum Server. Was du einträgst, wird nachgereicht.',
+    en: 'No connection to the server. What you log will catch up later.',
+  },
+  errBarcodeMalformed: {
+    de: 'Das sieht nicht nach einem Barcode aus.',
+    en: 'That does not look like a barcode.',
+  },
+  errBarcodeUnknown: {
+    de: 'Kein Produkt mit diesem Barcode. Trag es von Hand ein.',
+    en: 'No product with that barcode. Enter it by hand.',
+  },
+  errBarcodeNoNutrition: {
+    de: 'Zu diesem Produkt sind keine brauchbaren Nährwerte hinterlegt. Trag es von Hand ein.',
+    en: 'That product has no usable nutrition data. Enter it by hand.',
+  },
+  errFoodDbUnreachable: {
+    de: 'Die Lebensmittel-Datenbank ist nicht erreichbar. Trag es von Hand ein.',
+    en: 'Could not reach the food database. Enter it by hand.',
+  },
+  errFoodDbDown: {
+    de: 'Die Lebensmittel-Datenbank antwortet gerade nicht.',
+    en: 'The food database is not answering right now.',
+  },
+  errGramsRequired: {
+    de: 'Das wird nach Gewicht gezählt — sag, wie viel Gramm.',
+    en: 'That one is counted by weight — say how many grams.',
+  },
+  errProgrammeInUse: {
+    de: 'Auf dem Programm trainierst du gerade. Wechsle erst auf ein anderes.',
+    en: 'That is the programme you are on. Switch to another one first.',
+  },
+  errFridgeEmpty: {
+    de: 'Eine leere Liste ist kein Kühlschrank.',
+    en: 'An empty list is not a fridge.',
+  },
+  errInvalidRequest: {
+    de: 'Damit kann der Server nichts anfangen. Probier es anders.',
+    en: 'The server could not make sense of that. Try it differently.',
+  },
+
+  // ——— the rules editor ———
+  // The tier names are the app's own vocabulary and stay as they are; what a
+  // tier *means* is a sentence, and a sentence gets translated.
+  rulesTitle: { de: 'Regeln', en: 'Rules' },
+  tierHardBlurb: {
+    de: 'Gilt immer. Ein Plan, der dagegen verstößt, wird abgelehnt.',
+    en: 'Always true. A plan that breaks one is rejected.',
+  },
+  tierSoftBlurb: {
+    de: 'Vorlieben. Werden befolgt, wenn nichts dagegen spricht.',
+    en: 'Preferences. Followed unless there is a reason not to.',
+  },
+  tierNeverBlurb: {
+    de: 'Grenzen, die nicht überschritten werden.',
+    en: 'Lines that are not crossed.',
+  },
+  // German puts the noun last, so the tier goes in as a value rather than
+  // being glued on at the call site. See the note above `Values`.
+  addHardRule: { de: 'Harte Regel hinzufügen', en: 'Add a hard rule' },
+  addSoftRule: { de: 'Vorliebe hinzufügen', en: 'Add a soft rule' },
+  addNeverRule: { de: 'Grenze hinzufügen', en: 'Add a never rule' },
+  editHardRule: { de: 'HARTE REGEL ÄNDERN', en: 'EDIT HARD RULE' },
+  editSoftRule: { de: 'VORLIEBE ÄNDERN', en: 'EDIT SOFT RULE' },
+  editNeverRule: { de: 'GRENZE ÄNDERN', en: 'EDIT NEVER RULE' },
+  newHardRule: { de: 'NEUE HARTE REGEL', en: 'NEW HARD RULE' },
+  newSoftRule: { de: 'NEUE VORLIEBE', en: 'NEW SOFT RULE' },
+  newNeverRule: { de: 'NEUE GRENZE', en: 'NEW NEVER RULE' },
+  ruleScopeOnly: { de: 'nur {scope}', en: '{scope} only' },
+  rulesFootnote: {
+    de: '„Im Code geprüft" heißt: ein Validator kontrolliert es und lehnt alles ab, was dagegen verstößt. Regeln, die du selbst hinzufügst, erreichen den Trainer als Anweisung — er hält sich daran, aber nichts hält einen Fehler auf.',
+    en: '"Enforced in code" means a validator checks it and rejects anything that breaks it. Rules you add reach the trainer as instructions — it will follow them, but nothing blocks a mistake.',
+  },
   whichSession: { de: 'WELCHE EINHEIT HEUTE?', en: 'WHICH SESSION TODAY?' },
   suggested: { de: 'vorgeschlagen', en: 'suggested' },
 
@@ -741,7 +818,10 @@ const PHRASES = {
  */
 type Values = Record<string, string | number>;
 
-export function t(key: keyof typeof PHRASES, values?: Values): string {
+/** Anything `t` can be asked for. Lets other modules hold a key as a value. */
+export type PhraseKey = keyof typeof PHRASES;
+
+export function t(key: PhraseKey, values?: Values): string {
   const phrase = PHRASES[key][language()];
   if (!values) return phrase;
 

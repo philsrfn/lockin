@@ -12,12 +12,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type { FridgeItem, MealPlan } from '../src/api/types';
 import { Button } from '../src/components/Button';
 import { t } from '../src/lib/locale';
 import { Card } from '../src/components/Card';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
 type Stage = 'camera' | 'confirm' | 'plan';
 
@@ -59,7 +60,7 @@ export default function FridgeScreen() {
       setItems(result.items);
       setStage('confirm');
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotReadPhoto'));
+      setError(messageFor(caught, 'couldNotReadPhoto'));
     } finally {
       setBusy(false);
     }
@@ -77,7 +78,7 @@ export default function FridgeScreen() {
       setPlan(result.plan);
       setStage('plan');
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotPlan'));
+      setError(messageFor(caught, 'couldNotPlan'));
     } finally {
       setBusy(false);
     }

@@ -11,13 +11,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ApiError, api } from '../api/client';
+import { api } from '../api/client';
 import type { BarcodeCandidate, FoodEstimate, MealSlot } from '../api/types';
 import { BarcodeScanner } from './BarcodeScanner';
 import { Button } from './Button';
 import { t } from '../lib/locale';
 import { useGramsField } from '../lib/useGramsField';
 import { colors, radius, space, type as typo } from '../theme';
+import { messageFor } from '../lib/apiError';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -101,7 +102,7 @@ export function FoodCapture({
       // chosen by anybody — it is the number the label is printed against.
       setSuggested(c.lastGrams ?? c.perGrams ?? 100);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('lookupFailed'));
+      setError(messageFor(caught, 'lookupFailed'));
     } finally {
       setBusy(false);
     }
@@ -129,7 +130,7 @@ export function FoodCapture({
           (e.confidence === 'low' ? t('roughGuess') : t('checkItLooksRight')),
       });
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotEstimate'));
+      setError(messageFor(caught, 'couldNotEstimate'));
     } finally {
       setBusy(false);
     }
@@ -180,7 +181,7 @@ export function FoodCapture({
       reset();
       onLogged();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLog'));
+      setError(messageFor(caught, 'couldNotLog'));
     } finally {
       setBusy(false);
     }

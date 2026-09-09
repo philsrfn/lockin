@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Ctx } from '../../db';
 import { pool } from '../../db';
 import { anotherAthlete, phil, resetData, resetProfile } from '../../test/helpers';
-import { addDays } from '../../domain/time';
+import { addDays, dayIn } from '../../domain/time';
 import { expenditure } from '../expenditure';
 import { setTimezone } from '../profile';
 
@@ -24,6 +24,13 @@ beforeEach(async () => {
 });
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const range = (from: number, to: number): number[] =>
+  Array.from({ length: to - from + 1 }, (_, index) => from + index);
+
+/** Rounded the way the domain rounds it, so the two can be compared at all. */
+const mean = (values: number[]): number =>
+  Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 
 /** Meals go in directly: 28 days of logMeal would be 28 round trips of noise. */
 async function logIntake(
@@ -95,13 +102,23 @@ describe('measuring expenditure from what is logged', () => {
   });
 
   it('reads intake into the athlete\'s day, not the server\'s', async () => {
-    // Breakfast at 09:00 in Berlin is 21:00 the previous day in Honolulu,
-    // twelve hours behind. A day's intake must follow the athlete across that
-    // boundary; a `::date` cast against the server's clock would not.
-    //
-    // Each day carries a distinct number of calories, so any reshuffling of
-    // which meal belongs to which day shows up in the mean rather than
-    // cancelling out.
+    /**
+     * Breakfast at 09:00 in Berlin is 21:00 the previous day in Honolulu,
+     * twelve hours behind. A day's intake must follow the athlete across that
+     * boundary; a `::date` cast against the server's clock would not.
+     *
+     * This used to assert that the two zones simply disagree, and it was
+     * wrong for eleven hours of every day. Once Honolulu's own date falls a
+     * day behind Berlin's, the window slides back exactly as far as the meals
+     * do — every meal stays inside it, and both zones report the same mean
+     * because the same meals are in both. That is the service being correct,
+     * not a bug, and a test that fails on it is a test that has to be re-run
+     * until it agrees.
+     *
+     * So the expectation is computed instead. Each day carries a distinct
+     * number of calories, so which meals land inside which window is visible
+     * in the mean rather than cancelling out.
+     */
     for (let back = 0; back <= 42; back += 1) {
       if (back <= 27) await logIntake(phil, back, 2400 + back, '09:00');
       await logWeighIn(phil, back, 95);
@@ -114,7 +131,28 @@ describe('measuring expenditure from what is logged', () => {
     expect(berlin.ok).toBe(true);
     expect(honolulu.ok).toBe(true);
     if (!berlin.ok || !honolulu.ok) return;
-    expect(honolulu.meanIntakeKcal).not.toBe(berlin.meanIntakeKcal);
+
+    // Berlin's window is [today − 27, today] and the meals were written on
+    // exactly those dates, so all 28 are in it.
+    expect(berlin.meanIntakeKcal).toBe(mean(range(0, 27).map((back) => 2400 + back)));
+
+    // In Honolulu the same meal sits on the day before, so the meal `back`
+    // days ago is on Honolulu's `back + 1`. Whether the oldest one is still
+    // inside depends on whether Honolulu has reached Berlin's date yet, which
+    // is what the day of this run decides.
+    const berlinDay = dayIn('Europe/Berlin');
+    const honoluluDay = dayIn('Pacific/Honolulu');
+    const oldestInWindow = honoluluDay === berlinDay ? 26 : 27;
+
+    expect(honolulu.meanIntakeKcal).toBe(mean(range(0, oldestInWindow).map((back) => 2400 + back)));
+
+    // And the half of the day where the two windows genuinely differ is the
+    // half that would catch a `::date` cast, so say out loud which one this
+    // run was — a green suite at 3am should not read like a green suite at
+    // 3pm when only one of them proved anything.
+    if (honoluluDay === berlinDay) {
+      expect(honolulu.meanIntakeKcal).not.toBe(berlin.meanIntakeKcal);
+    }
   });
 
   it('never measures one athlete from another\'s meals', async () => {

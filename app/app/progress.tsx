@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type {
   ExerciseBests,
   ExerciseProgress,
@@ -16,6 +16,7 @@ import { WeightChart } from '../src/components/WeightChart';
 import { kg, shortDate, signedKg } from '../src/lib/format';
 import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
 const RANGES = [30, 90, 365] as const;
 
@@ -57,7 +58,7 @@ export default function ProgressScreen() {
       setCalorieTarget(e?.calorieTarget ?? null);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadHistory'));
+      setError(messageFor(caught, 'couldNotLoadHistory'));
     } finally {
       setRefreshing(false);
     }

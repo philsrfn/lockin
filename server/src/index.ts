@@ -57,6 +57,11 @@ export async function buildServer(): Promise<FastifyInstance> {
       return reply.code(400).send({
         error: 'Invalid request',
         requestId,
+        // Carries a code like the hand-written errors do. "Invalid request"
+        // says nothing in any language, and it is what a mistyped barcode
+        // reaches — the schema rejects it before the service that has better
+        // words for it ever runs.
+        code: 'invalid_request',
         details: error.issues.map((issue) => ({
           path: issue.path.join('.'),
           message: issue.message,

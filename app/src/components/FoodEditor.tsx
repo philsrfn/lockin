@@ -11,10 +11,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ApiError, api } from '../api/client';
+import { api } from '../api/client';
 import type { Food, MealSlot } from '../api/types';
 import { Button } from './Button';
 import { colors, radius, space, type as typo } from '../theme';
+import { messageFor } from '../lib/apiError';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -81,7 +82,7 @@ export function FoodEditor({
       });
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
+      setError(messageFor(caught, 'couldNotSave'));
     } finally {
       setBusy(false);
     }
@@ -94,7 +95,7 @@ export function FoodEditor({
       await api(`/foods/${food.id}`, { method: 'DELETE' });
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotRemove'));
+      setError(messageFor(caught, 'couldNotRemove'));
     } finally {
       setBusy(false);
     }

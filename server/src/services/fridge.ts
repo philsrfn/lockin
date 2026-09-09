@@ -77,7 +77,7 @@ export function normaliseItems(items: FridgeItem[]): FridgeItem[] {
 
 export async function saveInventory(ctx: Ctx, items: FridgeItem[]): Promise<Inventory> {
   const cleaned = normaliseItems(items);
-  if (cleaned.length === 0) throw badRequest('An empty list is not a fridge');
+  if (cleaned.length === 0) throw badRequest('An empty list is not a fridge', 'fridge_empty');
 
   const { rows } = await ctx.db.query<{ id: number }>(
     `insert into fridge_inventory (user_id, captured_at, context_id, items)

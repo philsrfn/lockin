@@ -1,19 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type { Rule, RuleTier } from '../src/api/types';
-import { t } from '../src/lib/locale';
+import { type PhraseKey, t } from '../src/lib/locale';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
-const TIERS: { tier: RuleTier; title: string; blurb: string }[] = [
-  { tier: 'hard', title: 'HARD', blurb: 'Always true. A plan that breaks one is rejected.' },
-  { tier: 'soft', title: 'SOFT', blurb: 'Preferences. Followed unless there is a reason not to.' },
-  { tier: 'never', title: 'NEVER', blurb: 'Lines that are not crossed.' },
-];
+/**
+ * The tier names stay as they are — HARD, SOFT, NEVER are this app's own
+ * vocabulary and an athlete learns them once. What a tier *means* is a
+ * sentence, and a sentence gets translated.
+ *
+ * The keys are spelled out per tier rather than built from the tier name,
+ * because `t` checks its argument against the phrase list and a string glued
+ * together at runtime cannot be checked at all.
+ */
+const TIERS = [
+  { tier: 'hard', title: 'HARD', blurb: 'tierHardBlurb', add: 'addHardRule' },
+  { tier: 'soft', title: 'SOFT', blurb: 'tierSoftBlurb', add: 'addSoftRule' },
+  { tier: 'never', title: 'NEVER', blurb: 'tierNeverBlurb', add: 'addNeverRule' },
+] as const satisfies readonly {
+  tier: RuleTier;
+  title: string;
+  blurb: PhraseKey;
+  add: PhraseKey;
+}[];
+
+const SHEET_LABEL = {
+  hard: { edit: 'editHardRule', new: 'newHardRule' },
+  soft: { edit: 'editSoftRule', new: 'newSoftRule' },
+  never: { edit: 'editNeverRule', new: 'newNeverRule' },
+} as const satisfies Record<RuleTier, { edit: PhraseKey; new: PhraseKey }>;
 
 /**
  * The rules editor (§11). Three tiered lists, add, reword, deactivate.
@@ -37,7 +58,7 @@ export default function RulesScreen() {
       setRules(fetched);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadRules'));
+      setError(messageFor(caught, 'couldNotLoadRules'));
     } finally {
       setLoading(false);
     }
@@ -58,7 +79,7 @@ export default function RulesScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>{t('backToTodayShort')}</Text>
         </Pressable>
-        <Text style={styles.title}>Rules</Text>
+        <Text style={styles.title}>{t('rulesTitle')}</Text>
         <Text style={styles.subtitle}>
           {t('rulesBlurb')}
         </Text>
@@ -67,11 +88,11 @@ export default function RulesScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading ? <Text style={styles.dim}>{t('loading')}</Text> : null}
 
-      {TIERS.map(({ tier, title, blurb }) => {
+      {TIERS.map(({ tier, title, blurb, add }) => {
         const mine = rules.filter((rule) => rule.tier === tier);
         return (
           <Card key={tier} label={title}>
-            <Text style={styles.blurb}>{blurb}</Text>
+            <Text style={styles.blurb}>{t(blurb)}</Text>
             {mine.length === 0 ? (
               <Text style={styles.dim}>{t('nothingHereYet')}</Text>
             ) : (
@@ -92,7 +113,9 @@ export default function RulesScreen() {
                       {rule.text}
                     </Text>
                     <View style={styles.tags}>
-                      {rule.scope ? <Text style={styles.tag}>{rule.scope} only</Text> : null}
+                      {rule.scope ? (
+                        <Text style={styles.tag}>{t('ruleScopeOnly', { scope: rule.scope })}</Text>
+                      ) : null}
                       {rule.code ? (
                         <Text style={[styles.tag, styles.tagEnforced]}>{t('enforcedInCode')}</Text>
                       ) : (
@@ -103,20 +126,12 @@ export default function RulesScreen() {
                 </Pressable>
               ))
             )}
-            <Button
-              title={`Add a ${tier} rule`}
-              variant="secondary"
-              onPress={() => setAdding(tier)}
-            />
+            <Button title={t(add)} variant="secondary" onPress={() => setAdding(tier)} />
           </Card>
         );
       })}
 
-      <Text style={styles.footnote}>
-        "Enforced in code" means a validator checks it and rejects anything that breaks it. Rules
-        you add reach the trainer as instructions — it will follow them, but nothing blocks a
-        mistake.
-      </Text>
+      <Text style={styles.footnote}>{t('rulesFootnote')}</Text>
 
       <RuleSheet
         rule={editing}
@@ -176,7 +191,7 @@ function RuleSheet({
       }
       onSaved();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
+      setError(messageFor(caught, 'couldNotSave'));
     } finally {
       setBusy(false);
     }
@@ -187,7 +202,7 @@ function RuleSheet({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.sheetLabel}>
-            {rule ? `EDIT ${rule.tier.toUpperCase()} RULE` : `NEW ${addingTier?.toUpperCase()} RULE`}
+            {rule ? t(SHEET_LABEL[rule.tier].edit) : addingTier ? t(SHEET_LABEL[addingTier].new) : ''}
           </Text>
           <TextInput
             value={text}
@@ -212,7 +227,7 @@ function RuleSheet({
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
-            title={busy ? 'Saving…' : 'Save'}
+            title={busy ? t('saving') : t('save')}
             onPress={save}
             disabled={busy || text.trim().length < 3}
           />

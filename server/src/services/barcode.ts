@@ -57,7 +57,7 @@ const num = (value: unknown): number | null => {
 
 export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeCandidate> {
   const code = barcode.trim();
-  if (!/^\d{6,14}$/.test(code)) throw badRequest('That does not look like a barcode');
+  if (!/^\d{6,14}$/.test(code)) throw badRequest('That does not look like a barcode', 'barcode_malformed');
 
   // His own library first: he may have corrected the macros, and his numbers
   // should always beat the crowd-sourced ones.
@@ -101,17 +101,17 @@ export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeC
       { headers: { 'User-Agent': USER_AGENT }, signal: controller.signal },
     );
   } catch {
-    throw badRequest('Could not reach the food database. Enter it by hand.');
+    throw badRequest('Could not reach the food database. Enter it by hand.', 'food_db_unreachable');
   } finally {
     clearTimeout(timer);
   }
 
-  if (response.status === 404) throw notFound('No product with that barcode');
-  if (!response.ok) throw badRequest('The food database is not answering right now');
+  if (response.status === 404) throw notFound('No product with that barcode', 'barcode_unknown');
+  if (!response.ok) throw badRequest('The food database is not answering right now', 'food_db_down');
 
   const payload = (await response.json()) as { status?: number; product?: OffProduct };
   const product = payload.product;
-  if (!product || payload.status === 0) throw notFound('No product with that barcode');
+  if (!product || payload.status === 0) throw notFound('No product with that barcode', 'barcode_unknown');
 
   const n = product.nutriments ?? {};
   const kcal = num(n['energy-kcal_100g']) ?? (num(n['energy_100g']) ?? 0) / 4.184;
@@ -120,7 +120,7 @@ export async function lookupBarcode(ctx: Ctx, barcode: string): Promise<BarcodeC
   // Without energy and protein there is nothing worth logging, and a silent
   // zero would quietly corrupt the day's totals.
   if (!kcal || proteinG == null) {
-    throw notFound('That product has no usable nutrition data. Enter it by hand.');
+    throw notFound('That product has no usable nutrition data. Enter it by hand.', 'barcode_no_nutrition');
   }
 
   const name =

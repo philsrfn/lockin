@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type { Program } from '../src/api/types';
 import { isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
@@ -24,6 +24,7 @@ import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
 /**
  * Everything about the athlete rather than about the training: who they are,
@@ -63,7 +64,7 @@ export default function AccountScreen() {
       setCurrent(programResult.current);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadAccount'));
+      setError(messageFor(caught, 'couldNotLoadAccount'));
     }
   }, []);
 
@@ -111,7 +112,7 @@ export default function AccountScreen() {
       });
       router.push(`/programme?id=${created.id}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+      setError(messageFor(caught, 'couldNotSaveProgramme'));
     } finally {
       setForking(false);
     }
@@ -126,7 +127,7 @@ export default function AccountScreen() {
       });
       router.push(`/programme?id=${created.id}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+      setError(messageFor(caught, 'couldNotSaveProgramme'));
     } finally {
       setForking(false);
     }

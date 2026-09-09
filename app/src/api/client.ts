@@ -3,31 +3,14 @@
  * and the bearer token lives in the iOS keychain — see api/config.ts.
  */
 import { ensureBaseUrl, ensureToken } from './config';
+import { ApiError } from './error';
+
+// Re-exported: two dozen call sites import it from here, and where the class
+// is declared is not their business.
+export { ApiError };
 
 /** Gym wifi either answers quickly or is not going to. */
 const TIMEOUT_MS = 8000;
-
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly details?: unknown,
-    /**
-     * A stable string from the server, when the status alone is not enough to
-     * decide what the app should do. `pending_approval` is the one that
-     * matters: a 403 the athlete cannot fix by signing in again.
-     */
-    readonly code?: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-
-  /** A 4xx will fail the same way forever; a 5xx or a dropped socket will not. */
-  get retryable(): boolean {
-    return this.status === 0 || this.status >= 500;
-  }
-}
 
 /**
  * Two answers the app has to act on wherever they arrive, rather than showing

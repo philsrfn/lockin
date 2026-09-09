@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, api } from '../../src/api/client';
+import { api } from '../../src/api/client';
 import type { Food, Meal, MealSlot, Today } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { FoodCapture } from '../../src/components/FoodCapture';
@@ -21,6 +21,7 @@ import { FoodEditor } from '../../src/components/FoodEditor';
 import { PortionSheet } from '../../src/components/PortionSheet';
 import { t } from '../../src/lib/locale';
 import { colors, radius, space, tabBarHeight, type as typo } from '../../src/theme';
+import { messageFor } from '../../src/lib/apiError';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -53,7 +54,7 @@ export default function FoodScreen() {
       setFoods(f.foods);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadFood'));
+      setError(messageFor(caught, 'couldNotLoadFood'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function FoodScreen() {
       setPortioning(null);
       await load();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLog'));
+      setError(messageFor(caught, 'couldNotLog'));
     } finally {
       setBusy(null);
     }
@@ -341,7 +342,7 @@ function ManualEntry({
       setFat('');
       onLogged();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSave'));
+      setError(messageFor(caught, 'couldNotSave'));
     } finally {
       setBusy(false);
     }

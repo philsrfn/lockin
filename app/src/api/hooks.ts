@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ApiError, api } from '../api/client';
+import { messageFor } from '../lib/apiError';
 import { cacheRead, cacheWrite } from '../db/local';
 
 export type Resource<T> = {
@@ -49,7 +50,9 @@ export function useResource<T>(path: string): Resource<T> {
           setStale(true);
           setError(null);
         } else {
-          setError(caught instanceof ApiError ? caught.message : 'Something went wrong');
+          // Was an English literal, on the path every screen loads through —
+          // so a German athlete with no signal was told about it in English.
+          setError(messageFor(caught, 'somethingWentWrong'));
         }
       } finally {
         setLoading(false);

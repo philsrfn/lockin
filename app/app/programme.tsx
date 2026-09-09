@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type { Exercise, ProgramWithSlots } from '../src/api/types';
 import { Button } from '../src/components/Button';
 import { Card, Rule } from '../src/components/Card';
@@ -31,6 +31,7 @@ import {
   updateSlot,
 } from '../src/lib/programmeDraft';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
 /** The order a programme is usually written in, big movements first. */
 const PATTERNS = [
@@ -96,7 +97,7 @@ export default function ProgrammeScreen() {
       setExercises(library);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadProgramme'));
+      setError(messageFor(caught, 'couldNotLoadProgramme'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,7 @@ export default function ProgrammeScreen() {
     } catch (caught) {
       // The server's validator is the authority — `firstProblem` only decides
       // whether the button is pressable — so whatever it says is what shows.
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+      setError(messageFor(caught, 'couldNotSaveProgramme'));
       setBusy(false);
     }
   }
@@ -130,7 +131,7 @@ export default function ProgrammeScreen() {
     } catch (caught) {
       // Refused while it is the programme you are on, and that refusal is
       // worth reading rather than swallowing.
-      setError(caught instanceof ApiError ? caught.message : t('couldNotDeleteProgramme'));
+      setError(messageFor(caught, 'couldNotDeleteProgramme'));
       setConfirmingDelete(false);
       setBusy(false);
     }
@@ -147,7 +148,7 @@ export default function ProgrammeScreen() {
       });
       router.replace(`/programme?id=${created.id}`);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotSaveProgramme'));
+      setError(messageFor(caught, 'couldNotSaveProgramme'));
       setBusy(false);
     }
   }

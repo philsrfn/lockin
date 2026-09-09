@@ -225,7 +225,7 @@ export function suggestProgramSlug(trainingDaysPerWeek: number): string {
  */
 export async function saveProgram(ctx: Ctx, programId: number, draft: Draft): Promise<Program> {
   const problems = validateDraft(draft);
-  if (problems.length > 0) throw badRequest(`This programme is not usable: ${problems.join(', ')}`);
+  if (problems.length > 0) throw badRequest(`This programme is not usable: ${problems.join(', ')}`, 'programme_unusable');
 
   const run = async (inner: Ctx): Promise<Program> => {
     await assertOwn(inner, programId);
@@ -403,7 +403,7 @@ export async function deleteProgram(ctx: Ctx, programId: number): Promise<void> 
     [ctx.userId],
   );
   if (rows[0]?.program_id === programId) {
-    throw badRequest('That is the programme you are on. Switch to another one first.');
+    throw badRequest('That is the programme you are on. Switch to another one first.', 'programme_in_use');
   }
 
   await ctx.db.query('delete from programs where id = $2 and user_id = $1', [

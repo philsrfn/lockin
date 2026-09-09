@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ApiError, api } from '../src/api/client';
+import { api } from '../src/api/client';
 import type {
   CardioKind,
   CardioSession,
@@ -13,6 +13,7 @@ import { Screen } from '../src/components/Screen';
 import { kg, longDate } from '../src/lib/format';
 import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
+import { messageFor } from '../src/lib/apiError';
 
 /**
  * What was actually done.
@@ -56,7 +57,7 @@ export default function HistoryScreen() {
       setData(await api<TrainingHistory>(`/history?days=${days}`));
       setError(null);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : t('couldNotLoadHistory'));
+      setError(messageFor(caught, 'couldNotLoadHistory'));
     } finally {
       setRefreshing(false);
     }

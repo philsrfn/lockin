@@ -672,7 +672,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     // it, silently, whatever had been eaten.
     const macros = portionOf(food, basis);
     if (!macros) {
-      throw badRequest(`${food.name} is logged by weight — say how many grams`);
+      throw badRequest(`${food.name} is logged by weight — say how many grams`, 'grams_required');
     }
 
     const result = await logMeal(request.ctx, {

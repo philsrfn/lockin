@@ -1,6 +1,7 @@
 import { type Ctx, transactionFor } from '../db';
 import { badRequest, notFound } from '../errors';
 import type { DayCode } from '../domain/program';
+import { SESSION_LIVE_HOURS, didHappen, sessionState } from '../domain/session';
 import { dayIn, dayRangeIn } from '../domain/time';
 import { athleteZone } from './clock';
 
@@ -55,6 +56,36 @@ type SetRow = {
  * Ends with the tenant predicate, so every caller appends `and ...` and $1 is
  * always the user. A query that forgets it does not compile.
  */
+/**
+ * The same rule as `domain/session.ts`, in the language the four call sites
+ * that count sessions are written in.
+ *
+ * A function of the alias rather than a constant, because two of those queries
+ * name the table and two do not. One definition either way: five copies of
+ * "or it is old and has sets in it" is five places for the window to drift
+ * apart, and the drift would show up as a session that counts towards the
+ * week but not towards progression.
+ *
+ * `now()` and not `services/clock.ts`: this is a duration, not a date. Six
+ * hours is six hours in every zone, and the athlete's own midnight has
+ * nothing to do with whether they are still in the gym.
+ */
+export const finishedSql = (alias = 's'): string => `(
+  ${alias}.rpe is not null
+  or (
+    ${alias}.performed_at < now() - interval '${SESSION_LIVE_HOURS} hours'
+    and exists (
+      select 1 from sets abandoned_check
+      where abandoned_check.session_id = ${alias}.id
+        and abandoned_check.user_id = ${alias}.user_id
+    )
+  )
+)`;
+
+/** Its complement: started, still going, nobody has closed it. */
+export const liveSql = (alias = 's'): string =>
+  `(${alias}.rpe is null and ${alias}.performed_at >= now() - interval '${SESSION_LIVE_HOURS} hours')`;
+
 const SELECT_SESSION = `
   select s.id, s.performed_at, s.context_id, c.name as context_name,
          s.template, s.rpe, s.notes, s.joint_pain
@@ -82,7 +113,11 @@ function toSession(row: SessionRow, sets: SetRecord[]): Session {
     rpe: row.rpe,
     notes: row.notes,
     jointPain: row.joint_pain,
-    finished: row.rpe !== null,
+    finished: didHappen(sessionState({
+      performedAt: row.performed_at,
+      rpe: row.rpe,
+      setCount: sets.length,
+    })),
     sets,
   };
 }
@@ -136,10 +171,16 @@ export async function listSessions(ctx: Ctx, limit = 20): Promise<Session[]> {
   return attachSets(ctx, rows);
 }
 
-/** The session still in progress, if he started one and has not finished it. */
+/**
+ * The session still in progress.
+ *
+ * Bounded by the window now. Without it, one unclosed session made Today's
+ * primary action read "resume" for as long as the account existed, and pinned
+ * the rotation to whatever day it was.
+ */
 export async function openSession(ctx: Ctx): Promise<Session | null> {
   const { rows } = await ctx.db.query<SessionRow>(
-    `${SELECT_SESSION} and s.rpe is null order by s.performed_at desc limit 1`,
+    `${SELECT_SESSION} and ${liveSql()} order by s.performed_at desc limit 1`,
     [ctx.userId],
   );
   const row = rows[0];

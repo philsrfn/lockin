@@ -336,3 +336,76 @@ describe('getSession', () => {
     await expect(getSession(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
   });
 });
+
+describe('a session nobody closed', () => {
+  /**
+   * Pressing finish was the only thing that ever ended a session, so one left
+   * open stayed open for as long as the account existed. Two costs, and the
+   * quiet one is the expensive one: "finished" gates progression history, the
+   * weekly targets, the joint-pain streak and the Sunday review, so a session
+   * with real sets in it that nobody closed was invisible to all four.
+   */
+  const startedHoursAgo = async (hours: number): Promise<number> => {
+    const { rows } = await pool.query<{ id: number }>(
+      `insert into sessions (user_id, performed_at, template)
+       values ($1, now() - ($2 || ' hours')::interval, 'A') returning id`,
+      [phil.userId, String(hours)],
+    );
+    return rows[0]!.id;
+  };
+
+  it('is still in progress while somebody could plausibly still be lifting', async () => {
+    await startedHoursAgo(1);
+
+    expect(await openSession(phil)).not.toBeNull();
+  });
+
+  it('stops being in progress once it plainly is not happening', async () => {
+    // The visible half: Today's primary action read "resume" forever, and the
+    // rotation stayed pinned to that day.
+    await startedHoursAgo(20);
+
+    expect(await openSession(phil)).toBeNull();
+  });
+
+  it('counts as a session that happened when there are sets in it', async () => {
+    // The expensive half. Walking out of a gym without opening the app again
+    // is not unusual; it should not cost somebody the session.
+    const id = await startedHoursAgo(20);
+    await recordSet(phil, { sessionId: id, exerciseId: await squatId(), setIndex: 1, weightKg: 100, reps: 5 });
+
+    const [session] = await recentSessions(phil, 7);
+
+    expect(session?.finished).toBe(true);
+    expect(session?.rpe).toBeNull();
+  });
+
+  it('leaves an empty one counting as nothing', async () => {
+    await startedHoursAgo(20);
+
+    const [session] = await recentSessions(phil, 7);
+
+    expect(session?.finished).toBe(false);
+  });
+
+  it('does not invent an RPE for it', async () => {
+    // A number about how hard something felt, made up by a clock, is worse
+    // than an absent one — the weekly review reads these.
+    const id = await startedHoursAgo(20);
+    await recordSet(phil, { sessionId: id, exerciseId: await squatId(), setIndex: 1, weightKg: 100, reps: 5 });
+
+    const { rows } = await pool.query<{ rpe: number | null }>('select rpe from sessions where id = $1', [id]);
+
+    expect(rows[0]?.rpe).toBeNull();
+  });
+
+  it('is still finishable by hand afterwards, with the RPE that belongs to it', async () => {
+    const id = await startedHoursAgo(20);
+    await recordSet(phil, { sessionId: id, exerciseId: await squatId(), setIndex: 1, weightKg: 100, reps: 5 });
+
+    const closed = await finishSession(phil, id, { rpe: 8 });
+
+    expect(closed.rpe).toBe(8);
+    expect(closed.finished).toBe(true);
+  });
+});

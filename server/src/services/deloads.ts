@@ -9,6 +9,7 @@ import type { Ctx } from '../db';
 import { type DeloadStatus, deloadStatus } from '../domain/deload';
 import { addDays, dayIn, daySpanIn, weekdayOf } from '../domain/time';
 import { athleteZone } from './clock';
+import { finishedSql } from './sessions';
 
 /** The Monday of the week a date falls in. Weeks are Monday-based here. */
 export function weekStarting(day: string): string {
@@ -50,9 +51,9 @@ export async function currentDeload(ctx: Ctx, zone?: string): Promise<DeloadStat
 
   const { rows: weeks } = await ctx.db.query<{ n: number }>(
     `select count(distinct date_trunc('week', performed_at at time zone $4))::int as n
-     from sessions
-     where user_id = $1 and rpe is not null
-       and performed_at >= $2 and performed_at < $3`,
+     from sessions s
+     where s.user_id = $1 and ${finishedSql('s')}
+       and s.performed_at >= $2 and s.performed_at < $3`,
     [ctx.userId, span.from, span.until, timezone],
   );
 

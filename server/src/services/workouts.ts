@@ -20,7 +20,7 @@ import { type Exercise, availableAt, equipmentAt, getExercise, listExercises } f
 import { activeContext } from './contexts';
 import { currentDeload } from './deloads';
 import { type Program, currentProgram, slotsFor } from './programs';
-import { firstSessionAt } from './sessions';
+import { finishedSql, firstSessionAt } from './sessions';
 
 export type ExercisePrescription = {
   exerciseId: number;
@@ -128,9 +128,9 @@ async function historyFor(
 async function finishedSessions(ctx: Ctx) {
   const { rows } = await ctx.db.query<{ performed_at: Date; joint_pain: boolean }>(
     `select performed_at, joint_pain
-     from sessions
-     where user_id = $1 and rpe is not null
-     order by performed_at desc
+     from sessions s
+     where s.user_id = $1 and ${finishedSql('s')}
+     order by s.performed_at desc
      limit 5`,
     [ctx.userId],
   );

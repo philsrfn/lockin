@@ -6,6 +6,7 @@
  */
 import type { Ctx } from '../db';
 import { type ExerciseBests, bestsByExercise } from '../domain/records';
+import { finishedSql } from './sessions';
 
 type Row = {
   exercise_id: number;
@@ -27,7 +28,7 @@ const SELECT = `
   from sets st
   join sessions s on s.id = st.session_id and s.user_id = st.user_id
   join exercises e on e.id = st.exercise_id
-  where st.user_id = $1 and st.reps > 0 and s.rpe is not null
+  where st.user_id = $1 and st.reps > 0 and ${finishedSql('s')}
 `;
 
 const toScored = (row: Row) => ({

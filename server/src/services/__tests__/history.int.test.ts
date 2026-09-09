@@ -153,3 +153,48 @@ describe('reading back what was done', () => {
     expect((await trainingHistory(phil, 30)).days).toHaveLength(1);
   });
 });
+
+describe('what the history leaves out', () => {
+  /**
+   * Start pressed, phone pocketed, gym never entered. Nobody remembers that as
+   * a training day, and printing it as one turns the history into a list of
+   * intentions rather than a record of what happened.
+   */
+  const startedHoursAgo = async (hours: number) =>
+    pool.query(
+      `insert into sessions (user_id, performed_at, template)
+       values ($1, now() - ($2 || ' hours')::interval, 'A')`,
+      [phil.userId, String(hours)],
+    );
+
+  it('drops a session that was started and never logged into', async () => {
+    await startedHoursAgo(20);
+
+    expect((await trainingHistory(phil, 30)).totals.sessions).toBe(0);
+  });
+
+  it('keeps one that is still in progress, because it is happening now', async () => {
+    await startedHoursAgo(1);
+
+    expect((await trainingHistory(phil, 30)).totals.sessions).toBe(1);
+  });
+
+  it('keeps an unfinished session that has sets in it', async () => {
+    // The sets are the memory. Hiding these would make the history disagree
+    // with what somebody plainly remembers doing.
+    const { rows } = await pool.query<{ id: number }>(
+      `insert into sessions (user_id, performed_at, template)
+       values ($1, now() - interval '20 hours', 'A') returning id`,
+      [phil.userId],
+    );
+    await recordSet(phil, {
+      sessionId: rows[0]!.id,
+      exerciseId: await exerciseIdByName('Back Squat'),
+      setIndex: 1,
+      weightKg: 100,
+      reps: 5,
+    });
+
+    expect((await trainingHistory(phil, 30)).totals.sessions).toBe(1);
+  });
+});

@@ -13,6 +13,7 @@
  * a sixth training day is refused by the §7 rest-day floor.
  */
 import type { Ctx } from '../db';
+import { noteStillFits } from '../domain/coachNote';
 import { checkTrainingDays } from '../domain/safety';
 import { WEEKLY_TARGETS } from '../domain/program';
 import { athleteToday } from '../services/clock';
@@ -121,16 +122,24 @@ type NoteRow = {
   context_name: string | null;
 };
 
-const toNote = (row: NoteRow): CoachNote => ({
+/**
+ * The place it was written for, carried alongside rather than inside the
+ * note: every reader has to decide whether the note still fits (see
+ * `domain/coachNote.ts`), and none of them should show it on screen.
+ */
+export type CachedCoachNote = CoachNote & { forContext: string | null };
+
+const toNote = (row: NoteRow): CachedCoachNote => ({
   forDate: row.for_date,
   sessionType: row.session_type as CoachNote['sessionType'],
   template: (row.template as CoachNote['template']) ?? null,
   headline: row.headline,
   body: row.body,
   swaps: row.swaps ?? [],
+  forContext: row.context_name,
 });
 
-export async function cachedNote(ctx: Ctx, date: string): Promise<CoachNote | null> {
+export async function cachedNote(ctx: Ctx, date: string): Promise<CachedCoachNote | null> {
   const { rows } = await ctx.db.query<NoteRow>(
     `select for_date, session_type, template, headline, body, swaps, context_name
      from coach_notes where user_id = $1 and for_date = $2`,
@@ -270,8 +279,18 @@ export async function generateNote(ctx: Ctx, forDate?: string): Promise<CoachNot
 }
 
 /**
- * The note for today, generated at most once unless forced — or unless he has
- * moved city since it was written, which changes the gym and the food rules.
+ * The note for today, generated at most once unless forced.
+ *
+ * Twice it is not the note that changed but the world under it, and both are
+ * cheap to detect and expensive to get wrong:
+ *
+ * - **They moved city.** A different gym and different food rules.
+ * - **They changed programme.** The note names a session — "Einheit B" — and
+ *   after a switch that day may not exist any more. Left alone the card said
+ *   B while the plan underneath it said Push, which is the app disagreeing
+ *   with itself about the one thing the screen is for. Now that programmes
+ *   are something an athlete builds rather than a choice made once at signup,
+ *   this stopped being a rare case.
  */
 export async function noteForToday(
   ctx: Ctx,
@@ -282,12 +301,14 @@ export async function noteForToday(
   if (!options.force) {
     const cached = await cachedNote(ctx, date);
     if (cached) {
-      const { rows } = await ctx.db.query<{ context_name: string | null }>(
-        'select context_name from coach_notes where user_id = $1 and for_date = $2',
-        [ctx.userId, date],
-      );
       const context = await activeContext(ctx);
-      if (rows[0]?.context_name === (context?.name ?? null)) return cached;
+      const program = await currentProgram(ctx);
+
+      const fits = noteStillFits(
+        { template: cached.template, contextName: cached.forContext },
+        { contextName: context?.name ?? null, dayCodes: program.days.map((day) => day.code) },
+      );
+      if (fits) return cached;
     }
   }
 

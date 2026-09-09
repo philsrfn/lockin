@@ -10,9 +10,11 @@ import {
   AddRuleSchema,
   BarcodeQuerySchema,
   EstimateFoodSchema,
+  CreateProgramSchema,
   FridgePhotoSchema,
   JobNameSchema,
   MealPlanSchema,
+  SaveProgramSchema,
   OnboardingSchema,
   AppleSignInSchema,
   ChooseProgramSchema,
@@ -59,6 +61,12 @@ import {
 import { env } from '../env';
 import { badRequest, unauthorized } from '../errors';
 import { completeOnboarding } from '../services/onboarding';
+import {
+  createProgram,
+  deleteProgram,
+  programWithSlots,
+  saveProgram,
+} from '../services/programs';
 import {
   createSession,
   finishSession,
@@ -282,6 +290,39 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     programs: await listPrograms(request.ctx),
     current: await currentProgram(request.ctx),
   }));
+
+  /**
+   * Programmes an athlete builds. Reading has always included their own rows
+   * (migration 015 left the door open); these are the writes.
+   */
+  /** One programme with every day's movements — what the editor loads. */
+  app.get('/programs/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    return { program: await programWithSlots(request.ctx, id) };
+  });
+
+  app.post('/programs', async (request, reply) => {
+    const body = CreateProgramSchema.parse(request.body);
+    const program = await createProgram(request.ctx, body);
+    return reply.code(201).send({ program });
+  });
+
+  /**
+   * Saved whole rather than in pieces. An editor is a form: move an exercise,
+   * rename a day, change a range, press save. One replace in a transaction
+   * cannot leave a programme half-edited; nine granular routes can.
+   */
+  app.put('/programs/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const body = SaveProgramSchema.parse(request.body);
+    return { program: await saveProgram(request.ctx, id, body) };
+  });
+
+  app.delete('/programs/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    await deleteProgram(request.ctx, id);
+    return { deleted: true };
+  });
 
   /**
    * Switching. History keeps the day codes it was logged against; the rotation

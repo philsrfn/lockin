@@ -21,7 +21,31 @@ export type Program = {
   name: string;
   description: string;
   daysPerWeek: number;
+  /** Theirs to edit, rather than one of the built-in three everybody shares. */
+  mine: boolean;
   days: ProgramDay[];
+};
+
+export type ProgramSlot = {
+  exerciseId: number;
+  exerciseName: string;
+  pattern: string;
+  sets: number;
+  incrementKg: number;
+  restSeconds: number;
+  range: { min: number; max: number };
+};
+
+/** A programme with every day's movements — what the editor loads and saves. */
+export type ProgramWithSlots = Omit<Program, 'days'> & {
+  days: (ProgramDay & { slots: ProgramSlot[] })[];
+};
+
+export type Exercise = {
+  id: number;
+  name: string;
+  pattern: string;
+  equipment: string[];
 };
 
 export type Profile = {

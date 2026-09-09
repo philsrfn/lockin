@@ -268,6 +268,36 @@ export const LogFoodSchema = z.object({
   grams: z.number().positive().max(MAX_PORTION_G).optional(),
 });
 
+export const CreateProgramSchema = z.object({
+  name: z.string().min(1).max(60),
+  /** Fork a catalogue programme rather than starting from nothing. */
+  fromProgramId: z.number().int().positive().nullish(),
+});
+
+export const SaveProgramSchema = z.object({
+  name: z.string().min(1).max(60),
+  days: z
+    .array(
+      z.object({
+        // Present only for a day that already exists. The service checks it
+        // against what is stored — a code is history, not a client's to pick.
+        code: z.string().min(1).max(12).optional(),
+        name: z.string().min(1).max(40),
+        slots: z
+          .array(
+            z.object({
+              exerciseId: z.number().int().positive(),
+              sets: z.number().int().min(1).max(10),
+              repMin: z.number().int().min(1).max(50),
+              repMax: z.number().int().min(1).max(50),
+            }),
+          )
+          .max(12),
+      }),
+    )
+    .max(7),
+});
+
 export const BarcodeQuerySchema = z.object({
   barcode: z.string().regex(/^\d{6,14}$/, 'Not a barcode'),
 });

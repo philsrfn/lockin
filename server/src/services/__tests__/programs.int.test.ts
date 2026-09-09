@@ -371,6 +371,50 @@ describe('the coach note can store any day the catalogue offers', () => {
   });
 });
 
+describe('the coach note after a programme change', () => {
+  /**
+   * The read is cached per day so it does not drift between app opens, and
+   * Today deliberately never generates one — a model call on every launch is
+   * the thing the cache exists to prevent. That leaves two honest answers
+   * when the world moves underneath it, and showing the stale note is not
+   * one of them: the card said "Einheit B" above a plan that said Push.
+   */
+  const writeNote = async (template: string) => {
+    const { date, context } = await getToday(phil);
+    await pool.query(
+      `insert into coach_notes (user_id, for_date, session_type, template, headline, body, context_name)
+       values ($1, $2, 'strength', $3, 'Heute ist Einheit B dran', 'y', $4)
+       on conflict (user_id, for_date) do update set template = excluded.template`,
+      [phil.userId, date, template, context?.name ?? null],
+    );
+  };
+
+  it('shows the note while it still describes today', async () => {
+    await writeNote('B');
+
+    expect((await getToday(phil)).coach?.headline).toBe('Heute ist Einheit B dran');
+  });
+
+  it('drops it once the programme no longer has the day it named', async () => {
+    await writeNote('B');
+    const ppl = await programBySlug(pool, 'push_pull_legs');
+    await setProgram(phil, ppl!.id);
+
+    const today = await getToday(phil);
+
+    expect(today.plan.template).not.toBe('B');
+    expect(today.coach).toBeNull();
+  });
+
+  it('never puts the place it was written for on the wire', async () => {
+    // It is how the note is checked, not something the screen shows — and the
+    // screen names the place in its own chip already.
+    await writeNote('B');
+
+    expect(await getToday(phil).then((t) => t.coach)).not.toHaveProperty('forContext');
+  });
+});
+
 describe('the plan carries every day, not only the next one', () => {
   /**
    * The rotation proposes; it does not get to insist. Somebody whose friends

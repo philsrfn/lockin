@@ -354,6 +354,76 @@ const PHRASES = {
   somethingWentWrong: { de: 'Da ist etwas schiefgelaufen', en: 'Something went wrong' },
   whichSession: { de: 'WELCHE EINHEIT HEUTE?', en: 'WHICH SESSION TODAY?' },
   suggested: { de: 'vorgeschlagen', en: 'suggested' },
+
+  // ——— building your own programme ———
+  ownProgrammeBlurb: {
+    de: 'Bau dir einen Plan, der zu deinem Gym und deinen Leuten passt — oder fang bei einem der obigen an und ändere ihn.',
+    en: 'Build a plan that fits your gym and the people you train with — or start from one above and change it.',
+  },
+  startBlank: { de: 'Leer anfangen', en: 'Start blank' },
+  forkThis: { de: 'Als Vorlage nehmen', en: 'Use as a template' },
+  editProgramme: { de: 'Bearbeiten', en: 'Edit' },
+  deleteProgramme: { de: 'Programm löschen', en: 'Delete programme' },
+  programmeName: { de: 'NAME DES PROGRAMMS', en: 'PROGRAMME NAME' },
+  dayName: { de: 'Name des Tages', en: 'Day name' },
+  addDay: { de: 'Tag hinzufügen', en: 'Add a day' },
+  addExercise: { de: 'Übung hinzufügen', en: 'Add an exercise' },
+  removeDay: { de: 'Tag entfernen', en: 'Remove day' },
+  saveProgramme: { de: 'Programm sichern', en: 'Save programme' },
+  pickExercise: { de: 'WELCHE ÜBUNG?', en: 'WHICH EXERCISE?' },
+  searchExercise: { de: 'Suchen…', en: 'Search…' },
+  programmeNeedsWork: {
+    de: 'Jeder Tag braucht einen Namen und mindestens eine Übung.',
+    en: 'Every day needs a name and at least one exercise.',
+  },
+  couldNotSaveProgramme: {
+    de: 'Konnte das Programm nicht sichern',
+    en: 'Could not save the programme',
+  },
+  newProgrammeName: { de: 'Mein Programm', en: 'My programme' },
+  deleteProgrammeAsk: {
+    de: 'Programm löschen? Deine eingetragenen Einheiten bleiben.',
+    en: 'Delete this programme? The sessions you logged stay.',
+  },
+  dayNumber: { de: 'TAG {n}', en: 'DAY {n}' },
+  newDayName: { de: 'Neuer Tag', en: 'New day' },
+  noExercisesInDay: { de: 'Noch keine Übung an diesem Tag.', en: 'No movements on this day yet.' },
+  replaceExercise: { de: 'Andere Übung', en: 'Different exercise' },
+  moveUp: { de: 'Nach oben', en: 'Move up' },
+  moveDown: { de: 'Nach unten', en: 'Move down' },
+  removeExercise: { de: 'Übung entfernen', en: 'Remove movement' },
+  repsLabel: { de: 'WIEDERHOLUNGEN', en: 'REPS' },
+  setsLabel: { de: 'SÄTZE', en: 'SETS' },
+  programmeNeedsName: { de: 'Das Programm braucht einen Namen.', en: 'The programme needs a name.' },
+  programmeNeedsDays: { de: 'Füg mindestens einen Tag hinzu.', en: 'Add at least one day.' },
+  programmeDuplicate: {
+    de: 'Eine Übung steht zweimal am selben Tag.',
+    en: 'One movement is on the same day twice.',
+  },
+  couldNotLoadProgramme: {
+    de: 'Das Programm konnte nicht geladen werden',
+    en: 'Could not load the programme',
+  },
+  couldNotDeleteProgramme: {
+    de: 'Das Programm konnte nicht gelöscht werden',
+    en: 'Could not delete the programme',
+  },
+  builtInProgramme: {
+    de: 'Das ist eines der mitgelieferten Programme — es gehört allen und lässt sich nicht ändern. Nimm es als Vorlage und der Rest ist deiner.',
+    en: 'This is one of the built-in programmes — it belongs to everybody and cannot be changed. Take it as a template and the rest is yours.',
+  },
+  noExerciseFound: { de: 'Keine Übung gefunden.', en: 'No movement found.' },
+
+  // The movement patterns, which is how the exercise list is grouped. Named
+  // the way somebody in a gym would name them, not the way the column does.
+  patternSquat: { de: 'Kniebeuge', en: 'Squat' },
+  patternHinge: { de: 'Hüftbeuge', en: 'Hinge' },
+  patternHPush: { de: 'Drücken waagerecht', en: 'Horizontal push' },
+  patternVPush: { de: 'Drücken über Kopf', en: 'Vertical push' },
+  patternHPull: { de: 'Ziehen waagerecht', en: 'Horizontal pull' },
+  patternVPull: { de: 'Ziehen von oben', en: 'Vertical pull' },
+  patternIso: { de: 'Isolation', en: 'Isolation' },
+
   chosenDayUnavailable: {
     de: 'Diesen Tag hat dieses Handy noch nie geladen. Einmal mit Empfang öffnen, dann geht er auch offline.',
     en: 'This phone has never loaded that day. Open it once with signal and it works offline after that.',
@@ -462,6 +532,12 @@ const PHRASES = {
   toolGetToday: { de: 'heute nachgesehen', en: 'checked today' },
   toolGetHistory: { de: 'Historie gelesen', en: 'read your history' },
   toolMealPlan: { de: 'aus dem Kühlschrank geplant', en: 'planned from your fridge' },
+  toolGetProgram: { de: 'Programm gelesen', en: 'read your programme' },
+  toolSetProgram: { de: 'Programm gewechselt', en: 'switched programme' },
+  toolEditProgram: { de: 'Programm angepasst', en: 'changed your programme' },
+  toolUndo: { de: 'Eintrag entfernt', en: 'removed an entry' },
+  toolAddPlace: { de: 'Ort hinzugefügt', en: 'added a place' },
+  toolTrainingDays: { de: 'Trainingstage geändert', en: 'changed your training days' },
   chatPlaceholder: { de: 'Wie war es?', en: 'How did that feel?' },
 
   gProtein: { de: 'g Protein', en: 'g protein' },

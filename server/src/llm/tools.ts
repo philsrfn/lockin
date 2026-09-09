@@ -5,10 +5,18 @@
  * Every one of these maps to a service that the REST routes already use, so
  * there is exactly one code path to each table (§11).
  *
- * Not yet declared, deliberately:
- *   generate_meal_plan — needs fridge inventory (phase 4)
- *   regenerate_week    — needs a stored week plan; today's session is chosen
- *                        by planToday() instead
+ * The trainer may change anything that is a preference or a plan. What it may
+ * not change is what those are measured against: the §7 floors refuse it and
+ * it has to say so, and the numbers progression runs on — load increments,
+ * rest, the rep maths — stay derived in code per §1. A tool that let the model
+ * set an increment would be handing it the one job §1 keeps away from it.
+ *
+ * Not declared, deliberately:
+ *   regenerate_week — needs a stored week plan; today's session is chosen by
+ *                     planToday() instead
+ *   anything destructive at the account level — deleting an account or a
+ *                     history is not a thing to do because a sentence sounded
+ *                     like it asked for it
  */
 import type { ToolDeclaration } from './provider';
 
@@ -189,6 +197,121 @@ export const TOOLS: ToolDeclaration[] = [
         scope: str('A city name to scope it to, or omit for everywhere'),
       },
       required: ['tier', 'text'],
+    },
+  },
+  {
+    name: 'undo_entry',
+    description:
+      'Remove something logged by mistake — a meal entered twice, a set typed ' +
+      'into the wrong exercise. Ids come from get_today: meals are in ' +
+      'macros.meals, sets are in openSession.sets. Only ever remove what they ' +
+      'asked you to remove; a mistake in the log is theirs to identify.',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['meal', 'set'], description: 'What to remove' },
+        id: int('The id of that meal or set'),
+      },
+      required: ['kind', 'id'],
+    },
+  },
+  {
+    name: 'add_place',
+    description:
+      'Add a place they train, when they mention one that does not exist yet — ' +
+      'a new city, a hotel gym, a friend\'s garage. set_context only switches ' +
+      'between places that already exist. Say what the place has if they told ' +
+      'you: the substitute list is filtered by it.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: str('What they call it, e.g. Berlin'),
+        equipment: {
+          type: 'array',
+          description: "What is there: barbell, dumbbell, machine, cable, rack, bench, pullup_bar.",
+          items: { type: 'string' },
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'set_training_days',
+    description:
+      'How many days a week they can train. Changes what the weekly targets ' +
+      'expect of them, so use it when their life changes rather than letting ' +
+      'them fail a target that no longer fits.',
+    parameters: {
+      type: 'object',
+      properties: { days: int('Training days per week, 1-7') },
+      required: ['days'],
+    },
+  },
+  {
+    name: 'get_program',
+    description:
+      'The programme they are on: every day, and the movements on each. Read ' +
+      'this before changing a programme — editing replaces the whole thing, ' +
+      'so you have to know what is in it first.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'set_program',
+    description:
+      'Switch to a different programme, by name. Their own programmes and the ' +
+      'built-in ones are both valid. Sessions already logged keep the day they ' +
+      'were logged against.',
+    parameters: {
+      type: 'object',
+      properties: { name: str('The programme name, as get_program lists them') },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'edit_program',
+    description:
+      'Create a programme, or replace the days and movements of one they ' +
+      'already own. This is how "I train pull with my friends on Tuesdays" or ' +
+      '"my gym has no hack squat" becomes their actual plan.\n' +
+      'Pass every day you want the programme to end up with — this replaces, ' +
+      'it does not merge. Keep the `code` of a day that already exists so the ' +
+      'sessions logged against it stay attached to it; leave it out for a new ' +
+      'day. Built-in programmes cannot be edited: to change one, create a new ' +
+      'programme from it by passing `basedOn`.\n' +
+      'You do not set load increments or rest times. Those follow the movement ' +
+      'and are computed below you.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: str('What the programme is called'),
+        basedOn: str('Copy the days of this programme first. Omit to edit theirs or start empty.'),
+        days: {
+          type: 'array',
+          description: 'Every day of the programme, in the order it rotates.',
+          items: {
+            type: 'object',
+            properties: {
+              code: str('Only for a day that already exists. Omit for a new one.'),
+              name: str('What the day is called, e.g. Pull'),
+              exercises: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: str('Exercise name, exactly as the library spells it'),
+                    sets: int('Working sets, 1-10'),
+                    repMin: int('Bottom of the rep range'),
+                    repMax: int('Top of the rep range'),
+                  },
+                  required: ['name', 'sets', 'repMin', 'repMax'],
+                },
+              },
+            },
+            required: ['name', 'exercises'],
+          },
+        },
+      },
+      required: ['name', 'days'],
     },
   },
   {

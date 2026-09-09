@@ -204,8 +204,8 @@ const HANDLERS: Record<
     const session = await openSession(ctx);
     return {
       ok: true,
-      // A swap is a suggestion until he logs a set against it; nothing is
-      // written here beyond telling him the right load to use.
+      // A swap is a suggestion until a set is logged against it; nothing is
+      // written here beyond telling the model the right load to use.
       prescription: await prescribeExercise(ctx, to.id, { excludeSessionId: session?.id }),
       replaced: from.name,
     };
@@ -213,7 +213,7 @@ const HANDLERS: Record<
 
   async adjust_calorie_target(ctx, args) {
     if (!String(args.reason ?? '').trim()) {
-      return fail('A reason is required — he should always know why a target moved.');
+      return fail('A reason is required — they should always know why a target moved.');
     }
 
     const { profile, refusals } = await updateTargets(ctx, {

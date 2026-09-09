@@ -110,7 +110,7 @@ export async function estimateFood(ctx: Ctx, text: string): Promise<FoodEstimate
   }
 
   // Clamp rather than trust. A model that returns 40000 kcal should not be able
-  // to put 40000 kcal in front of him as though it were considered.
+  // to put 40000 kcal in front of somebody as though it were considered.
   const clamp = (value: unknown, max: number) =>
     Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
 

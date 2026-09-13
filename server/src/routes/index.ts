@@ -46,6 +46,10 @@ import {
 import { listExercises } from '../services/exercises';
 import { getProfile, isOnboarded, setLocale, setTimezone } from '../services/profile';
 import { verifyAppleIdentityToken } from '../auth/appleIdentity';
+import { legalPage } from '../legal';
+import { ConsentSchema } from '../schemas';
+import { consentState, giveConsent, withdrawConsent } from '../services/consent';
+import { exportEverything } from '../services/export';
 import { consumeNonce, issueNonce } from '../auth/nonce';
 import {
   accountKind,
@@ -136,6 +140,24 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * The nonce is issued by the server rather than made up by the client: that
    * is what makes a captured identity token useless a second time.
    */
+  /**
+   * The notices, as pages anybody can open without an account.
+   *
+   * Apple requires a public privacy policy URL for a listing, and a link that
+   * only works once you are signed in is not one. Served from the repository
+   * so the text that was agreed to and the text on the website are the same
+   * file — `domain/consent.ts` records which version, and a version that lives
+   * somewhere else could drift away from what people actually saw.
+   */
+  for (const [path, file] of [
+    ['/privacy', 'privacy.de.md'],
+    ['/terms', 'terms.de.md'],
+  ] as const) {
+    app.get(path, async (_request, reply) =>
+      reply.type('text/html; charset=utf-8').send(legalPage(file)),
+    );
+  }
+
   app.post('/auth/apple/nonce', async () => ({ nonce: issueNonce() }));
 
   app.post('/auth/apple', async (request) => {
@@ -229,6 +251,49 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       return reply.code(503).send({ ok: false, db: false });
     }
+  });
+
+  /**
+   * What this person has agreed to, and agreeing to it.
+   *
+   * Training history, body weight and anything Apple Health sends are Article
+   * 9 data, so the lawful basis is explicit consent — which means recorded,
+   * with the version of the notice that was shown. See domain/consent.ts.
+   *
+   * The version is never taken from the client. What the app believes it
+   * displayed is not evidence of what was displayed; this row is the evidence.
+   */
+  app.get('/consents', async (request) => consentState(request.ctx));
+
+  app.post('/consents', async (request) => {
+    const { document } = ConsentSchema.parse(request.body);
+    return giveConsent(request.ctx, document);
+  });
+
+  /**
+   * Withdrawing, which has to be as easy as giving. The row stays and gets a
+   * timestamp: erasing it would erase the evidence that the consent was ever
+   * lawfully obtained. Erasing the *data* is `DELETE /account`, which is a
+   * different button and says what it does.
+   */
+  app.delete('/consents/:document', async (request) => {
+    const { document } = z.object({ document: z.string() }).parse(request.params);
+    return withdrawConsent(request.ctx, document);
+  });
+
+  /**
+   * Everything held about this person, in one file. Articles 15 and 20: the
+   * right to know, and the right to take it elsewhere.
+   *
+   * Served as a download rather than as a payload, because the person asking
+   * is not a program and the useful thing to hand them is a file.
+   */
+  app.get('/me/export', async (request, reply) => {
+    const data = await exportEverything(request.ctx);
+    return reply
+      .header('content-type', 'application/json; charset=utf-8')
+      .header('content-disposition', `attachment; filename="lockin-${data.exportedAt.slice(0, 10)}.json"`)
+      .send(data);
   });
 
   app.get('/profile', async (request) => ({ profile: await getProfile(request.ctx) }));

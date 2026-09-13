@@ -10,7 +10,25 @@ pg.types.setTypeParser(pg.types.builtins.INT8, Number);
 // server's timezone.
 pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
 
-export const pool = new pg.Pool({ connectionString: env.databaseUrl });
+export const pool = new pg.Pool({
+  connectionString: env.databaseUrl,
+  /**
+   * Bounded, and bounded loudly.
+   *
+   * Every scoped query is a transaction now — see `scopedTo` below — so a
+   * connection is held for a begin/commit rather than for a single statement,
+   * and a screen that fetches a dozen things in parallel wants a dozen of
+   * them at once. Without a timeout, a pool with nothing free waits for ever:
+   * the integration suite ran twelve files at once, exhausted the server, and
+   * five tests sat for sixteen minutes instead of failing. In production the
+   * same shape is an app that hangs rather than an error anybody can see.
+   *
+   * So: a ceiling per process, and a wait that gives up. A request that cannot
+   * get a connection in ten seconds is not going to be worth answering.
+   */
+  max: Number(process.env.PGPOOL_MAX ?? 10),
+  connectionTimeoutMillis: 10_000,
+});
 
 export type Queryable = Pick<pg.PoolClient, 'query'>;
 

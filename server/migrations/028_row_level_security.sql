@@ -80,6 +80,33 @@ alter default privileges in schema public
 alter default privileges in schema public
   grant usage, select on sequences to lockin_app;
 
+-- The policy itself, as a function, so a later migration adding a table is one
+-- line rather than a copy of this paragraph. Copies drift; this one would drift
+-- into a table that looks protected and is not.
+create or replace function apply_tenant_policy(target text, shared boolean default false)
+returns void language plpgsql as $fn$
+declare
+  -- A boolean cannot be interpolated into SQL text as a condition; it renders
+  -- as `t` or `f`, which is a column name. The clause is built instead.
+  shared_rows text := case when shared then 'or user_id is null' else '' end;
+begin
+  execute format('alter table %I enable row level security', target);
+  execute format('alter table %I force row level security', target);
+  execute format('drop policy if exists tenant_isolation on %I', target);
+  execute format($p$
+    create policy tenant_isolation on %I
+      using (
+        current_setting('app.cross_tenant', true) = 'on'
+        %s
+        or user_id = nullif(current_setting('app.user_id', true), '')::int
+      )
+      with check (
+        current_setting('app.cross_tenant', true) = 'on'
+        or user_id = nullif(current_setting('app.user_id', true), '')::int
+      )
+  $p$, target, shared_rows);
+end $fn$;
+
 do $$
 declare
   owned text;
@@ -98,38 +125,9 @@ begin
       and table_name not like 'pg_%'
     order by table_name
   loop
-    execute format('alter table %I enable row level security', owned);
-    execute format('alter table %I force row level security', owned);
-    execute format('drop policy if exists tenant_isolation on %I', owned);
-
-    if owned = 'programs' then
-      -- The only owned table where null means "everybody's": the built-in
-      -- catalogue is shared, and reading has always included those rows.
-      execute format($p$
-        create policy tenant_isolation on %I
-          using (
-            current_setting('app.cross_tenant', true) = 'on'
-            or user_id is null
-            or user_id = nullif(current_setting('app.user_id', true), '')::int
-          )
-          with check (
-            current_setting('app.cross_tenant', true) = 'on'
-            or user_id = nullif(current_setting('app.user_id', true), '')::int
-          )
-      $p$, owned);
-    else
-      execute format($p$
-        create policy tenant_isolation on %I
-          using (
-            current_setting('app.cross_tenant', true) = 'on'
-            or user_id = nullif(current_setting('app.user_id', true), '')::int
-          )
-          with check (
-            current_setting('app.cross_tenant', true) = 'on'
-            or user_id = nullif(current_setting('app.user_id', true), '')::int
-          )
-      $p$, owned);
-    end if;
+    -- `programs` is the only one where a null user_id means "everybody's":
+    -- the built-in catalogue is shared, and reading has always included it.
+    perform apply_tenant_policy(owned, owned = 'programs');
   end loop;
 end $$;
 

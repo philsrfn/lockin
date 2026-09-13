@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/api/client';
-import type { Profile } from '../src/api/types';
+import type { ConsentState, Profile } from '../src/api/types';
 import {
   clearConfig,
   isHealthConnected,
@@ -16,6 +16,7 @@ import {
 } from '../src/api/config';
 import { startHealthSync } from '../src/health/sync';
 import { ApiError, onRefused } from '../src/api/client';
+import { ConsentScreen } from '../src/components/ConsentScreen';
 import { OnboardingScreen } from '../src/components/OnboardingScreen';
 import { WaitingScreen } from '../src/components/WaitingScreen';
 import { SignInScreen } from '../src/components/SignInScreen';
@@ -28,6 +29,12 @@ export default function RootLayout() {
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   /** Signed in, but not yet let in by whoever runs the server. */
   const [waiting, setWaiting] = useState(false);
+  /**
+   * Documents still owed agreement. Null until asked — the app cannot know
+   * without the server, and guessing "none" would show somebody the app
+   * before they had agreed to anything being kept about them.
+   */
+  const [owed, setOwed] = useState<string[] | null>(null);
   const router = useRouter();
   const registered = useRef(false);
   /** Set the moment sign-in answers, so the cold-start check below skips. */
@@ -45,6 +52,22 @@ export default function RootLayout() {
    * itself fails, the app opens anyway rather than trapping somebody offline
    * in a form they may already have filled in.
    */
+  /**
+   * What they still have to agree to, asked before anything is shown.
+   *
+   * A pending account may reach this — consent is what makes holding their
+   * Apple identity lawful in the first place, so it cannot wait behind being
+   * admitted. A failure leaves `owed` null and the app carries on: refusing to
+   * open because a consent check timed out would be worse than the risk it
+   * guards, and the next launch asks again.
+   */
+  useEffect(() => {
+    if (!configured) return;
+    void api<ConsentState>('/consents')
+      .then((state) => setOwed(state.outstanding))
+      .catch(() => setOwed([]));
+  }, [configured]);
+
   useEffect(() => {
     if (!configured || onboardingKnown.current) return;
     void (async () => {
@@ -138,7 +161,9 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [router]);
 
-  if (configured === null || (configured && onboarded === null)) {
+  // Waits on the consent answer too: showing the app for a frame and then
+  // replacing it with a consent screen is the app having been shown.
+  if (configured === null || (configured && (onboarded === null || owed === null))) {
     return (
       <SafeAreaProvider>
         <StatusBar style="light" />
@@ -172,6 +197,19 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <WaitingScreen onAdmitted={() => setWaiting(false)} />
+      </SafeAreaProvider>
+    );
+  }
+
+  /**
+   * Before the questionnaire, because the questionnaire is the first thing
+   * that writes a person's body into the database.
+   */
+  if (owed !== null && owed.length > 0) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <ConsentScreen outstanding={owed} onDone={() => setOwed([])} />
       </SafeAreaProvider>
     );
   }

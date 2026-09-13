@@ -422,6 +422,38 @@ const PHRASES = {
   thisWeekInline: { de: 'diese Woche', en: 'this week' },
   stepsLower: { de: 'Schritte', en: 'steps' },
   noWeighInYet: { de: 'noch nicht gewogen', en: 'not weighed yet' },
+
+  // ——— consent, before anything else happens ———
+  consentTitle: { de: 'Bevor es losgeht', en: 'Before we start' },
+  consentBlurb: {
+    de: 'lockin speichert dein Training, dein Gewicht und was du isst — und schickt deine Nachrichten an ein Sprachmodell, damit der Trainer antworten kann. Das sind Gesundheitsdaten, und dafür braucht es deine ausdrückliche Zustimmung.',
+    en: 'lockin stores your training, your weight and what you eat — and sends your messages to a language model so the trainer can answer. That is health data, and it needs your explicit agreement.',
+  },
+  consentReadPrivacy: { de: 'Datenschutzerklärung lesen', en: 'Read the privacy notice' },
+  consentReadTerms: { de: 'Nutzungsbedingungen lesen', en: 'Read the terms' },
+  consentAgree: { de: 'Einverstanden', en: 'I agree' },
+  consentWorking: { de: 'Einen Moment…', en: 'One moment…' },
+  consentWithdrawNote: {
+    de: 'Du kannst das jederzeit im Konto zurücknehmen. Dein Konto löschst du dort auch.',
+    en: 'You can take this back at any time under Account, where you can also delete it.',
+  },
+  consentFailed: {
+    de: 'Das konnte nicht gespeichert werden. Nochmal versuchen.',
+    en: 'That could not be saved. Try again.',
+  },
+
+  // ——— and the account screen's side of it ———
+  yourData: { de: 'DEINE DATEN', en: 'YOUR DATA' },
+  dataBlurb: {
+    de: 'Was gespeichert ist, an wen es geht und wie lange — steht in der Datenschutzerklärung. Löschen kannst du alles unten.',
+    en: 'What is stored, who it goes to and for how long — the privacy notice says. You can delete all of it below.',
+  },
+  agreedOn: { de: 'Zugestimmt am {date}', en: 'Agreed on {date}' },
+  withdrawConsent: { de: 'Zustimmung zurücknehmen', en: 'Withdraw agreement' },
+  consentWithdrawn: {
+    de: 'Zurückgenommen. Ohne Zustimmung kann der Trainer nicht arbeiten — beim nächsten Start wirst du wieder gefragt.',
+    en: 'Withdrawn. The trainer cannot work without it — you will be asked again next time you open the app.',
+  },
   // Onboarding's badge on a target the §7 floors moved. The last English
   // literal in the app, and on the first screen anybody sees.
   obAdjusted: { de: 'Angepasst', en: 'Adjusted' },

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../src/api/client';
-import type { Program } from '../src/api/types';
-import { isHealthConnected, setHealthConnected } from '../src/api/config';
+import type { ConsentState, Program } from '../src/api/types';
+import { currentBaseUrl, isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
   type Account,
   approveBrowser,
@@ -19,7 +20,7 @@ import {
 } from '../src/auth/apple';
 import { isSupported, requestPermission } from '../src/health';
 import { syncNow } from '../src/health/sync';
-import { t } from '../src/lib/locale';
+import { deviceLocale, t } from '../src/lib/locale';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
@@ -43,6 +44,7 @@ export default function AccountScreen() {
   const [error, setError] = useState<string | null>(null);
   /** A programme is being created; both buttons that create one wait on it. */
   const [forking, setForking] = useState(false);
+  const [consents, setConsents] = useState<ConsentState | null>(null);
 
   const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
   const [healthNote, setHealthNote] = useState<string | null>(null);
@@ -55,11 +57,13 @@ export default function AccountScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [accountResult, programResult] = await Promise.all([
+      const [accountResult, programResult, consentResult] = await Promise.all([
         loadAccount(),
         api<{ programs: Program[]; current: Program }>('/programs'),
+        api<ConsentState>('/consents'),
       ]);
       setAccount(accountResult);
+      setConsents(consentResult);
       setPrograms(programResult.programs);
       setCurrent(programResult.current);
       setError(null);
@@ -131,6 +135,30 @@ export default function AccountScreen() {
     } finally {
       setForking(false);
     }
+  }
+
+  /**
+   * The notices live on the server, so what somebody reads here is the same
+   * file the consent row points at.
+   */
+  const privacy = consents?.given.find((entry) => entry.document === 'privacy');
+  const withdrawn = privacy?.withdrawnAt != null || consents?.outstanding.includes('privacy');
+  const agreedOn =
+    privacy && !withdrawn ? new Date(privacy.version).toLocaleDateString(deviceLocale()) : null;
+
+  const openNotice = (path: string) => {
+    const base = currentBaseUrl();
+    if (base) void Linking.openURL(`${base}${path}`);
+  };
+
+  /**
+   * Taking it back has to be as easy as giving it. The app does not pretend
+   * this is harmless: without consent the trainer cannot run, and the next
+   * launch asks again — which the copy says rather than leaving somebody to
+   * discover it.
+   */
+  async function withdraw() {
+    setConsents(await api<ConsentState>('/consents/privacy', { method: 'DELETE' }));
   }
 
   async function connectHealth() {
@@ -287,6 +315,29 @@ export default function AccountScreen() {
       </Card>
 
       {/*
+        What is held, and the two rights that are a button rather than an
+        email. Deleting the account is above, on the account itself, because
+        that is where somebody looks for it.
+      */}
+      <Card label={t('yourData')}>
+        <Text style={styles.blurb}>{t('dataBlurb')}</Text>
+        <Pressable onPress={() => openNotice('/privacy')} hitSlop={8}>
+          <Text style={styles.noticeLink}>{t('consentReadPrivacy')}</Text>
+        </Pressable>
+        <Pressable onPress={() => openNotice('/terms')} hitSlop={8}>
+          <Text style={styles.noticeLink}>{t('consentReadTerms')}</Text>
+        </Pressable>
+        {agreedOn ? <Text style={styles.dim}>{t('agreedOn', { date: agreedOn })}</Text> : null}
+        {withdrawn ? (
+          <Text style={styles.dim}>{t('consentWithdrawn')}</Text>
+        ) : (
+          <Pressable onPress={() => void withdraw()} hitSlop={8}>
+            <Text style={styles.destructive}>{t('withdrawConsent')}</Text>
+          </Pressable>
+        )}
+      </Card>
+
+      {/*
         Switching keeps every session already logged; the rotation just starts
         at the top of the new one.
 
@@ -404,6 +455,7 @@ const styles = StyleSheet.create({
   accountName: { ...typo.body, color: colors.text },
   approved: { fontSize: 14, color: colors.accent },
   destructive: { fontSize: 14, color: colors.danger, paddingVertical: space.sm },
+  noticeLink: { ...typo.body, color: colors.accent },
 
   program: {
     paddingVertical: space.md,

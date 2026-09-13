@@ -11,6 +11,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { type Ctx, type Queryable, ctxFor, pool, queryOne, transaction } from '../db';
 import { badRequest, conflict, notFound } from '../errors';
 import { DEFAULT_TIME_ZONE } from '../domain/time';
+import { env } from '../env';
 
 export type User = {
   id: number;
@@ -101,10 +102,18 @@ export type AppleSignIn = {
  * they signed in.
  */
 /**
- * Note what is not passed: `approved`. Anybody with the TestFlight link can
- * reach this, and every account costs money the moment it talks to the
- * trainer, so an account that let itself in starts pending. One provisioned by
- * the CLI does not — the operator typing the command is the approval.
+ * Whether an account admits itself depends on `SIGNUP_MODE`, and the default
+ * is that it does not.
+ *
+ * On invite, anybody with the TestFlight link reaches this and every account
+ * costs money the moment it talks to the trainer — so it starts pending and an
+ * operator admits it. One provisioned by the CLI does not: the operator typing
+ * the command is the approval.
+ *
+ * On open, it admits itself, because nobody downloads an app and waits for a
+ * stranger to press a button. What stops that being an open bar is the rate
+ * limiter and the per-athlete token ceiling, which are what actually bound the
+ * cost — approval never did, it only delayed it.
  */
 export async function findOrCreateAppleUser(
   input: AppleSignIn,
@@ -131,6 +140,7 @@ export async function findOrCreateAppleUser(
     appleSub: input.sub,
     timezone: input.timezone,
     locale: input.locale,
+    approved: env.signupMode === 'open',
   });
 
   return { user, isNew: true };

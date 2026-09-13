@@ -29,6 +29,21 @@ export const env = {
    * somebody in here.
    */
   appleBundleId: optional('APPLE_BUNDLE_ID', 'de.dotspiro.lockin'),
+  /**
+   * Who may let themselves in.
+   *
+   * `invite` is how this has always worked: signing in with Apple creates an
+   * account and an operator admits it. That is right while the people using
+   * the app are people you know, and it is the default here so that nothing
+   * changes by deploying this.
+   *
+   * `open` admits an account the moment it is created, which is what a public
+   * app has to do — nobody downloads something and waits for a stranger to
+   * press a button. It stays a setting rather than a rewrite because the way
+   * back matters: if this is ever abused, one variable closes the door again
+   * without touching anybody already inside.
+   */
+  signupMode: (process.env.SIGNUP_MODE === 'open' ? 'open' : 'invite') as 'open' | 'invite',
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   /**

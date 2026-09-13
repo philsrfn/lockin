@@ -88,6 +88,19 @@ export const TEST_BEARER_TOKEN = 'test-token';
 
 export function applyTestEnv(databaseUrl: string): void {
   process.env.DATABASE_URL = databaseUrl;
+  /**
+   * A small pool per test file, because there are a dozen files at once.
+   *
+   * Every scoped query is a transaction, so a connection is held for a
+   * begin/commit rather than a statement, and twelve files × the production
+   * default is more than Postgres will hand out. The symptom was five tests
+   * sitting for sixteen minutes rather than failing — a pool with nothing free
+   * waits, and nothing was ever going to become free.
+   *
+   * Four is plenty for one file's worth of work, and it keeps the suite well
+   * inside `max_connections` with room for a dev server on the same database.
+   */
+  process.env.PGPOOL_MAX ??= '4';
   process.env.APP_BEARER_TOKEN ??= TEST_BEARER_TOKEN;
   process.env.GEMINI_API_KEY ??= 'test-key-not-used';
   process.env.LOG_LEVEL ??= 'silent';

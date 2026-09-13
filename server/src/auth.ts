@@ -12,6 +12,11 @@ const PUBLIC_PATHS = new Set([
   '/health',
   '/auth/apple',
   '/auth/apple/nonce',
+  // The notices. Apple wants a privacy policy URL for a listing, and a link
+  // that only works once you are signed in is not one — the point of it is to
+  // be readable before you decide to sign in at all.
+  '/privacy',
+  '/terms',
   // The admin page itself is a shell: the sign-in flow and the script that
   // fills it in. A browser cannot send an Authorization header for its own
   // document request, so the HTML is public and every byte of data behind it
@@ -32,7 +37,15 @@ const isPairingCollection = (method: string, path: string) =>
   method === 'GET' && path.startsWith('/admin/pair/');
 
 /** What an account that has not been approved yet may still do. */
-const PENDING_MAY = new Set(['/auth/signout', '/account']);
+/**
+ * An account waiting to be let in may leave, erase itself — and now agree.
+ *
+ * Consent is the thing that has to happen before anything else, including
+ * before somebody knows whether they will be admitted. Making it wait behind
+ * approval would mean holding a person's Apple identity with no lawful basis
+ * recorded for it.
+ */
+const PENDING_MAY = new Set(['/auth/signout', '/account', '/consents', '/me/export']);
 
 declare module 'fastify' {
   interface FastifyRequest {

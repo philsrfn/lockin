@@ -17,6 +17,7 @@ import type { SessionSummary } from '../domain/history';
 import { type CardioSession, recentCardio } from './cardio';
 import { athleteZone } from './clock';
 import { type Session, recentSessions } from './sessions';
+import { sessionState } from '../domain/session';
 
 export type HistorySession = Session & { summary: SessionSummary };
 
@@ -45,13 +46,28 @@ export async function trainingHistory(ctx: Ctx, days: number): Promise<TrainingH
     recentCardio(ctx, days),
   ]);
 
-  // An unfinished session is left in. Walking away without pressing finish is
-  // a thing that happens, and hiding those would make the history disagree
-  // with the sets the person can plainly remember doing.
-  const summarised: HistorySession[] = sessions.map((session) => ({
-    ...session,
-    summary: summariseSets(session.sets),
-  }));
+  /**
+   * An unfinished session stays in, as long as something was logged against
+   * it. Walking away without pressing finish is a thing that happens, and
+   * hiding those would make the history disagree with the sets the person can
+   * plainly remember doing.
+   *
+   * A session with nothing in it is different: Start pressed, phone pocketed,
+   * gym never entered. Nobody remembers that as a training day, and printing
+   * it as one turns the history into a list of intentions. One still in
+   * progress is left alone — it is happening right now, and it is the screen
+   * saying so.
+   */
+  const summarised: HistorySession[] = sessions
+    .filter((session) => session.sets.length > 0 || sessionState({
+      performedAt: new Date(session.performedAt),
+      rpe: session.rpe,
+      setCount: session.sets.length,
+    }) === 'live')
+    .map((session) => ({
+      ...session,
+      summary: summariseSets(session.sets),
+    }));
 
   return {
     days: groupTrainingByDay(zone, summarised, cardio),

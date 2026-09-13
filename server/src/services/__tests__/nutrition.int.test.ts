@@ -6,7 +6,7 @@
  * — so the thing that must never break is the sum.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetData, resetProfile, phil } from '../../test/helpers';
+import { anotherAthlete, resetData, resetProfile, phil } from '../../test/helpers';
 import { archiveFood, createFood, getFood, listFoods, updateFood } from '../foods';
 import { deleteMeal, logMeal, macrosToday, mealsToday } from '../meals';
 
@@ -204,5 +204,82 @@ describe('the food library', () => {
 
   it('404s when archiving something that is not there', async () => {
     await expect(archiveFood(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('the library growing by use', () => {
+  /**
+   * §4 says the library grows by use, and §11 builds the Food screen on that.
+   * Only a barcode scan ever grew it: describing a meal in words did not, and
+   * neither did telling the trainer about it in chat — so for anybody who
+   * logs by talking, the quick-add tiles and the library stayed empty
+   * forever, and the screen meant to absorb the repeating 95% had nothing in
+   * it to tap.
+   */
+  const skyr = { slot: 'breakfast' as const, description: 'Skyr mit Beeren', kcal: 320, proteinG: 30 };
+
+  it('leaves a one-off out of it', async () => {
+    await logMeal(phil, skyr);
+
+    expect(await listFoods(phil)).toHaveLength(0);
+  });
+
+  it('keeps it the second time it is eaten', async () => {
+    await logMeal(phil, skyr);
+    await logMeal(phil, skyr);
+
+    const [food] = await listFoods(phil);
+
+    expect(food).toMatchObject({ name: 'Skyr mit Beeren', kcal: 320, proteinG: 30 });
+  });
+
+  it('recognises it through case and spacing', async () => {
+    await logMeal(phil, skyr);
+    await logMeal(phil, { ...skyr, description: '  skyr   mit beeren ' });
+
+    expect(await listFoods(phil)).toHaveLength(1);
+  });
+
+  it('stores it as a portion, not as per-100g', async () => {
+    // The description says what was eaten, not what a label says about a
+    // hundred grams of it. Migration 027 exists because those were once the
+    // same column, and 100 g of everything got logged.
+    await logMeal(phil, skyr);
+    await logMeal(phil, skyr);
+
+    expect((await listFoods(phil))[0]?.perGrams).toBeNull();
+  });
+
+  it('counts the use, so the screen can order by what is actually reached for', async () => {
+    await logMeal(phil, skyr);
+    await logMeal(phil, skyr);
+    await logMeal(phil, skyr);
+
+    expect((await listFoods(phil))[0]?.timesUsed).toBeGreaterThan(0);
+  });
+
+  it('leaves a meal with no macros alone', async () => {
+    // A library entry without macros is a name that does nothing when tapped.
+    await logMeal(phil, { slot: 'lunch', description: 'irgendwas beim Italiener' });
+    await logMeal(phil, { slot: 'lunch', description: 'irgendwas beim Italiener' });
+
+    expect(await listFoods(phil)).toHaveLength(0);
+  });
+
+  it('does not duplicate one that came from the library already', async () => {
+    const food = await createFood(phil, SKYR);
+    await logMeal(phil, { slot: 'breakfast', description: SKYR.name, kcal: SKYR.kcal, proteinG: SKYR.proteinG, foodId: food.id });
+    await logMeal(phil, { slot: 'breakfast', description: SKYR.name, kcal: SKYR.kcal, proteinG: SKYR.proteinG, foodId: food.id });
+
+    expect(await listFoods(phil)).toHaveLength(1);
+  });
+
+  it("never lets one athlete's repeats reach another's library", async () => {
+    const sam = await anotherAthlete();
+    await logMeal(sam, skyr);
+    await logMeal(sam, skyr);
+
+    expect(await listFoods(phil)).toHaveLength(0);
+    expect(await listFoods(sam)).toHaveLength(1);
   });
 });

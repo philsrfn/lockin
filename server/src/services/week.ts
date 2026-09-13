@@ -16,6 +16,7 @@ import { WEEKLY_TARGETS } from '../domain/program';
 import { cardioByDay } from './cardio';
 import { healthByDay } from './health';
 import { getProfile } from './profile';
+import { finishedSql } from './sessions';
 
 export type WeekDay = {
   date: string;
@@ -84,7 +85,7 @@ export async function getWeek(ctx: Ctx, endingOn?: string): Promise<Week> {
        from sessions s
        left join sets st on st.session_id = s.id
        where s.user_id = $1 and s.performed_at >= $2 and s.performed_at < $3
-         and s.rpe is not null
+         and ${finishedSql('s')}
        group by 1`,
       [ctx.userId, span.from, span.until, profile.timezone],
     ),

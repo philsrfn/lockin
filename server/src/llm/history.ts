@@ -20,6 +20,53 @@
  */
 import type { Turn } from './provider';
 
+/**
+ * How many turns at the end of the window keep their tool results in full.
+ *
+ * Four is one complete exchange plus the turn that prompted it — enough for
+ * the model to finish what it is doing and refer to what a tool just told it.
+ */
+export const LIVE_TURNS = 4;
+
+/**
+ * What an old tool result is replaced by.
+ *
+ * Not deleted: the model should still be able to see that it looked something
+ * up, or that a write went through. Only the payload goes, and the note says
+ * how to get it back — which is the point, because the payload was the
+ * problem rather than the size.
+ */
+const STALE = {
+  ok: true,
+  stale: 'Ran earlier in this conversation. Call the tool again for current numbers.',
+} as const;
+
+/**
+ * Old tool payloads, replaced by the fact that they ran.
+ *
+ * A tool result is a snapshot. `get_today` returns remaining macros, today's
+ * plan, the weight trend; `get_history` returns a fortnight. Replayed as
+ * conversation, yesterday's snapshot sits in the transcript looking exactly
+ * like today's, and nothing in it says which is which — so the model can read
+ * out a protein number that was true when it was fetched and is not now. The
+ * fresh numbers are already in the system instruction, assembled per request;
+ * the copy in the transcript is only ever the older one.
+ *
+ * It is also the bulk of the prompt. Tool turns are by far the largest thing
+ * in a stored conversation, and they are the part with the least to say.
+ */
+export function compactOldToolResults(turns: Turn[], live = LIVE_TURNS): Turn[] {
+  const boundary = turns.length - live;
+
+  return turns.map((turn, index) => {
+    if (turn.role !== 'tool' || index >= boundary) return turn;
+    return {
+      role: 'tool',
+      results: turn.results.map((result) => ({ ...result, result: STALE })),
+    };
+  });
+}
+
 const hasToolCalls = (turn: Turn): boolean => turn.role === 'model' && turn.toolCalls.length > 0;
 
 /**

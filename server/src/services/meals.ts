@@ -3,7 +3,8 @@ import { badRequest, notFound } from '../errors';
 import { type Macros, sumMacros } from '../domain/macros';
 import { dayIn, dayRangeIn } from '../domain/time';
 import { athleteZone } from './clock';
-import { recordUse } from './foods';
+import { createFood, recordUse } from './foods';
+import { earnsItsPlace, libraryKeyFor } from '../domain/foodLibrary';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -67,6 +68,45 @@ export type LogMealInput = {
  * Phase 4 builds the food *screen*. The table and the arithmetic exist now, so
  * the trainer can log a meal the moment he mentions one in chat.
  */
+/**
+ * The library growing by use (§4), from every way of logging rather than one.
+ *
+ * A barcode scan saved a food; describing a meal in words did not, and
+ * neither did telling the trainer about it in chat. So for anybody who logs
+ * by talking the quick-add tiles stayed empty forever, and the structured
+ * screen that §11 builds on had nothing in it to tap.
+ *
+ * The second time, not the first. A restaurant meal nobody repeats is a meal;
+ * the thing eaten on Tuesday and again on Thursday is a staple, and only the
+ * staple is worth a tile. `domain/foodLibrary.ts` holds the rule.
+ *
+ * A portion, never per 100 g: the description says what was eaten, not what a
+ * label says about a hundred grams of it. Migration 027 exists because those
+ * two were once the same column.
+ */
+async function rememberIfItRepeats(ctx: Ctx, input: LogMealInput): Promise<number | null> {
+  const key = libraryKeyFor(input);
+  if (!key) return null;
+
+  const { rows } = await ctx.db.query<{ eaten: number }>(
+    `select count(*)::int as eaten from meals
+     where user_id = $1 and lower(btrim(description)) = $2`,
+    [ctx.userId, key],
+  );
+  if (!earnsItsPlace(rows[0]?.eaten ?? 0)) return null;
+
+  const food = await createFood(ctx, {
+    name: input.description.trim(),
+    kcal: input.kcal!,
+    proteinG: input.proteinG!,
+    fatG: input.fatG ?? null,
+    carbsG: input.carbsG ?? null,
+    defaultSlot: input.slot,
+    perGrams: null,
+  });
+  return food.id;
+}
+
 export async function logMeal(
   ctx: Ctx,
   input: LogMealInput,
@@ -77,6 +117,8 @@ export async function logMeal(
   if (!SLOTS.includes(input.slot)) {
     throw badRequest(`slot must be one of ${SLOTS.join(', ')}`);
   }
+
+  const foodId = input.foodId ?? (await rememberIfItRepeats(ctx, input));
 
   const { rows } = await ctx.db.query<MealRow>(
     `insert into meals
@@ -92,13 +134,13 @@ export async function logMeal(
       input.proteinG ?? null,
       input.fatG ?? null,
       input.carbsG ?? null,
-      input.foodId ?? null,
+      foodId,
       input.source ?? 'own',
     ],
   );
 
-  // Keeps the food screen ordered by what he actually reaches for.
-  if (input.foodId != null) await recordUse(ctx, input.foodId);
+  // Keeps the food screen ordered by what they actually reach for.
+  if (foodId != null) await recordUse(ctx, foodId);
 
   return { meal: toMeal(rows[0]!), today: await macrosToday(ctx, timezone) };
 }

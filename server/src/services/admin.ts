@@ -9,7 +9,27 @@
  * codebase that is allowed to. Everything else takes a Ctx and is scoped to
  * one athlete; these take none, and the only caller is behind `requireAdmin`.
  */
-import { pool } from '../db';
+import { crossTenant } from '../db';
+
+/**
+ * A pool-shaped thing that is allowed past row level security.
+ *
+ * Reading across every athlete is this file's entire job — it is why it is
+ * exempt from the static tenancy guard, and migration 028 does not make that
+ * any less true. Shaped like `pool.query` so the thirteen call sites below did
+ * not have to change, and named so that the exemption is visible at each one.
+ *
+ * Every route that reaches this file is behind `requireAdmin`; the test at the
+ * bottom of `__tests__/tenancy.test.ts` asserts it, and that assertion is what
+ * this is allowed to lean on.
+ */
+const pool = {
+  query: <T>(text: string, params?: unknown[]): Promise<{ rows: T[]; rowCount: number | null }> =>
+    crossTenant(async (db) => {
+      const result = await db.query(text, params);
+      return { rows: result.rows as T[], rowCount: result.rowCount };
+    }),
+};
 import { badRequest, notFound } from '../errors';
 import { type Rate, costOf, ratesFromEnv, totalCost } from '../domain/pricing';
 

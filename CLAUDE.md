@@ -506,8 +506,19 @@ that fails silently. `services/admin.ts` is exempt — reading across athletes i
 its whole job — and pays for the exemption with tests asserting that every
 route reaching it is behind `requireAdmin` and that nothing else imports it.
 
-Row-level security is **not** in place. The reasoning and the four steps that
-would finish it are in [docs/tenancy.md](docs/tenancy.md).
+Row-level security **is** in place, since migration 028: a policy on every
+table carrying a `user_id`, and `set local role lockin_app` inside the
+transaction that runs the query, because the connecting role owns the tables
+and is the cluster's bootstrap superuser — both of which exempt it otherwise.
+
+It is not yet fail-closed: a query that never goes through a `Ctx` still runs
+as the owner. Every service path does go through one, which is what the static
+guard keeps true. The remaining step is a credential change rather than a
+schema one, and [docs/tenancy.md](docs/tenancy.md) carries it.
+
+Four things are allowed past, and `crossTenant()` in `db.ts` is how each says
+so: the migration runner, provisioning an athlete, the admin panel, and a push
+token following a device that changed hands.
 
 **Migrations are additive.** People are training on this app today; there is
 real data going back to September 2026.

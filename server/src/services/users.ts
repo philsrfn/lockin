@@ -212,6 +212,15 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
   if (input.email && !input.email.includes('@')) throw badRequest('That is not an email address');
 
   return transaction(async (db) => {
+    /**
+     * Everything below is written for an athlete who does not exist yet when
+     * this transaction opens, so there is no tenant to scope to — the id is
+     * the thing being created. Row level security is stood down for the one
+     * transaction rather than the row being inserted and then adopted, which
+     * would leave a profile briefly belonging to nobody.
+     */
+    await db.query("select set_config('app.cross_tenant', 'on', true)");
+
     const { rows } = await db.query<User>(
       `insert into users (name, email, token_hash, apple_sub, approved_at)
        values ($1, $2, $3, $4, $5)

@@ -135,11 +135,22 @@ vision and planning instructions both spoke about one man.
 
 The rest was left rather than folded into a commit about something else.
 
-### 6. The rate limiter's buckets are in memory — S
+### 6. The rate limiter's buckets are in memory — done
 
-Honest for one box, wrong for two. If the server is ever scaled or run
-alongside a second process, per-athlete limits and the daily token budget stop
-holding. Postgres is already there and would do.
+Migration 032 moved the ceilings that guard something finite — model spend and
+the sign-in door — into Postgres, so they hold however many processes are
+running. The per-request `api` ceiling stayed in memory deliberately: it
+protects one process from a runaway phone, and a second worker arrives with its
+own capacity as well as its own counter, so sharing that number would describe
+a limit the box does not actually have.
+
+The other two things a second process would have broken turn out to be ready
+already: the daily token budget is counted from `llm_usage`, which is a table,
+and the scheduler claims each slot with an `on conflict do nothing` insert into
+`job_runs` before it does the work — so two processes racing on the same minute
+produce one morning check-in, not two. The only per-process state left is the
+sweep timers, and they delete by expiry rather than by what the sweeper
+believes is there, so a second one finds nothing and costs a query.
 
 ---
 
@@ -186,7 +197,7 @@ Written down so nobody rediscovers them as gaps:
 | Account avatar tap | untested — simulator overlay covers it |
 | Model-facing strings | still say "he" for every athlete (item 5) |
 | The rules editor sheet | placeholders are hardcoded English, not in `locale.ts` |
-| Rate limiter | in-memory, single process only |
+| Rate limiter | `api` is per-process by design; `llm` and `auth` are shared |
 | `GEMINI_MODEL_SMART` | is Flash, not Pro |
 | App test runner | covers `src/lib/` only — no React, no renderer |
 | The server has 961 MB | a docker build starves sshd; see deploy.md |

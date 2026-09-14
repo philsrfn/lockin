@@ -61,7 +61,7 @@ storage, not base64 through a JSON body, which means a bucket and credentials.
 | **A HealthKit build** | The code is in. The App ID needs the HealthKit capability, which EAS syncs only during an interactive Apple login — the same dance push needed. Nothing can be exercised in Expo Go. |
 | **Object storage** | For photos, and later for anything else with a file in it. |
 | **Billing** | Whether this is free for friends, and what happens after. |
-| **A second process** | The rate limiter's buckets are in memory. That is honest for one box and wrong for two. |
+| **A second process** | The rate limiter is ready for one (migration 032), and the scheduler already claims each slot in `job_runs`. What is untested is whether the 961 MB box has room for two. |
 
 ## Running it
 

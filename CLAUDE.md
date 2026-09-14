@@ -618,12 +618,23 @@ model; what somebody paid for with months of their own attention is the data,
 and taking that away to force a renewal is how an app is renewed once and
 never trusted again.
 
-New accounts get `TRIAL_DAYS` (14). Everybody who existed when 031 ran is
-comped — they signed up to something that did not ask for money, and changing
-that is a conversation rather than a migration. An operator can grant or
-extend from the admin panel, which is how money arriving outside the App Store
-becomes access, and how you find out whether anybody pays before spending
-months on App Review.
+New accounts get `TRIAL_DAYS` (**30**). Longer than the usual fortnight on
+purpose: this app's answers come out of history, and somebody two weeks in has
+logged four sessions and seen it at its least convincing. Everybody who
+existed when 031 ran is comped — they signed up to something that did not ask
+for money, and changing that is a conversation rather than a migration.
+
+An operator can grant or extend from the admin panel, which is how money
+arriving outside the App Store becomes access, and how you find out whether
+anybody pays before spending months on App Review.
+
+**The prices, decided 2026-09-14 and not derivable from anything here:**
+**4,99 € a month, 39,99 € a year, and no weekly tier.** A week annualises to
+more than four times the yearly price, which is the kind of thing somebody
+notices six months in and never forgives; and a week is less time than this
+app needs to show what it does. The 30-day trial is the honest version of the
+same offer. Prices live in App Store Connect — the only number in this
+repository is the trial.
 
 **What is still ahead of a public launch**
 

@@ -50,8 +50,18 @@ export const env = {
    * Everything else in the app stays free for ever — logging, history, export,
    * deletion. What runs out is the coach, which is the part that costs money
    * and the part worth paying for.
+   *
+   * Thirty days rather than the usual fortnight, because of what this app
+   * actually does. Its answers come out of history: the smoothed weight trend
+   * needs weeks before it says anything a scale does not, progression needs
+   * enough sessions to have a direction, and the Sunday review reads a
+   * fortnight. Somebody two weeks in has logged four sessions and seen the
+   * app at its least convincing. A trial that ends there is a trial that
+   * mostly demonstrates the parts anybody could build.
+   *
+   * It costs about two cents of model time to be generous about this.
    */
-  trialDays: Number(process.env.TRIAL_DAYS ?? 14),
+  trialDays: Number(process.env.TRIAL_DAYS ?? 30),
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   /**

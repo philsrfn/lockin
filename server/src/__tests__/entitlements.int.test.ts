@@ -8,6 +8,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../db';
+import { env } from '../env';
 import { anotherAthlete, phil, resetData, resetProfile } from '../test/helpers';
 import { accessForAthlete, entitlementFor, grant } from '../services/entitlements';
 import { logWeight } from '../services/bodyweight';
@@ -35,6 +36,18 @@ describe('a new account', () => {
 
     expect(await entitlementFor(sam)).toMatchObject({ kind: 'trial' });
     expect((await accessForAthlete(sam)).coach).toBe(true);
+  });
+
+  it('gets the configured length, and it is long enough to be worth having', async () => {
+    // Thirty rather than the usual fortnight, because this app's answers come
+    // out of history — two weeks in, somebody has four sessions logged and has
+    // seen it at its least convincing. Asserted against `env` rather than the
+    // number, so changing the setting does not mean editing a test; the floor
+    // is what is being held.
+    const sam = await anotherAthlete();
+
+    expect((await accessForAthlete(sam)).daysLeft).toBe(env.trialDays);
+    expect(env.trialDays).toBeGreaterThanOrEqual(30);
   });
 
   it('gets it in the same breath as the profile, so there is no gap', async () => {

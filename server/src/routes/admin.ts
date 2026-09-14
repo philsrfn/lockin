@@ -15,6 +15,7 @@ import { requireAdmin } from '../auth';
 import { adminPage } from '../admin/page';
 import { claimPairing, collectPairing, startPairing } from '../admin/pairing';
 import { issueToken } from '../services/users';
+import { grant } from '../services/entitlements';
 import {
   athletes,
   budgets,
@@ -27,6 +28,12 @@ import {
 } from '../services/admin';
 
 const ApprovalSchema = z.object({ approved: z.boolean() });
+
+/** `days: null` only with `comped`; the service refuses the rest. */
+const EntitlementSchema = z.object({
+  kind: z.enum(['trial', 'paid', 'comped']),
+  days: z.number().int().min(1).max(3650).nullable(),
+});
 const ClaimSchema = z.object({ code: z.string().min(4).max(16) });
 const PairIdSchema = z.object({ id: z.string().min(20).max(64) });
 const BudgetSchema = z.object({ budget: z.number().int().min(0).max(100_000_000) });
@@ -93,6 +100,25 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       actions,
       generatedAt: new Date().toISOString(),
     };
+  });
+
+  /**
+   * Granting or extending an entitlement.
+   *
+   * This is how money that arrives outside the App Store becomes access — a
+   * bank transfer, a friend, a refund being honoured — and it is what makes it
+   * possible to find out whether anybody will pay before spending months on
+   * App Review and receipt verification.
+   *
+   * Recorded in `admin_actions` like every other decision made here.
+   */
+  app.post('/admin/users/:id/entitlement', async (request) => {
+    const admin = requireAdmin(request);
+    const { id } = IdSchema.parse(request.params);
+    const body = EntitlementSchema.parse(request.body);
+
+    await grant(admin.id, id, body);
+    return { athletes: await athletes() };
   });
 
   app.post('/admin/users/:id/approval', async (request) => {

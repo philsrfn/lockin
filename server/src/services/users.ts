@@ -12,6 +12,7 @@ import { type Ctx, type Queryable, ctxFor, pool, queryOne, transaction } from '.
 import { badRequest, conflict, notFound } from '../errors';
 import { DEFAULT_TIME_ZONE } from '../domain/time';
 import { env } from '../env';
+import { grantSignupTrial } from './entitlements';
 
 export type User = {
   id: number;
@@ -284,6 +285,11 @@ export async function provisionUser(input: NewUser = {}): Promise<{ user: User; 
         [user.id, job, hour, minute, dow],
       );
     }
+
+    // In the same transaction as the profile: an account cannot exist without
+    // an entitlement, because a missing one means no trainer and somebody's
+    // first minute in the app is not the moment to discover a race.
+    await grantSignupTrial(db, user.id);
 
     return { user, ctx: ctxFor(user.id, db) };
   });

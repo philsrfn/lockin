@@ -35,6 +35,9 @@ const CODES: Record<string, PhraseKey> = {
   // app sends something it should not have, and "Invalid request" was no more
   // specific while also being in the wrong language.
   invalid_request: 'errInvalidRequest',
+  // Not a failure, and worded as one would be wrong: everything logged stays
+  // where it is and logging keeps working. Only the trainer is behind this.
+  subscription_required: 'errSubscription',
   // Not a failure the athlete caused, and the one they are likeliest to see:
   // a phone that cannot reach the server at all.
   offline: 'errOffline',

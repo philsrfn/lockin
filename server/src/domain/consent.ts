@@ -32,6 +32,7 @@ export const CURRENT_VERSIONS: Record<ConsentDocument, string> = {
 export type GivenConsent = {
   document: string;
   version: string;
+  agreedAt?: Date | string;
   withdrawnAt: Date | string | null;
 };
 

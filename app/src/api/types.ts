@@ -496,8 +496,20 @@ export type Today = {
  * version of the notice that was shown, which is why the version is here.
  */
 export type ConsentState = {
-  given: { document: string; version: string; withdrawnAt: string | null }[];
+  given: { document: string; version: string; agreedAt: string; withdrawnAt: string | null }[];
   /** Documents still owed agreement. Empty means they are through. */
   outstanding: string[];
   versions: Record<string, string>;
+};
+
+/**
+ * What this account may reach. `coach` is the trainer and everything that
+ * costs a model call; `ownData` is logging, reading, exporting and deleting,
+ * and it is always true.
+ */
+export type Access = {
+  coach: boolean;
+  ownData: true;
+  daysLeft: number | null;
+  kind: 'trial' | 'paid' | 'comped' | 'none';
 };

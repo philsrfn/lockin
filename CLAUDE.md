@@ -606,18 +606,35 @@ who never met anybody here are trusting it with health data.
   somebody signs in — and because the text agreed to and the text on the
   website have to be the same file.
 
+**What money buys**
+
+An entitlement per account (migration 031), and a gate in front of everything
+that reaches a model — `coachAccess.ts`, and `routes/__tests__/coachGate.test.ts`
+which fails if a new model-backed route forgets it.
+
+The line is deliberate: what runs out is the **trainer**. Logging, reading,
+exporting and deleting stay open for ever. What costs money to run is the
+model; what somebody paid for with months of their own attention is the data,
+and taking that away to force a renewal is how an app is renewed once and
+never trusted again.
+
+New accounts get `TRIAL_DAYS` (14). Everybody who existed when 031 ran is
+comped — they signed up to something that did not ask for money, and changing
+that is a conversation rather than a migration. An operator can grant or
+extend from the admin panel, which is how money arriving outside the App Store
+becomes access, and how you find out whether anybody pays before spending
+months on App Review.
+
 **What is still ahead of a public launch**
 
-1. **Backups leave the box.** They run nightly and land on the same disk as
-   the database, which is a copy rather than a backup.
+1. **Apple's half of the subscription.** StoreKit in the app, and server-side
+   receipt verification setting the entitlement that already exists. It needs
+   a product in App Store Connect, so it cannot be built blind.
 2. **In-app data export.** `GET /me/export` is complete and tested; putting a
    download button on it needs `expo-file-system` and `expo-sharing`, and so a
    native rebuild.
-3. **Subscriptions.** Digital subscriptions on iOS must go through Apple's
-   IAP, which means server-side receipt verification and an entitlement on the
-   account. None of it is built.
-4. **The box.** 961 MB and one core, with the rate limiter still in memory —
+3. **The box.** 961 MB and one core, with the rate limiter still in memory —
    fine for one process, wrong for two.
-5. **A lawyer reads `server/legal/`.** The documents describe what the code
+4. **A lawyer reads `server/legal/`.** The documents describe what the code
    actually does, which is the hard part and is done. Whether they say it the
    way German law wants is not something to guess at.

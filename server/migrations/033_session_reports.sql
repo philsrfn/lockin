@@ -7,12 +7,19 @@
 --
 -- ONE ROW PER SESSION, NOT PER ATTEMPT
 --
--- The unique constraint on the session is the whole idempotency story. A
--- finish arrives through the offline queue, which retries; it may also arrive
--- through PATCH /sessions/:id. Both land here, and the second one must not
--- cost a second model call or a second push. `on conflict do nothing` plus
--- this constraint is the entire mechanism — no advisory lock, no job table,
--- nothing that can be half-held when the process dies.
+-- The unique constraint protects the row, and only the row. A finish arrives
+-- through the offline queue, which retries; it may also arrive through
+-- PATCH /sessions/:id. Whichever gets there second finds a report already
+-- written and hands that one back instead of storing a second — `on conflict
+-- do nothing` plus this constraint is the whole of that, with no advisory
+-- lock and no job table that can be half-held when the process dies.
+--
+-- What it does not protect is the model call. Two finishes racing closely
+-- enough both pass the "is there one already" check, both pay for a call, and
+-- both push; the loser's prose is then discarded here. The queue's own
+-- `sync_log` makes that unreachable from the phone, which is every finish the
+-- app itself sends, so the cost of closing it properly — a lock held across
+-- a ten-second model call — buys less than it costs.
 --
 -- THE NUMBERS ARE STORED, NOT RECOMPUTED
 --

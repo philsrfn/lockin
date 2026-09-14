@@ -21,11 +21,12 @@
  *
  * WHAT MAKES IT SAFE TO RUN TWICE
  *
- * The unique constraint on (user_id, session_id) in migration 032, and
+ * The unique constraint on (user_id, session_id) in migration 033, and
  * nothing else. A retried finish from the offline queue, a PATCH, and a
  * second device all converge on one row. The check before generating saves
- * the model call in the common case; the constraint is what makes it correct
- * when two arrive at once.
+ * the model call in the common case; the constraint is what makes the *row*
+ * correct when two arrive at once — a wasted call and a second push are the
+ * price of not holding a lock across a model call.
  */
 import { type Ctx, ctxFor } from '../db';
 import { notFound } from '../errors';
@@ -267,6 +268,13 @@ export async function latestReport(ctx: Ctx): Promise<SessionReport | null> {
  * session contains nothing worth writing up. A session with no sets is one
  * that was opened and walked away from, and a report saying so is worse than
  * no report.
+ *
+ * The check at the top is a shortcut, not a lock. Two finishes racing through
+ * here together both pass it and both pay for a model call; the unique
+ * constraint then keeps the second one's prose out of the table and this
+ * returns the stored row to both. That is reachable through
+ * PATCH /sessions/:id and not through the phone, whose queue deduplicates in
+ * `sync_log` — see the migration for why it is left that way.
  */
 export async function createReportFor(ctx: Ctx, sessionId: number): Promise<SessionReport | null> {
   const existing = await reportFor(ctx, sessionId);

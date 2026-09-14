@@ -260,6 +260,17 @@ export default function TodayScreen() {
                 <Text style={styles.heroSupport}>
                   {macros.remaining.kcal} {t('kcalLeftOf')} {macros.targets.kcal}
                 </Text>
+                {/*
+                  Where the bigger number came from. A target that silently
+                  moves is a target nobody trusts — the first question anybody
+                  asks of a changed number is why, and it should not need a
+                  trip to the settings screen to answer.
+                */}
+                {macros.targets.cardioCreditKcal > 0 ? (
+                  <Text style={styles.cardioCredit}>
+                    {t('cardioCredit', { kcal: macros.targets.cardioCreditKcal })}
+                  </Text>
+                ) : null}
               </View>
 
               {/*
@@ -512,6 +523,7 @@ const styles = StyleSheet.create({
    */
   foodGroup: { gap: space.xs },
   heroSupport: { fontSize: 14, color: colors.textDim },
+  cardioCredit: { fontSize: 14, color: colors.accent },
 
   bodyRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, flexWrap: 'wrap' },
   bodyValue: { fontSize: 18, color: colors.text, ...typo.mono },

@@ -2,7 +2,8 @@ import type { Ctx } from '../db';
 import { type Macros, type RemainingMacros, remaining } from '../domain/macros';
 import { WEEKLY_TARGETS } from '../domain/program';
 import { type Context, activeContext } from './contexts';
-import { type Profile, getProfile, macroTargets } from './profile';
+import { type Profile, getProfile } from './profile';
+import { type TodaysTargets, todaysTargets } from './dailyTargets';
 import { type Session, openSession, recentSessions, sessionsToday } from './sessions';
 import { type WeightSummary, summary as weightSummary } from './bodyweight';
 import { dayIn } from '../domain/time';
@@ -26,7 +27,8 @@ export type Today = {
   plan: WorkoutPlan;
   weight: WeightSummary;
   macros: {
-    targets: ReturnType<typeof macroTargets>;
+    /** Today's, which on a cardio day may be larger than the week's average. */
+    targets: TodaysTargets;
     consumed: Macros;
     remaining: RemainingMacros;
     /** What he has actually logged today. Added in phase 4. */
@@ -115,7 +117,10 @@ export async function getToday(ctx: Ctx): Promise<Today> {
   const template = await templateForToday(ctx, open?.template ?? null);
   const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
-  const targets = macroTargets(profile);
+  // Not `macroTargets(profile)`: on a day with cardio logged, and only when
+  // the athlete asked for it, the day's target is larger than the week's
+  // average. See services/dailyTargets.ts.
+  const targets = await todaysTargets(ctx, profile, zone);
 
   /**
    * A note that no longer describes today is dropped rather than shown.

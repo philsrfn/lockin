@@ -35,6 +35,11 @@ export type Profile = {
   /** The rate the targets were sized from, after clamping. Negative is loss. */
   weeklyRateKg: number | null;
   /**
+   * Whether today's cardio raises today's calorie target. Off by default —
+   * see migration 030 and `domain/cardioBurn.ts`.
+   */
+  cardioAddsCalories: boolean;
+  /**
    * False until the questionnaire is answered. The app routes to onboarding on
    * this rather than on a missing field, so adding a question later does not
    * send everyone back through it.
@@ -58,11 +63,13 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
     goal: Goal | null;
     training_days_per_week: number | null;
     weekly_rate_kg: number | null;
+    cardio_adds_calories: boolean;
     onboarded_at: Date | null;
   }>(
     `select name, timezone, locale, height_cm, birth_year, goal_weight_kg,
             calorie_target, protein_target_g, fat_floor_g,
             sex, activity_level, goal, training_days_per_week, weekly_rate_kg,
+            cardio_adds_calories,
             onboarded_at
      from profile where user_id = $1`,
     [ctx.userId],
@@ -86,6 +93,7 @@ export async function getProfile(ctx: Ctx): Promise<Profile> {
     goal: row.goal,
     trainingDaysPerWeek: row.training_days_per_week,
     weeklyRateKg: row.weekly_rate_kg,
+    cardioAddsCalories: row.cardio_adds_calories,
     onboarded: row.onboarded_at !== null,
   };
 }
@@ -146,6 +154,20 @@ export const macroTargets = (profile: Profile): MacroTargets => ({
   proteinG: profile.proteinTargetG,
   fatFloorG: profile.fatFloorG,
 });
+
+/**
+ * Whether cardio moves the day's calorie target.
+ *
+ * Not a §7 concern: it only ever raises the target, and eating more is the
+ * safe direction. What it is worth, and why that is less than the session
+ * burned, is `domain/cardioBurn.ts`.
+ */
+export async function setCardioAddsCalories(ctx: Ctx, on: boolean): Promise<void> {
+  await ctx.db.query(
+    'update profile set cardio_adds_calories = $2, updated_at = now() where user_id = $1',
+    [ctx.userId, on],
+  );
+}
 
 /**
  * The only way targets change. Every field goes through a §7 floor first, and

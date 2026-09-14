@@ -49,7 +49,17 @@ export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
 };
 
 /** About what a session of lifting or zone-2 costs, spread across the week. */
-const KCAL_PER_SESSION = 350;
+export const KCAL_PER_SESSION = 350;
+
+/**
+ * How much training is already inside every day's target.
+ *
+ * Exported because `domain/cardioBurn.ts` has to subtract it: the flat
+ * allowance below is why a logged session cannot simply be added to the day.
+ * Part of it was already spent.
+ */
+export const dailyTrainingAllowanceKcal = (trainingDaysPerWeek: number | null): number =>
+  (Math.max(0, trainingDaysPerWeek ?? 0) * KCAL_PER_SESSION) / 7;
 
 export function maintenanceKcal(
   person: Anthropometrics,

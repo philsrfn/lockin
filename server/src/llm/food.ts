@@ -22,17 +22,9 @@
 import type { Ctx } from '../db';
 import { LlmError } from './provider';
 import { generateFor } from './metered';
+import { type FoodEstimate, clampEstimate } from '../domain/foodEstimate';
 
-export type FoodEstimate = {
-  name: string;
-  kcal: number;
-  proteinG: number;
-  fatG: number;
-  carbsG: number;
-  /** low = they should really check this before saving. */
-  confidence: 'low' | 'medium' | 'high';
-  assumptions: string;
-};
+export type { FoodEstimate } from '../domain/foodEstimate';
 
 const SCHEMA = {
   type: 'object',
@@ -87,6 +79,87 @@ sauce" is low, and saying so is more useful than a confident wrong number.
 Round to whole grams and whole calories. Do not add commentary, do not moralise
 about the food, and never refuse to estimate something.`;
 
+/**
+ * A photo of a plate.
+ *
+ * The other way in. Somebody eating out, or cooking something they cannot
+ * describe in a line, points a camera at it — which is what "scan my food"
+ * means to everybody who has used another app, and what the barcode scanner
+ * here has never been able to do: a barcode is a packet, and most meals are
+ * not packets.
+ *
+ * A photo answers *what* well and *how much* badly. There is no scale in a
+ * picture — the same plate of rice is 150 g or 400 g depending on how far away
+ * the camera was — so the instruction leans on what is actually visible for
+ * scale, and the result is expected to be less confident than a typed weight.
+ * That is the honest outcome, and `confidence: 'low'` is the app's way of
+ * saying "check this" rather than a failure.
+ *
+ * `note` is how somebody supplies what the lens cannot: "mit 200 g Reis". It
+ * is optional and it is the difference between a guess and an estimate.
+ *
+ * The photo is never stored. It goes to the model and is gone — §9's rule for
+ * the fridge, for the same reason: the app has no use for the picture once it
+ * has the answer, and a photo of somebody's dinner table is not a thing to
+ * keep because it was easy to.
+ */
+const PHOTO_INSTRUCTION = `You estimate the macros of a meal from a photograph of it.
+
+Name the dish the way the person eating it would, in the language of anything
+written in the picture, otherwise German.
+
+WHAT A PHOTO CAN AND CANNOT TELL YOU
+
+It tells you what the food is. It does not tell you how much, and that is where
+the error lives: the same plate of rice is 150g or 400g depending on where the
+camera was. Use what is actually in frame for scale — the plate against a fork,
+a hand, a standard tin — and say in one sentence what portion you settled on so
+it can be corrected.
+
+Estimate the WHOLE thing shown. If half of it is plainly somebody else's, say
+so in the assumption rather than halving silently.
+
+Count what you can see, including the oil a fried thing was cooked in, which is
+the single most underestimated item in a photograph of a meal.
+
+CONFIDENCE
+
+Lower than you would be from a written weight, and say so. A packaged item with
+a readable label is high. A plate of home-cooked food at an angle is medium at
+best. Something in a bowl you cannot see the bottom of is low. An honest low
+beats a confident wrong number, because the person can correct a number they
+were told to check.
+
+Do not describe what is not there. Do not moralise about the food. Never refuse
+to estimate.`;
+
+export async function estimateFoodFromPhoto(
+  ctx: Ctx,
+  imageBase64: string,
+  mimeType: string,
+  note?: string,
+): Promise<FoodEstimate> {
+  const said = (note ?? '').trim().slice(0, 200);
+
+  const output = await generateFor(ctx, {
+    purpose: 'food_photo',
+    systemInstruction: PHOTO_INSTRUCTION,
+    history: [
+      {
+        role: 'user',
+        text: said ? `What is on this plate? They added: ${said}` : 'What is on this plate?',
+        images: [{ data: imageBase64, mimeType }],
+      },
+    ],
+    responseSchema: SCHEMA,
+    model: 'fast',
+    maxOutputTokens: 2000,
+    temperature: 0.2,
+  });
+
+  return toEstimate(output.text, said || 'Foto');
+}
+
 export async function estimateFood(ctx: Ctx, text: string): Promise<FoodEstimate> {
   const described = text.trim();
   if (!described) throw new LlmError('Nothing to estimate', false);
@@ -102,30 +175,24 @@ export async function estimateFood(ctx: Ctx, text: string): Promise<FoodEstimate
     temperature: 0.2,
   });
 
+  return toEstimate(output.text, described);
+}
+
+/**
+ * Model output to an estimate, for both ways in.
+ *
+ * One place, because the clamping is the part that matters and two copies of
+ * it is one copy that will drift. The clamping itself lives in
+ * `domain/foodEstimate.ts` — it is the guard rather than the guess, and §1
+ * puts guards in code with tests around them.
+ */
+function toEstimate(text: string, fallbackName: string): FoodEstimate {
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(output.text) as Record<string, unknown>;
+    parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new LlmError('The estimate came back malformed', true);
   }
 
-  // Clamp rather than trust. A model that returns 40000 kcal should not be able
-  // to put 40000 kcal in front of somebody as though it were considered.
-  const clamp = (value: unknown, max: number) =>
-    Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
-
-  const confidence = parsed.confidence;
-
-  return {
-    name: String(parsed.name ?? described).slice(0, 120) || described.slice(0, 120),
-    kcal: clamp(parsed.kcal, 5000),
-    proteinG: clamp(parsed.proteinG, 500),
-    fatG: clamp(parsed.fatG, 500),
-    carbsG: clamp(parsed.carbsG, 1000),
-    confidence:
-      confidence === 'high' || confidence === 'medium' || confidence === 'low'
-        ? confidence
-        : 'low',
-    assumptions: String(parsed.assumptions ?? '').slice(0, 300),
-  };
+  return clampEstimate(parsed, fallbackName);
 }

@@ -14,6 +14,7 @@ import {
 import { api } from '../api/client';
 import type { BarcodeCandidate, FoodEstimate, MealSlot } from '../api/types';
 import { BarcodeScanner } from './BarcodeScanner';
+import { MealCamera } from './MealCamera';
 import { Button } from './Button';
 import { t } from '../lib/locale';
 import { useGramsField } from '../lib/useGramsField';
@@ -54,7 +55,7 @@ export function FoodCapture({
   onClose,
   onLogged,
 }: {
-  mode: 'scan' | 'describe' | null;
+  mode: 'scan' | 'describe' | 'photo' | null;
   onClose: () => void;
   onLogged: () => void;
 }) {
@@ -196,6 +197,34 @@ export function FoodCapture({
           onClose();
         }}
         onScanned={lookup}
+      />
+    );
+  }
+
+  /*
+   * A third way in, landing in the same place. Barcode, description and
+   * photograph all become a draft the athlete confirms before anything is
+   * written — §9's rule, and the reason there is one sheet rather than three
+   * flows that each learned to log a meal slightly differently.
+   */
+  if (mode === 'photo' && !draft) {
+    return (
+      <MealCamera
+        visible
+        onClose={() => {
+          reset();
+          onClose();
+        }}
+        onEstimated={(estimate) =>
+          setDraft({
+            name: estimate.name,
+            kcal: estimate.kcal,
+            proteinG: estimate.proteinG,
+            fatG: estimate.fatG,
+            carbsG: estimate.carbsG,
+            note: estimate.assumptions || t('photoGuess'),
+          })
+        }
       />
     );
   }

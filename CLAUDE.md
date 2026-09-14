@@ -400,8 +400,19 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
   and a queue drains to the backend. Never block a set on the network.
 - **Food** — quick-add tiles for actual staples, then recents, then the
   athlete's own library, then manual entry. **No general nutrition database.**
-  Barcode scan via OpenFoodFacts. Protein remaining is the hero number.
-  Precision on vegetables is not required and is not requested.
+  Protein remaining is the hero number, and precision on vegetables is not
+  required and is not requested.
+
+  Three ways to answer "what did I just eat", in the order they are reached
+  for: **a photograph** of the plate (`llm/food.ts`, vision), **a barcode** via
+  OpenFoodFacts, and **a line of text**. All three land in the same sheet and
+  become a draft somebody confirms before anything is written — §9's rule, and
+  the reason there is one confirmation rather than three flows that each
+  learned to log a meal slightly differently.
+
+  Photographs are never stored, on the phone or the server. The image goes to
+  the model once and is gone; what remains is the number that was confirmed.
+  The privacy notice says so, which is a promise the code has to keep.
 - **Weight** — one number pad, three seconds. The 7-day average is the
   headline, and the chart is a line in a coordinate system: the average is the
   line, daily weigh-ins are dots.

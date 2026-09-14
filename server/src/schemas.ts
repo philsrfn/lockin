@@ -368,3 +368,17 @@ export const MealPlanSchema = z.object({
 
 /** Which document is being agreed to. The version comes from the server. */
 export const ConsentSchema = z.object({ document: z.string().min(1).max(40) });
+
+/**
+ * A photograph of a meal, and optionally what the lens cannot see.
+ *
+ * The same size bound as the fridge photo: large enough for a phone picture at
+ * the quality the camera takes them, small enough that the body limit is a
+ * limit rather than a suggestion.
+ */
+export const MealPhotoSchema = z.object({
+  imageBase64: z.string().min(100).max(11_000_000),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  /** "mit 200 g Reis" — the weight a picture cannot hold. */
+  note: z.string().max(200).optional(),
+});

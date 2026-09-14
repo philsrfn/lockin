@@ -18,10 +18,14 @@ describe('the notices as pages', () => {
     expect(terms).toContain('<title>Nutzungsbedingungen · lockin</title>');
   });
 
-  it('keeps the version on a line of its own', () => {
+  it('keeps the version on a line of its own', async () => {
     // It was being swallowed into the sentence after it, because a blank line
-    // did not end the paragraph.
-    expect(privacy).toContain('<p><strong>Fassung 2026-09-13</strong></p>');
+    // did not end the paragraph. Read from the consent module rather than
+    // written out, so bumping a notice does not mean editing this test too —
+    // the assertion below already checks the two agree.
+    const { CURRENT_VERSIONS } = await import('../domain/consent');
+
+    expect(privacy).toContain(`<p><strong>Fassung ${CURRENT_VERSIONS.privacy}</strong></p>`);
   });
 
   it('carries the version the consent records', async () => {

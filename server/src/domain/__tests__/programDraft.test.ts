@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_INCREMENT_KG,
+  MAX_REST_SECONDS,
   MAX_SLOTS_PER_DAY,
   assignCodes,
   dayCodeFrom,
@@ -107,5 +109,56 @@ describe('what a programme has to be', () => {
     const bad = { name: '', days: [{ name: '', slots: [] }] };
 
     expect(validateDraft(bad).length).toBeGreaterThan(2);
+  });
+});
+
+describe('rest and increment, when the athlete sets them', () => {
+  const withSlot = (extra: Record<string, number>) => ({
+    name: 'Mein Plan',
+    days: [{ name: 'Push', slots: [{ exerciseId: 1, sets: 3, repMin: 6, repMax: 10, ...extra }] }],
+  });
+
+  it('leaves them alone when they are absent', () => {
+    // Absent is the ordinary case and means the movement decides. It is also
+    // the only case the trainer's edit_program produces, so a validator that
+    // demanded them would break every tool call.
+    expect(validateDraft(withSlot({}))).toEqual([]);
+  });
+
+  it('accepts a rest somebody would actually take', () => {
+    expect(validateDraft(withSlot({ restSeconds: 90 }))).toEqual([]);
+    // Zero is a superset, not a mistake.
+    expect(validateDraft(withSlot({ restSeconds: 0 }))).toEqual([]);
+  });
+
+  it('refuses a rest that is negative or longer than a training session', () => {
+    expect(validateDraft(withSlot({ restSeconds: -1 }))).toContain('bad_rest');
+    expect(validateDraft(withSlot({ restSeconds: MAX_REST_SECONDS + 1 }))).toContain('bad_rest');
+    expect(validateDraft(withSlot({ restSeconds: 90.5 }))).toContain('bad_rest');
+  });
+
+  it('accepts the jumps that exist on a rack', () => {
+    for (const increment of [0.5, 1, 1.25, 2.5, 5]) {
+      expect(validateDraft(withSlot({ incrementKg: increment }))).toEqual([]);
+    }
+  });
+
+  it('refuses an increment no plate can make', () => {
+    // 0.1 kg is not a plate. An increment that does not exist in the room
+    // produces prescriptions that cannot be loaded onto the bar.
+    expect(validateDraft(withSlot({ incrementKg: 0.1 }))).toContain('bad_increment');
+    expect(validateDraft(withSlot({ incrementKg: 0 }))).toContain('bad_increment');
+    expect(validateDraft(withSlot({ incrementKg: -2.5 }))).toContain('bad_increment');
+    expect(validateDraft(withSlot({ incrementKg: MAX_INCREMENT_KG + 0.25 }))).toContain(
+      'bad_increment',
+    );
+  });
+
+  it('does not trip over the way binary stores a quarter', () => {
+    // (0.1 + 0.2) * 5 is 1.5000000000000002, which is 1.5 to everybody except
+    // a modulo. The tolerance exists so that a value is judged on what it
+    // means rather than on how it was stored.
+    expect((0.1 + 0.2) * 5).not.toBe(1.5);
+    expect(validateDraft(withSlot({ incrementKg: (0.1 + 0.2) * 5 }))).toEqual([]);
   });
 });

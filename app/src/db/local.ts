@@ -54,7 +54,16 @@ db.execSync(`
 export type LocalSession = {
   clientId: string;
   serverId: number | null;
-  template: string;
+  /**
+   * The programme day, or null for a free session.
+   *
+   * Stored as the empty string rather than as SQL NULL, because the column
+   * was declared `not null` on phones that already have this database and
+   * SQLite cannot take that back with an ALTER. A sentinel at the row level
+   * and null at the type level is the trade: one conversion in each
+   * direction, here, instead of a nullable that half the app has to remember.
+   */
+  template: string | null;
   performedAt: string;
   finished: boolean;
 };
@@ -90,7 +99,7 @@ type SetRow = {
 const toSession = (row: SessionRow): LocalSession => ({
   clientId: row.client_id,
   serverId: row.server_id,
-  template: row.template,
+  template: row.template === '' ? null : row.template,
   performedAt: row.performed_at,
   finished: row.finished === 1,
 });
@@ -113,7 +122,7 @@ export function insertSession(session: LocalSession): void {
     [
       session.clientId,
       session.serverId,
-      session.template,
+      session.template ?? '',
       session.performedAt,
       session.finished ? 1 : 0,
     ],
@@ -138,6 +147,21 @@ export function findSessionByServerId(serverId: number): LocalSession | null {
 
 export function setSessionServerId(clientId: string, serverId: number): void {
   db.runSync('update local_sessions set server_id = ? where client_id = ?', [serverId, clientId]);
+}
+
+/**
+ * The id the server gave this session, if it has one yet.
+ *
+ * Read fresh rather than taken from the copy in state: the queue assigns it
+ * when `create_session` lands, which can happen after the screen already
+ * holds a row with `serverId: null`.
+ */
+export function sessionServerId(clientId: string): number | null {
+  const row = db.getFirstSync<{ server_id: number | null }>(
+    'select server_id from local_sessions where client_id = ? limit 1',
+    [clientId],
+  );
+  return row?.server_id ?? null;
 }
 
 export function markSessionFinished(clientId: string): void {

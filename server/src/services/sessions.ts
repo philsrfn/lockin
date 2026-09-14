@@ -192,7 +192,14 @@ export async function openSession(ctx: Ctx): Promise<Session | null> {
 export type CreateSessionInput = {
   performedAt?: string;
   contextId?: number;
-  template: DayCode;
+  /**
+   * Null for a free session. `upcomingTemplate` already filters on
+   * `template is not null`, so such a session is invisible to the rotation
+   * without another line being written — which is the behaviour wanted: a
+   * day somebody improvised should not decide what the programme proposes
+   * tomorrow.
+   */
+  template: DayCode | null;
 };
 
 export async function createSession(ctx: Ctx, input: CreateSessionInput): Promise<Session> {

@@ -45,12 +45,25 @@ export type ExercisePrescription = {
 };
 
 export type WorkoutPlan = {
-  /** The day code, stored on the session: 'A', 'U1', 'Push'. */
-  template: DayCode;
+  /**
+   * The day code, stored on the session: 'A', 'U1', 'Push'.
+   *
+   * Null is a free session — a day that belongs to no programme. Everything
+   * else on this object still applies to it, which is the reason it is the
+   * same type rather than a second one: the ramp-in and joint-pain gates of
+   * §7 are not a property of the programme, they are a property of the body,
+   * and a session somebody improvised must not be the way around them.
+   */
+  template: DayCode | null;
   /** A scheduled light week, if this is one. */
   deload: DeloadStatus;
-  /** What to call it on screen. 'Full body A', 'Upper', 'Push'. */
-  dayName: string;
+  /**
+   * What to call it on screen. 'Full body A', 'Upper', 'Push'.
+   *
+   * Null for a free session: the name for that one is a UI string in two
+   * languages, and §14 keeps those on the phone.
+   */
+  dayName: string | null;
   programName: string;
   /**
    * Every day of the programme, in rotation order.
@@ -272,6 +285,47 @@ export async function planFor(
     rampIn: ramp,
     jointPain: gate,
     exercises,
+  };
+}
+
+/**
+ * The shell for a free session: no day, no prescriptions, everything else.
+ *
+ * It would have been less code to let the phone invent this object locally,
+ * and that is exactly what makes it wrong. The three things this returns that
+ * the phone could not — the ramp-in window, the joint-pain gate and the
+ * deload — are the §7 floors. If choosing "free session" were the one path
+ * that skipped them, it would become the path somebody takes on the week
+ * their knee hurts.
+ */
+export async function freePlan(
+  ctx: Ctx,
+  options: { now?: Date } = {},
+): Promise<WorkoutPlan> {
+  const now = options.now ?? new Date();
+
+  const [program, firstAt, finished, deload] = await Promise.all([
+    currentProgram(ctx),
+    firstSessionAt(ctx),
+    finishedSessions(ctx),
+    currentDeload(ctx),
+  ]);
+
+  return {
+    template: null,
+    deload,
+    dayName: null,
+    programName: program.name,
+    // The days still travel, so the picker on the workout screen can offer a
+    // way back into the programme without a second round trip.
+    days: program.days.map((option) => ({
+      code: option.code,
+      name: option.name,
+      isToday: false,
+    })),
+    rampIn: rampIn(firstAt, now),
+    jointPain: jointPainGate(finished),
+    exercises: [],
   };
 }
 

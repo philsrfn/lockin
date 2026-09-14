@@ -89,6 +89,7 @@ import {
 } from '../services/sessions';
 import { deleteSet, recordSet } from '../services/sets';
 import { personalBests } from '../services/records';
+import { latestReport, reportFor, reportInBackground } from '../services/sessionReports';
 import { expenditure } from '../services/expenditure';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
@@ -126,6 +127,7 @@ import { noteForToday } from '../llm/coach';
 import { addRule, listRules, updateRule } from '../services/rules';
 import { currentProgram, listPrograms, setProgram } from '../services/programs';
 import {
+  freePlan,
   planFor,
   prescribeExercise,
   progress,
@@ -443,6 +445,16 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return planFor(request.ctx, template, { excludeSessionId: open?.id });
   });
 
+  /**
+   * The shell for a session that belongs to no programme day.
+   *
+   * A route of its own rather than a flag on `/workouts/next`, because the
+   * phone caches plans under their URL and a flag would have had to become
+   * part of that key anyway. A programme is also allowed to have a day called
+   * "free", and `?template=free` would have collided with it.
+   */
+  app.get('/workouts/free', async (request) => freePlan(request.ctx));
+
   // Used by the swap button: the substitute's own history decides its load.
   app.get('/exercises/:id/prescription', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
@@ -526,8 +538,38 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.patch('/sessions/:id', async (request) => {
     const { id } = IdParamSchema.parse(request.params);
     const body = FinishSessionSchema.parse(request.body);
-    return { session: await finishSession(request.ctx, id, body) };
+    const session = await finishSession(request.ctx, id, body);
+
+    // The other half of this trigger is in `sync.ts`, because the phone
+    // normally closes a session through the queue. This path is the one the
+    // trainer's `log_session` tool and a direct client take, and a session
+    // finished that way deserves the same write-up.
+    if (session.rpe != null) reportInBackground(request.ctx.userId, id);
+
+    return { session };
   });
+
+  /**
+   * The write-up for one session, and the most recent one.
+   *
+   * Both are plain reads of a row that already exists — the generation runs
+   * behind the finish, not here, so neither costs a model call and neither
+   * sits behind the §17 gate. Somebody whose subscription lapsed keeps every
+   * report they earned while it ran.
+   *
+   * A missing report is `null` rather than a 404. The phone opens this screen
+   * the moment the session closes, seconds before the model has finished
+   * writing, and that is the ordinary case rather than an error — the screen
+   * says it is still being written and offers a pull to refresh.
+   */
+  app.get('/sessions/:id/report', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    return { report: await reportFor(request.ctx, id) };
+  });
+
+  app.get('/reports/latest', async (request) => ({
+    report: await latestReport(request.ctx),
+  }));
 
   app.post('/sets', async (request, reply) => {
     const body = RecordSetSchema.parse(request.body);

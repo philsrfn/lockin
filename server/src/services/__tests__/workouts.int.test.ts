@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { daysAgo, exerciseIdByName, resetData, phil } from '../../test/helpers';
 import { createSession, finishSession } from '../sessions';
 import { recordSet } from '../sets';
-import { planFor, prescribeExercise, progress, upcomingTemplate } from '../workouts';
+import { freePlan, planFor, prescribeExercise, progress, upcomingTemplate } from '../workouts';
 
 beforeEach(resetData);
 
@@ -67,6 +67,45 @@ describe('upcomingTemplate', () => {
     await createSession(phil, { template: 'C', performedAt: daysAgo(2) });
 
     expect(await upcomingTemplate(phil)).toBe('A');
+  });
+
+  it('does not let a free session decide what comes next', async () => {
+    await createSession(phil, { template: 'A', performedAt: daysAgo(4) });
+    await createSession(phil, { template: null, performedAt: daysAgo(1) });
+
+    // Still B. A day somebody improvised is not an argument about the
+    // rotation, and treating it as one would skip whatever was actually due.
+    expect(await upcomingTemplate(phil)).toBe('B');
+  });
+});
+
+describe('freePlan', () => {
+  it('starts empty and belongs to no day', async () => {
+    const plan = await freePlan(phil);
+
+    expect(plan.template).toBeNull();
+    expect(plan.dayName).toBeNull();
+    expect(plan.exercises).toEqual([]);
+  });
+
+  it('still carries the days, so the way back into the programme is one tap', async () => {
+    const plan = await freePlan(phil);
+
+    expect(plan.days.map((day) => day.code)).toEqual(['A', 'B', 'C']);
+    expect(plan.days.every((day) => !day.isToday)).toBe(true);
+  });
+
+  /**
+   * The reason this is a server call at all. Choosing "free session" must not
+   * become the one path that skips the §7 gates — or it becomes the path
+   * somebody takes on the week their knee hurts.
+   */
+  it('carries the same safety gates a programme day does', async () => {
+    const [free, day] = await Promise.all([freePlan(phil), planFor(phil, 'A')]);
+
+    expect(free.rampIn).toEqual(day.rampIn);
+    expect(free.jointPain).toEqual(day.jointPain);
+    expect(free.deload).toEqual(day.deload);
   });
 });
 

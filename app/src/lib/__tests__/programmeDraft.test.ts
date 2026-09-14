@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise, ProgramWithSlots } from '../../api/types';
 import {
+  INCREMENTS_KG,
+  REST_SECONDS,
   addDay,
   addSlot,
   draftFrom,
@@ -67,7 +69,19 @@ describe('loading a programme into the editor', () => {
     expect(draftFrom(program).days[0]).toEqual({
       code: 'PUSH',
       name: 'Push',
-      slots: [{ exerciseId: 2, exerciseName: 'Overhead Press', sets: 4, repMin: 5, repMax: 8 }],
+      slots: [
+        {
+          exerciseId: 2,
+          exerciseName: 'Overhead Press',
+          sets: 4,
+          repMin: 5,
+          repMax: 8,
+          // Carried rather than dropped. They were being dropped, which is
+          // why the editor could show a rest it then silently discarded.
+          restSeconds: 150,
+          incrementKg: 2.5,
+        },
+      ],
     });
   });
 });
@@ -124,13 +138,32 @@ describe('editing the movements of a day', () => {
     const tuned = updateSlot(draft(), 0, 0, { sets: 5, repMin: 3, repMax: 5 });
     const swapped = replaceSlot(tuned, 0, 0, row);
 
-    expect(swapped.days[0]!.slots[0]).toEqual({
+    expect(swapped.days[0]!.slots[0]).toMatchObject({
       exerciseId: 3,
       exerciseName: 'Seated Cable Row',
       sets: 5,
       repMin: 3,
       repMax: 5,
     });
+  });
+
+  it('does not carry a rest or an increment across a swap', () => {
+    // Three sets of eight means the same thing on a cable fly as on a squat.
+    // A 5 kg jump does not, and carrying it over is how a lateral raise ends
+    // up prescribed in fives.
+    const tuned = updateSlot(draft(), 0, 0, { restSeconds: 240, incrementKg: 5 });
+    const swapped = replaceSlot(tuned, 0, 0, row);
+
+    expect(swapped.days[0]!.slots[0]!.restSeconds).toBeUndefined();
+    expect(swapped.days[0]!.slots[0]!.incrementKg).toBeUndefined();
+  });
+
+  it('adds a movement with neither set, so the pattern decides', () => {
+    const added = addSlot(draft(), 1, press);
+    const fresh = added.days[1]!.slots[1]!;
+
+    expect(fresh.restSeconds).toBeUndefined();
+    expect(fresh.incrementKg).toBeUndefined();
   });
 
   it('moves a movement up past the one above it', () => {
@@ -201,5 +234,51 @@ describe('what gets sent', () => {
 
   it('trims the programme name', () => {
     expect(toSaveBody({ name: '  Mein Plan  ', days: [] }).name).toBe('Mein Plan');
+  });
+
+  it('leaves rest and increment out entirely when they were never set', () => {
+    // Omitted, not null. The server reads "not given" as "let the movement
+    // decide"; a null would have to be given a second meaning.
+    const body = toSaveBody(draft());
+
+    expect(body.days[0]!.slots[0]).not.toHaveProperty('restSeconds');
+    expect(body.days[0]!.slots[0]).not.toHaveProperty('incrementKg');
+  });
+
+  it('sends them once the athlete has chosen', () => {
+    const tuned = updateSlot(draft(), 0, 0, { restSeconds: 45, incrementKg: 5 });
+
+    expect(toSaveBody(tuned).days[0]!.slots[0]).toMatchObject({
+      restSeconds: 45,
+      incrementKg: 5,
+    });
+  });
+});
+
+describe('the chips somebody picks from', () => {
+  /**
+   * These two guard a mismatch that has no other way of announcing itself.
+   *
+   * A slot loaded from the server always carries a concrete rest and a
+   * concrete increment, and the sheet lights the chip that matches. If
+   * `defaultsForPattern` produces a value no chip holds, the row renders with
+   * nothing selected and reads as broken — on a screen nobody would think to
+   * test, for a programme that is perfectly fine.
+   *
+   * The values below are `server/src/domain/program.ts`'s, copied rather than
+   * imported because the app does not depend on the server's source.
+   */
+  it('covers every rest the server derives', () => {
+    for (const derived of [180, 150, 60]) {
+      expect(REST_SECONDS).toContain(derived);
+    }
+  });
+
+  it('covers every increment the server derives or the catalogue seeds', () => {
+    // 2.5 and 1.25 from defaultsForPattern; 5 from the hack squat and the
+    // hip thrust in migration 015.
+    for (const derived of [2.5, 1.25, 5]) {
+      expect(INCREMENTS_KG).toContain(derived);
+    }
   });
 });

@@ -52,12 +52,21 @@ export async function registerForPush(): Promise<PushState> {
 export function screenFromNotification(
   response: Notifications.NotificationResponse,
 ): string | null {
-  const data = response.notification.request.content.data as { screen?: string } | undefined;
+  const data = response.notification.request.content.data as
+    | { screen?: string; sessionId?: number }
+    | undefined;
+
   switch (data?.screen) {
     case 'food':
       return '/food';
     case 'workout':
       return '/workout';
+    case 'report':
+      // The session it is about, when the payload says. Without it the screen
+      // shows the most recent one, which is the same thing nine times in ten
+      // and is right the tenth time too — a report only arrives just after
+      // the session it describes.
+      return data.sessionId != null ? `/report?sessionId=${data.sessionId}` : '/report';
     case 'today':
       return '/';
     default:

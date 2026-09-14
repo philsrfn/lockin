@@ -240,6 +240,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         {/* The logger takes the whole screen — nothing to tap by accident. */}
         <Stack.Screen name="workout" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="report" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="progress" />
         <Stack.Screen name="rules" />
         <Stack.Screen name="account" />

@@ -163,6 +163,33 @@ describe('getToday', () => {
     expect(today.plan.template).toBe('C');
   });
 
+  /**
+   * The bug this reproduces: switch programmes with a session still open and
+   * the logger said "this phone has never loaded that day" with full signal.
+   *
+   * The phone adopts whatever `openSession` hands it, then asks for that day
+   * by name. A day the current programme does not have answers 404, the
+   * phone finds nothing cached under that key, and reports it as an offline
+   * problem. Withholding the session here is what stops the 404 from being
+   * asked for at all.
+   */
+  it('does not offer a session left open under a day the programme no longer has', async () => {
+    await createSession(phil, { template: 'Nonexistent' });
+
+    const today = await getToday(phil);
+
+    expect(today.openSession).toBeNull();
+    // And it still proposes something trainable rather than propagating the
+    // dead day into the plan.
+    expect(today.plan.days.map((day) => day.code)).toContain(today.plan.template);
+  });
+
+  it('still offers a free session, which belongs to no day by design', async () => {
+    const open = await createSession(phil, { template: null });
+
+    expect((await getToday(phil)).openSession?.id).toBe(open.id);
+  });
+
   it('lists a finished session so the screen stops offering a workout he has done', async () => {
     const session = await finishedSession('A', 0);
 

@@ -117,6 +117,27 @@ export async function getToday(ctx: Ctx): Promise<Today> {
   const template = await templateForToday(ctx, open?.template ?? null);
   const plan = await planFor(ctx, template, { excludeSessionId: open?.id });
 
+  /**
+   * A session left open under a programme that has since been swapped is not
+   * offered as the open one.
+   *
+   * `templateForToday` already refuses to *plan* such a session — "an open
+   * session from an abandoned programme is history, not a plan". But the
+   * phone reads `openSession` separately and adopts whatever is there, so it
+   * ended up holding a session for day 'B' while the programme had become
+   * Push/Pull/Legs, asking the server for day B by name, and being told 404.
+   * The message it showed for that was "this phone has never loaded that
+   * day", which sent people looking for a signal problem that was not there.
+   *
+   * Withheld rather than closed. Its sets stay exactly where they are and it
+   * still appears in history; a session with sets and no RPE counts as
+   * finished once it is old enough, which is what walking away from one is.
+   */
+  const openHere =
+    open && (open.template === null || plan.days.some((day) => day.code === open.template))
+      ? open
+      : null;
+
   // Not `macroTargets(profile)`: on a day with cardio logged, and only when
   // the athlete asked for it, the day's target is larger than the week's
   // average. See services/dailyTargets.ts.
@@ -151,7 +172,7 @@ export async function getToday(ctx: Ctx): Promise<Today> {
     date: today,
     profile,
     context,
-    openSession: open,
+    openSession: openHere,
     completedToday: todaySessions.filter((session) => session.finished),
     plan,
     weight,

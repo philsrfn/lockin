@@ -578,6 +578,13 @@ const PHRASES = {
   removeExercise: { de: 'Übung entfernen', en: 'Remove movement' },
   repsLabel: { de: 'WIEDERHOLUNGEN', en: 'REPS' },
   setsLabel: { de: 'SÄTZE', en: 'SETS' },
+  restLabel: { de: 'PAUSE', en: 'REST' },
+  incrementLabel: { de: 'STEIGERUNG', en: 'INCREMENT' },
+  byMovement: { de: 'Nach Übung', en: 'By movement' },
+  incrementHint: {
+    de: 'Der kleinste Sprung, den du an diesem Gerät machen kannst. Danach richtet sich, wann mehr Gewicht drankommt.',
+    en: 'The smallest jump you can actually make on this equipment. It decides when more weight is prescribed.',
+  },
   programmeNeedsName: { de: 'Das Programm braucht einen Namen.', en: 'The programme needs a name.' },
   programmeNeedsDays: { de: 'Füg mindestens einen Tag hinzu.', en: 'Add at least one day.' },
   programmeDuplicate: {
@@ -612,6 +619,52 @@ const PHRASES = {
     de: 'Diesen Tag hat dieses Handy noch nie geladen. Einmal mit Empfang öffnen, dann geht er auch offline.',
     en: 'This phone has never loaded that day. Open it once with signal and it works offline after that.',
   },
+
+  // The free session: a workout that belongs to no programme day.
+  freeSession: { de: 'Individuell', en: 'Free session' },
+  freeSessionHint: {
+    de: 'Leer starten und die Übungen unterwegs dazunehmen.',
+    en: 'Start empty and add the movements as you go.',
+  },
+  freeSessionUnavailable: {
+    de: 'Für eine individuelle Einheit braucht dieses Handy einmal Empfang. Danach geht sie auch offline.',
+    en: 'A free session needs signal once on this phone. After that it works offline too.',
+  },
+  addExerciseTitle: { de: 'ÜBUNG HINZUFÜGEN', en: 'ADD EXERCISE' },
+  noExercisesYet: {
+    de: 'Noch nichts drin. Nimm deine erste Übung dazu.',
+    en: 'Nothing in here yet. Add your first movement.',
+  },
+
+  // The write-up after a session.
+  sessionReport: { de: 'AUSWERTUNG', en: 'SESSION REPORT' },
+  reportPending: {
+    de: 'Die Auswertung wird noch geschrieben. Gleich nochmal schauen.',
+    en: 'The write-up is still being written. Check back in a moment.',
+  },
+  reportNone: {
+    de: 'Noch keine Auswertung. Schließe eine Einheit ab, dann steht sie hier.',
+    en: 'No write-up yet. Finish a session and it lands here.',
+  },
+  reportSets: { de: 'Sätze', en: 'Sets' },
+  reportReps: { de: 'Wiederholungen', en: 'Reps' },
+  reportExercises: { de: 'Übungen', en: 'Exercises' },
+  reportVolume: { de: 'Volumen', en: 'Volume' },
+  reportVersusLast: { de: 'Gegenüber dem letzten Mal', en: 'Versus last time' },
+  reportFirstTime: {
+    de: 'Das erste Mal an diesem Tag — es gibt noch nichts zu vergleichen.',
+    en: 'The first time on this day — there is nothing to compare against yet.',
+  },
+  reportRecords: { de: 'BESTLEISTUNGEN', en: 'PERSONAL BESTS' },
+  reportPlan: { de: 'PLAN', en: 'PLAN' },
+  reportPlanMet: { de: 'Plan erfüllt.', en: 'Plan met.' },
+  reportPlanShort: {
+    de: '{done} von {planned} Sätzen aus dem Plan.',
+    en: '{done} of {planned} sets from the plan.',
+  },
+  reportOneThing: { de: 'EINE SACHE', en: 'ONE THING' },
+  reportMovements: { de: 'ÜBUNGEN', en: 'MOVEMENTS' },
+  reportOutOfRange: { de: 'außerhalb des Zielbereichs', en: 'outside the range' },
 
   rpe5: { de: 'locker — viel übrig', en: 'easy — plenty left' },
   rpe6: { de: 'angenehm', en: 'comfortable' },

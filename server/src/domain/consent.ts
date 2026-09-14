@@ -20,7 +20,12 @@ export type ConsentDocument = (typeof DOCUMENTS)[number];
  * stale, and `missingConsents` starts naming it again.
  */
 export const CURRENT_VERSIONS: Record<ConsentDocument, string> = {
-  privacy: '2026-09-13',
+  // Bumped when meal photos were added: the notice used to say confirmed
+  // fridge *photos* were kept, which was never true — the confirmed list is.
+  // A notice that changed is a different thing to have agreed to, so everybody
+  // is asked again. That is the cost of changing it, and the reason not to
+  // change it carelessly.
+  privacy: '2026-09-14',
   terms: '2026-09-13',
 };
 

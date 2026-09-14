@@ -39,7 +39,7 @@ export default function FoodScreen() {
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
-  const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
+  const [capture, setCapture] = useState<'scan' | 'describe' | 'photo' | null>(null);
   const [editing, setEditing] = useState<Food | null>(null);
   const [portioning, setPortioning] = useState<Food | null>(null);
   const [loading, setLoading] = useState(true);
@@ -237,6 +237,12 @@ export default function FoodScreen() {
           </>
         ) : null}
 
+        {/*
+          Three ways to answer "what did I just eat", in the order they are
+          reached for: a packet has a barcode, a plate has a camera, and
+          everything else gets typed.
+        */}
+        <Button title={t('photographIt')} onPress={() => setCapture('photo')} />
         <View style={styles.captureRow}>
           <Button title={t('scan')} variant="secondary" style={styles.flex} onPress={() => setCapture('scan')} />
           <Button

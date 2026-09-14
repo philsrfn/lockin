@@ -12,6 +12,7 @@ import {
   EstimateFoodSchema,
   CreateProgramSchema,
   FridgePhotoSchema,
+  MealPhotoSchema,
   JobNameSchema,
   MealPlanSchema,
   SaveProgramSchema,
@@ -100,7 +101,7 @@ import {
 } from '../services/foods';
 import { describePortion, portionOf } from '../domain/portions';
 import { lookupBarcode, saveScanned } from '../services/barcode';
-import { estimateFood } from '../llm/food';
+import { estimateFood, estimateFoodFromPhoto } from '../llm/food';
 import { generateWeeklyReview, latestReview } from '../llm/review';
 import { generateMealPlan, readFridgePhoto } from '../llm/fridge';
 import { saveInventory } from '../services/fridge';
@@ -705,6 +706,30 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * §9: vision returns candidates and stops. The photo is passed to the model
    * and dropped — nothing is written and nothing is stored.
    */
+  /**
+   * A photograph of a meal, estimated.
+   *
+   * §9's rule applies here as much as to the fridge: a vision pass is a
+   * candidate, never a log. The app shows what came back and the athlete
+   * confirms or corrects it before anything is written — which is the same
+   * flow the typed estimate already uses, so there is one way a guess becomes
+   * data and it goes through somebody's hands.
+   *
+   * The image is not stored. It is held for the length of this request and
+   * gone.
+   */
+  app.post('/foods/photo', async (request) => {
+    const body = MealPhotoSchema.parse(request.body);
+    return {
+      estimate: await estimateFoodFromPhoto(
+        request.ctx,
+        body.imageBase64,
+        body.mimeType,
+        body.note,
+      ),
+    };
+  });
+
   app.post('/fridge/read', async (request) => {
     const body = FridgePhotoSchema.parse(request.body);
     return { items: await readFridgePhoto(request.ctx, body.imageBase64, body.mimeType) };

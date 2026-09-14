@@ -52,7 +52,7 @@ export default function TodayScreen() {
   const [coachOpen, setCoachOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
-  const [capture, setCapture] = useState<'scan' | 'describe' | null>(null);
+  const [capture, setCapture] = useState<'scan' | 'describe' | 'photo' | null>(null);
   /** Bumped to send the strip back to this week along with the numbers. */
   const [goHome, setGoHome] = useState(0);
 

@@ -463,6 +463,23 @@ const PHRASES = {
     de: 'An Tagen mit Cardio darfst du mehr essen. Angerechnet wird, was die Einheit über deinen Grundumsatz hinaus gekostet hat — abzüglich dessen, was dein Ziel ohnehin schon für Training einplant. Das ist weniger, als eine Uhr anzeigt, und das ist Absicht: zu großzügig gerechnet stehst du in vier Wochen auf derselben Zahl.',
     en: 'On days you do cardio you may eat more. What counts is the session above what resting would have cost — minus what your target already assumes you train. That is less than a watch shows, deliberately: credited too generously, you are on the same weight in four weeks.',
   },
+  // ——— photographing a meal ———
+  photographIt: { de: 'Foto machen', en: 'Photograph it' },
+  takePhoto: { de: 'Auslösen', en: 'Take the photo' },
+  mealPhotoHint: {
+    de: 'Ganzer Teller ins Bild, von schräg oben. Ein Besteckteil daneben hilft beim Abschätzen der Menge.',
+    en: 'Whole plate in frame, from slightly above. A fork beside it helps with the portion.',
+  },
+  mealPhotoNote: { de: 'Optional: z. B. „mit 200 g Reis"', en: 'Optional: e.g. "with 200g rice"' },
+  cameraWhyMeal: {
+    de: 'lockin braucht die Kamera, um dein Essen zu schätzen. Das Bild wird nicht gespeichert — es geht einmal an das Modell und ist danach weg.',
+    en: 'lockin needs the camera to estimate your food. The picture is not stored — it goes to the model once and is gone.',
+  },
+  photoGuess: {
+    de: 'Aus dem Foto geschätzt. Schau kurz drüber.',
+    en: 'Estimated from the photo. Give it a look.',
+  },
+
   cardioNeedsWeight: {
     de: 'Wieg dich einmal, sonst lässt sich das nicht rechnen.',
     en: 'Weigh yourself once, or there is nothing to compute it from.',

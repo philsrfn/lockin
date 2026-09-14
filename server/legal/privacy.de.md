@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-**Fassung 2026-09-13**
+**Fassung 2026-09-14**
 
 Diese Erklärung beschreibt, was lockin speichert, warum, und wer es sonst noch
 zu sehen bekommt. Sie ist absichtlich konkret: sie zählt auf, was tatsächlich
@@ -25,8 +25,14 @@ Wiederholungen, gefühlter Anstrengung und ob Gelenke wehgetan haben. Dazu
 Cardio-Einheiten und dein Trainingsprogramm.
 
 **Zu deiner Ernährung:** jede eingetragene Mahlzeit mit geschätzten Nährwerten,
-deine Lebensmittel-Bibliothek, deine Ernährungsregeln, und bestätigte Fotos
-deines Kühlschranks, falls du die Funktion nutzt.
+deine Lebensmittel-Bibliothek und deine Ernährungsregeln. Wenn du deinen
+Kühlschrank fotografierst, wird die Liste gespeichert, die du danach
+bestätigst — nicht das Foto.
+
+**Fotos werden nicht gespeichert.** Weder von deinem Essen noch von deinem
+Kühlschrank, weder auf dem Server noch in deinem Konto. Ein Bild geht einmal
+an das Sprachmodell, das die Nährwerte schätzt, und ist danach weg. Was bleibt,
+ist die Zahl, die du bestätigt hast.
 
 **Aus Apple Health**, nur wenn du es erlaubst: Schritte, Schlaf, Ruhepuls,
 Trainingseinheiten und Gewicht von einer Waage.

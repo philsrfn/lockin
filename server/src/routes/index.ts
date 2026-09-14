@@ -54,6 +54,8 @@ import {
 } from '../services/profile';
 import { verifyAppleIdentityToken } from '../auth/appleIdentity';
 import { legalPage } from '../legal';
+import { requireCoach } from '../coachAccess';
+import { accessForAthlete } from '../services/entitlements';
 import { ConsentSchema } from '../schemas';
 import { consentState, giveConsent, withdrawConsent } from '../services/consent';
 import { exportEverything } from '../services/export';
@@ -270,6 +272,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * The version is never taken from the client. What the app believes it
    * displayed is not evidence of what was displayed; this row is the evidence.
    */
+  /**
+   * What this account may reach, and for how long.
+   *
+   * Its own route rather than a field on the profile: the app asks this when
+   * it needs to decide what to show, and a profile is a body rather than a
+   * permission.
+   */
+  app.get('/me/access', async (request) => accessForAthlete(request.ctx));
+
   app.get('/consents', async (request) => consentState(request.ctx));
 
   app.post('/consents', async (request) => {
@@ -628,9 +639,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/review', async (request) => ({ review: await latestReview(request.ctx) }));
 
-  app.post('/review/generate', async (request) => ({
-    review: await generateWeeklyReview(request.ctx),
-  }));
+  app.post('/review/generate', async (request) => {
+    await requireCoach(request);
+    return { review: await generateWeeklyReview(request.ctx) };
+  });
 
   app.get('/jobs', async (request) => ({ runs: await recentRuns(request.ctx) }));
 
@@ -698,6 +710,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * entry: he confirms or corrects it first, per the §9 principle.
    */
   app.post('/foods/estimate', async (request) => {
+    await requireCoach(request);
     const body = EstimateFoodSchema.parse(request.body);
     return { estimate: await estimateFood(request.ctx, body.text) };
   });
@@ -719,6 +732,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * gone.
    */
   app.post('/foods/photo', async (request) => {
+    await requireCoach(request);
     const body = MealPhotoSchema.parse(request.body);
     return {
       estimate: await estimateFoodFromPhoto(
@@ -731,6 +745,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/fridge/read', async (request) => {
+    await requireCoach(request);
     const body = FridgePhotoSchema.parse(request.body);
     return { items: await readFridgePhoto(request.ctx, body.imageBase64, body.mimeType) };
   });
@@ -746,6 +761,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * nothing to plan from.
    */
   app.post('/fridge/plan', async (request) => {
+    await requireCoach(request);
     const body = MealPlanSchema.parse(request.body);
     const inventory = await saveInventory(request.ctx, body.items);
 
@@ -798,6 +814,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
    * call.
    */
   app.post('/coach/today', async (request) => {
+    await requireCoach(request);
     const body = z.object({ force: z.boolean().optional() }).parse(request.body ?? {});
     return { coach: await noteForToday(request.ctx, { force: body.force }) };
   });
@@ -809,6 +826,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/chat', async (request) => {
+    await requireCoach(request);
     const body = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
     return sendMessage(request.ctx, body.text);
   });

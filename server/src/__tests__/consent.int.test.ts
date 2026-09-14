@@ -8,7 +8,7 @@
  * place, and that an export is actually complete.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Ctx } from '../db';
+import { type Ctx, pool } from '../db';
 import { CURRENT_VERSIONS } from '../domain/consent';
 import { anotherAthlete, phil, resetData, resetProfile } from '../test/helpers';
 import { consentState, giveConsent, withdrawConsent } from '../services/consent';
@@ -115,5 +115,38 @@ describe('taking everything with you', () => {
 
     expect(data.bodyweight).toHaveLength(1);
     expect((data.bodyweight as { weight_kg: number }[])[0]?.weight_kg).toBe(70);
+  });
+});
+
+describe('which consent the screen should show', () => {
+  /**
+   * Re-agreeing to a new version leaves the old row in place — it is the
+   * evidence the older notice was agreed to. So "the athlete's consent" is
+   * the one matching the version in force, and the date on it is when they
+   * agreed rather than when the notice was written. The account screen was
+   * showing the first row it found, dated by its version.
+   */
+  it('records when they agreed, separately from which notice it was', async () => {
+    const before = Date.now();
+    const state = await giveConsent(phil, 'privacy');
+
+    const entry = state.given.find((c) => c.document === 'privacy');
+
+    expect(entry?.version).toBe(CURRENT_VERSIONS.privacy);
+    expect(new Date(entry!.agreedAt!).getTime()).toBeGreaterThanOrEqual(before - 1000);
+  });
+
+  it('keeps the older version alongside the newer one', async () => {
+    await pool.query(
+      `insert into consents (user_id, document, version, agreed_at)
+       values ($1, 'privacy', '2020-01-01', now() - interval '400 days')`,
+      [phil.userId],
+    );
+    await giveConsent(phil, 'privacy');
+
+    const privacy = (await consentState(phil)).given.filter((c) => c.document === 'privacy');
+
+    expect(privacy).toHaveLength(2);
+    expect(privacy.some((c) => c.version === CURRENT_VERSIONS.privacy)).toBe(true);
   });
 });

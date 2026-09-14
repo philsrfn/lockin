@@ -24,9 +24,10 @@ export async function consentState(ctx: Ctx): Promise<ConsentState> {
   const { rows } = await ctx.db.query<{
     document: string;
     version: string;
+    agreed_at: Date;
     withdrawn_at: Date | null;
   }>(
-    `select document, version, withdrawn_at from consents
+    `select document, version, agreed_at, withdrawn_at from consents
      where user_id = $1 order by agreed_at`,
     [ctx.userId],
   );
@@ -34,6 +35,9 @@ export async function consentState(ctx: Ctx): Promise<ConsentState> {
   const given = rows.map((row) => ({
     document: row.document,
     version: row.version,
+    // When they agreed, which is not the same as which notice they agreed to.
+    // The screen was showing the version date under the words "agreed on".
+    agreedAt: row.agreed_at,
     withdrawnAt: row.withdrawn_at,
   }));
 

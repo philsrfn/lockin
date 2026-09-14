@@ -32,4 +32,10 @@ export const badRequest = (message: string, code?: string) => new HttpError(400,
 export const unauthorized = (message: string, code?: string) =>
   new HttpError(401, message, code);
 export const notFound = (message: string, code?: string) => new HttpError(404, message, code);
+/**
+ * 402, for the one thing money buys. Not 403: the answer is "not yet" rather
+ * than "not you", and the difference matters to the sentence the app shows.
+ */
+export const paymentRequired = (message: string, code?: string) =>
+  new HttpError(402, message, code);
 export const conflict = (message: string, code?: string) => new HttpError(409, message, code);

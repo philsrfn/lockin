@@ -44,6 +44,14 @@ export const env = {
    * without touching anybody already inside.
    */
   signupMode: (process.env.SIGNUP_MODE === 'open' ? 'open' : 'invite') as 'open' | 'invite',
+  /**
+   * How long a new account may use the trainer before it asks for anything.
+   *
+   * Everything else in the app stays free for ever — logging, history, export,
+   * deletion. What runs out is the coach, which is the part that costs money
+   * and the part worth paying for.
+   */
+  trialDays: Number(process.env.TRIAL_DAYS ?? 14),
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   /**

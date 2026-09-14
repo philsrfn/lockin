@@ -27,11 +27,15 @@ const thrown = (): string[] => {
     'server/src/services/fridge.ts',
     'server/src/routes/index.ts',
     'server/src/index.ts',
+    'server/src/coachAccess.ts',
   ];
+  // Not `services/entitlements.ts`: its one code, `needs_expiry`, answers an
+  // operator in the admin panel and never reaches the app. A phrase in
+  // `locale.ts` for it would be a German sentence nobody is ever shown.
   const found = new Set<string>();
   for (const file of files) {
     const source = read(file);
-    for (const match of source.matchAll(/(?:badRequest|notFound|conflict|unauthorized)\([\s\S]*?,\s*'([a-z_]+)'\)/g)) {
+    for (const match of source.matchAll(/(?:badRequest|notFound|conflict|unauthorized|paymentRequired)\([\s\S]*?,\s*'([a-z_]+)',?\s*\)/g)) {
       found.add(match[1]!);
     }
     for (const match of source.matchAll(/^\s*code: '([a-z_]+)',$/gm)) {

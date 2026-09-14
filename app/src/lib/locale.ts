@@ -388,6 +388,22 @@ const PHRASES = {
     de: 'Eine leere Liste ist kein Kühlschrank.',
     en: 'An empty list is not a fridge.',
   },
+  errSubscription: {
+    de: 'Für den Trainer braucht es ein aktives Abo. Alles Eingetragene bleibt, und eintragen kannst du weiter.',
+    en: 'The trainer needs an active subscription. Everything you have logged stays, and you can keep logging.',
+  },
+
+  // ——— what the account may reach ———
+  accessSetting: { de: 'ZUGANG', en: 'ACCESS' },
+  accessTrial: { de: 'Probezeit — noch {days} Tage', en: 'Trial — {days} days left' },
+  accessPaid: { de: 'Aktiv — noch {days} Tage', en: 'Active — {days} days left' },
+  accessComped: { de: 'Dauerhaft freigeschaltet', en: 'Open-ended' },
+  accessLapsed: { de: 'Abgelaufen', en: 'Lapsed' },
+  accessBlurb: {
+    de: 'Betrifft nur den Trainer: Chat, die Tageseinschätzung, die Sonntagsauswertung und das Schätzen von Essen. Eintragen, nachlesen, exportieren und löschen bleiben immer offen.',
+    en: 'This covers the trainer only: chat, the daily read, the Sunday review and estimating food. Logging, reading, exporting and deleting stay open for ever.',
+  },
+
   errInvalidRequest: {
     de: 'Damit kann der Server nichts anfangen. Probier es anders.',
     en: 'The server could not make sense of that. Try it differently.',

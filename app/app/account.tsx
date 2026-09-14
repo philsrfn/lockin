@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../src/api/client';
-import type { ConsentState, Profile, Program } from '../src/api/types';
+import type { Access, ConsentState, Profile, Program } from '../src/api/types';
 import { currentBaseUrl, isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
   type Account,
@@ -46,6 +46,7 @@ export default function AccountScreen() {
   const [forking, setForking] = useState(false);
   const [consents, setConsents] = useState<ConsentState | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [access, setAccess] = useState<Access | null>(null);
   /** The credit is computed from body weight, so without one it is always 0. */
   const [hasWeighedIn, setHasWeighedIn] = useState(true);
 
@@ -60,17 +61,19 @@ export default function AccountScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [accountResult, programResult, consentResult, profileResult, weightResult] =
+      const [accountResult, programResult, consentResult, profileResult, accessResult, weightResult] =
         await Promise.all([
           loadAccount(),
           api<{ programs: Program[]; current: Program }>('/programs'),
           api<ConsentState>('/consents'),
           api<{ profile: Profile }>('/profile'),
+          api<Access>('/me/access'),
           api<{ latest: unknown | null }>('/bodyweight'),
         ]);
       setAccount(accountResult);
       setConsents(consentResult);
       setProfile(profileResult.profile);
+      setAccess(accessResult);
       setHasWeighedIn(weightResult.latest != null);
       setPrograms(programResult.programs);
       setCurrent(programResult.current);
@@ -145,10 +148,21 @@ export default function AccountScreen() {
     }
   }
 
-  const privacy = consents?.given.find((entry) => entry.document === 'privacy');
+  /**
+   * The consent in force, not the first one ever given. Re-agreeing to a new
+   * version leaves the old row in place — it is the evidence the older notice
+   * was agreed to — so picking the first match showed a date from before the
+   * notice changed.
+   */
+  const privacy = consents?.given.find(
+    (entry) => entry.document === 'privacy' && entry.version === consents.versions.privacy,
+  );
   const withdrawn = privacy?.withdrawnAt != null || consents?.outstanding.includes('privacy');
+  // When they agreed, which is not the same as which notice they agreed to.
   const agreedOn =
-    privacy && !withdrawn ? new Date(privacy.version).toLocaleDateString(deviceLocale()) : null;
+    privacy && !withdrawn
+      ? new Date(privacy.agreedAt).toLocaleDateString(deviceLocale())
+      : null;
 
   /**
    * The notices live on the server, so what somebody reads here is the same
@@ -325,6 +339,27 @@ export default function AccountScreen() {
         still, so that a hard day is not also a bigger dinner. Off until
         somebody says otherwise.
       */}
+      {/*
+        What runs out, and what does not. Worth saying plainly on the screen
+        rather than only at the moment somebody is refused: the first thing
+        anybody assumes when a subscription lapses is that their data went
+        with it.
+      */}
+      {access ? (
+        <Card label={t('accessSetting')}>
+          <Text style={styles.accessState}>
+            {access.kind === 'comped'
+              ? t('accessComped')
+              : !access.coach
+                ? t('accessLapsed')
+                : access.kind === 'trial'
+                  ? t('accessTrial', { days: access.daysLeft ?? 0 })
+                  : t('accessPaid', { days: access.daysLeft ?? 0 })}
+          </Text>
+          <Text style={styles.blurb}>{t('accessBlurb')}</Text>
+        </Card>
+      ) : null}
+
       <Card label={t('cardioSetting')}>
         <Text style={styles.blurb}>{t('cardioAddsBlurb')}</Text>
         <Pressable
@@ -510,6 +545,7 @@ const styles = StyleSheet.create({
   toggleLabel: { ...typo.body, color: colors.text, flexShrink: 1 },
   toggleMark: { fontSize: 18, color: colors.textFaint },
   toggleMarkOn: { color: colors.accent },
+  accessState: { ...typo.body, color: colors.text },
 
   program: {
     paddingVertical: space.md,

@@ -481,3 +481,15 @@ export type Today = {
   /** The first day with anything logged. Null when nothing has been. */
   since: string | null;
 };
+
+/**
+ * What somebody has agreed to. Training and body data are a special category
+ * under the GDPR, so the basis is explicit consent — recorded against the
+ * version of the notice that was shown, which is why the version is here.
+ */
+export type ConsentState = {
+  given: { document: string; version: string; withdrawnAt: string | null }[];
+  /** Documents still owed agreement. Empty means they are through. */
+  outstanding: string[];
+  versions: Record<string, string>;
+};

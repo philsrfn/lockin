@@ -5,7 +5,7 @@
  * job that produced it, and it must never block a write. He can always open
  * the app.
  */
-import type { Ctx } from './db';
+import { type Ctx, crossTenant } from './db';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -21,13 +21,25 @@ export async function registerToken(
   token: string,
   platform: string | null,
 ): Promise<void> {
-  // A reinstall issues a new token; the same token arriving under a different
-  // user means the device changed hands, and it should follow the device.
-  await ctx.db.query(
-    `insert into push_tokens (user_id, token, platform) values ($1, $2, $3)
-     on conflict (token) do update
-       set last_seen_at = now(), platform = excluded.platform, user_id = excluded.user_id`,
-    [ctx.userId, token, platform],
+  /**
+   * A reinstall issues a new token; the same token arriving under a different
+   * user means the device changed hands, and it should follow the device —
+   * otherwise one person's notifications keep arriving on a phone somebody
+   * else is now holding.
+   *
+   * Which makes this a write that crosses tenants on purpose, and row level
+   * security found it the moment it was switched on: the row being updated
+   * belongs to the previous owner, so the policy refuses to see it. Said out
+   * loud here rather than widened in the policy, because "a token may move
+   * between accounts" is true of exactly this statement and of nothing else.
+   */
+  await crossTenant((db) =>
+    db.query(
+      `insert into push_tokens (user_id, token, platform) values ($1, $2, $3)
+       on conflict (token) do update
+         set last_seen_at = now(), platform = excluded.platform, user_id = excluded.user_id`,
+      [ctx.userId, token, platform],
+    ),
   );
 }
 

@@ -18,48 +18,66 @@ argument rather than joining it: a query with no tenant does not compile.
 `exercises` is deliberately unowned: it is a catalog of movements, not anyone's
 data. Per-user exercises are a Phase 2 concern.
 
-## Row-level security is NOT in place
+## Row-level security
 
-The plan calls for RLS as a backstop, on the reasoning that a forgotten `where
-user_id` should return nothing rather than someone else's rows. It is not here
-yet, and the reason is worth writing down rather than discovering later.
+In place since migration 028. A policy on every table that carries a `user_id`,
+reading `app.user_id`, which `scopedTo()` in `src/db.ts` sets inside the
+transaction that runs the query.
 
-The app connects to Postgres as the owner of its tables, and an owner is exempt
-from RLS unless the table is marked `FORCE ROW LEVEL SECURITY`. So a real
-backstop needs `FORCE`, and `FORCE` needs the current tenant to be readable
-from inside the database — a `current_setting('app.user_id')` set per
-connection.
+**Transaction-local, not session-level.** An earlier sketch of this held a
+client for the life of the request and set the tenant on it. That works and it
+has a failure mode worth avoiding: the client must be released on every exit
+path — responses, thrown errors, timeouts, aborted sockets — and a chat
+request holds one for the ten seconds it waits on a model. One missed release
+is a connection gone from the pool for good, and the symptom arrives much
+later as an app that hangs. Hanging it off the transaction instead means the
+setting cannot outlive the statement it was set for, so a pooled connection
+never carries one request's tenant into the next. That is structural rather
+than something to remember.
 
-That is where it becomes a change to the request lifecycle rather than a
-migration. Connections come from a pool, so a session-level setting cannot be
-trusted: a query issued on a pooled connection may land on one still carrying
-the previous request's tenant. Setting it correctly means each request holds a
-checked-out client for its whole life — including the ten seconds a chat
-request spends waiting on the model — and releasing it reliably on every exit
-path, aborts and timeouts included. A leaked client is pool exhaustion; a
-missed setting is a query that silently returns nothing.
+**Why there is a second role.** Two things exempt a connection from row level
+security, and this database had both: the owner of a table is exempt unless
+the table is marked `FORCE`, and a superuser is exempt always — `FORCE` does
+not reach them. The app connects as `lockin`, which owns every table and is
+the cluster's bootstrap superuser. Policies alone were decoration, and the
+test caught it: `rls.int.test.ts` asked for another athlete's rows and got
+them.
 
-A half-measure was considered and rejected: policies that filter when the
-setting is present and pass everything through when it is absent. That is
-deployable and cannot break anything, but it protects only the paths that were
-already careful, while looking from the outside like the reads are covered. A
-protection that cannot be trusted is worse than a documented gap.
+The bootstrap role cannot give up superuser; Postgres refuses. So there is
+`lockin_app`, which owns nothing and is nobody's superuser, and every scoped
+transaction does `set local role lockin_app` before it touches a table. Inside
+that transaction the policies are the law, and the commit puts the role back
+with everything else that was set locally.
 
-**What is needed to finish it**
+**The four ways past it.** A grep for `crossTenant` finds all of them:
 
-1. A dedicated non-owner database role for the app, or `FORCE ROW LEVEL
-   SECURITY` on every owned table.
-2. A per-request checked-out client, set with the tenant on acquire and
-   released on `onResponse`, `onError` and `onTimeout` alike.
-3. A `set_config(..., true)` inside `transactionFor`, so writes carry the
-   tenant into their transaction.
-4. A test that a service called with a mismatched `Ctx` returns nothing rather
-   than the wrong rows — the test that proves the backstop is live.
+| | |
+|---|---|
+| the migration runner | DDL and seeds, before anybody exists |
+| provisioning an athlete | rows written before there is a tenant for them to belong to |
+| the admin panel | reading across everybody is its whole job; every route that reaches it is behind `requireAdmin` |
+| registering a push token | a device that changes hands takes its token with it |
 
-Until then the static guard above is the substitute. It cannot tell a correct
-predicate from a wrong one, only a present one from an absent one. That is
-still the difference between catching the mistake while writing it and catching
-it when somebody sees another person's body weight.
+The first three were known. The fourth was found by switching the policies on
+and watching Postgres refuse — which is the best argument for having done it.
+
+**What is still open.** A query that never goes through a `Ctx` runs as the
+owner and still sees everything, so this is not yet fail-closed: forgetting to
+scope reads everything rather than nothing. Every service path goes through a
+`Ctx` — the static guard above is what keeps that true — but the property is
+weaker than it could be.
+
+Closing it means the app connecting as `lockin_app` rather than as the owner.
+That is a credential change rather than a schema one:
+
+1. Give `lockin_app` `login` and a password, in `deploy/.env` rather than in a
+   migration.
+2. Point `DATABASE_URL` at it — locally, in CI, and on the box.
+3. Keep a second URL as the owner for the migration runner, which needs DDL
+   rights `lockin_app` does not have.
+4. Tighten the test in `rls.int.test.ts` that currently asserts the frontier.
+   It is written so that it *fails* once this is done, rather than leaving a
+   comment nobody reads.
 
 ## Authentication
 

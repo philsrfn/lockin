@@ -4,11 +4,15 @@ An AI personal trainer. It knows an athlete's body, schedule, places, food
 rules and training history, talks to them continuously, and actually mutates
 their plan.
 
-It started as one man's app and is now multi-user, but it is still not a
-product. A handful of people use it. Optimise for "they use it every day for a
-year", not for scale or generality. When a decision is between "correct for
-thousands" and "obviously right for twelve", pick the second and write down
-why.
+It started as one man's app, became multi-user, and is now being made ready to
+go public. That last step changed what several rules in here are for, so read
+§17 before assuming a "we only have twelve users" answer still holds.
+
+What has not changed: optimise for "they use it every day for a year", not for
+scale. When a decision is between "correct for a million" and "obviously right
+for the people actually using it", still pick the second and write down why.
+Going public is about being *safe* and *lawful* for strangers, not about being
+built for a million of them.
 
 **Read this file before changing anything.** Section numbers are referenced
 from ~106 code comments (`§7`, `§11`, …). They are load-bearing: renumber a
@@ -457,8 +461,9 @@ production one and lives only on the box.
 - **`server/src/domain/` first, with tests, before any LLM code.** Progression
   and macro math are the parts that must never be wrong.
 - **The rules validator gets tests too**, including the Skyr case explicitly.
-- **Do not add** user management beyond `users`, roles beyond `is_admin`,
-  onboarding flows beyond the questionnaire, or analytics. A handful of users.
+- **User management is now in scope** — see §17. Roles beyond `is_admin` and
+  analytics still are not: nothing in this app needs to know what a cohort
+  does, and one boolean is still the whole permission model.
 - **Do not abstract the training program into a generic program builder.** A
   seeded catalog plus `swap_exercise` covers it.
 - **Prefer boring, readable code over clever.** This is a codebase people
@@ -506,8 +511,19 @@ that fails silently. `services/admin.ts` is exempt — reading across athletes i
 its whole job — and pays for the exemption with tests asserting that every
 route reaching it is behind `requireAdmin` and that nothing else imports it.
 
-Row-level security is **not** in place. The reasoning and the four steps that
-would finish it are in [docs/tenancy.md](docs/tenancy.md).
+Row-level security **is** in place, since migration 028: a policy on every
+table carrying a `user_id`, and `set local role lockin_app` inside the
+transaction that runs the query, because the connecting role owns the tables
+and is the cluster's bootstrap superuser — both of which exempt it otherwise.
+
+It is not yet fail-closed: a query that never goes through a `Ctx` still runs
+as the owner. Every service path does go through one, which is what the static
+guard keeps true. The remaining step is a credential change rather than a
+schema one, and [docs/tenancy.md](docs/tenancy.md) carries it.
+
+Four things are allowed past, and `crossTenant()` in `db.ts` is how each says
+so: the migration runner, provisioning an athlete, the admin panel, and a push
+token following a device that changed hands.
 
 **Migrations are additive.** People are training on this app today; there is
 real data going back to September 2026.
@@ -554,3 +570,43 @@ Postgres.
 **Anything touching the phone's native layer** (Health, push, sign-in) → read
 [docs/deploy.md](docs/deploy.md) § "Adding a native capability" before you
 build, or you lose a build cycle.
+
+---
+
+## 17. Going public
+
+The app is being prepared for strangers. That is a different product from the
+one §14 was written for, and the difference is not scale — it is that people
+who never met anybody here are trusting it with health data.
+
+**What that changed**
+
+- **User management is in scope.** `SIGNUP_MODE=open` admits an account the
+  moment it is created; the default is still `invite`, which is how this has
+  always worked. Approval never bounded cost — the rate limiter and the
+  per-athlete token ceiling do — it only delayed it.
+- **Consent is recorded, with a version.** Training, body and Health data are
+  Article 9 data under the GDPR, and the lawful basis is explicit consent.
+  `domain/consent.ts` holds the rule, `server/legal/` holds the documents, and
+  a version bump asks everybody again. The app will not open without it.
+- **Row level security is on.** See §15 and docs/tenancy.md.
+- **The notices are served from the repository** at `/privacy` and `/terms`,
+  publicly, because Apple needs a privacy policy URL that works before
+  somebody signs in — and because the text agreed to and the text on the
+  website have to be the same file.
+
+**What is still ahead of a public launch**
+
+1. **Backups leave the box.** They run nightly and land on the same disk as
+   the database, which is a copy rather than a backup.
+2. **In-app data export.** `GET /me/export` is complete and tested; putting a
+   download button on it needs `expo-file-system` and `expo-sharing`, and so a
+   native rebuild.
+3. **Subscriptions.** Digital subscriptions on iOS must go through Apple's
+   IAP, which means server-side receipt verification and an entitlement on the
+   account. None of it is built.
+4. **The box.** 961 MB and one core, with the rate limiter still in memory —
+   fine for one process, wrong for two.
+5. **A lawyer reads `server/legal/`.** The documents describe what the code
+   actually does, which is the hard part and is done. Whether they say it the
+   way German law wants is not something to guess at.

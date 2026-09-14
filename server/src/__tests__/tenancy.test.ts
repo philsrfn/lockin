@@ -23,6 +23,21 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
  * Tables with a user_id. Kept in step with migration 011 by the test below, so
  * a new owned table cannot quietly escape this check.
  */
+/**
+ * Every table that holds somebody's data.
+ *
+ * Seven of these were missing until migration 028 derived the row-level
+ * security policies from the schema instead of from this list, and the
+ * difference showed up: measurements, cardio_sessions, daily_health, deloads,
+ * llm_usage, sessions_tokens and programs all carry a `user_id` and none of
+ * them were ever checked here. A list kept by hand goes stale the first time
+ * somebody adds a table without reading this file.
+ *
+ * It stays a hand-kept list because this test reads source text rather than a
+ * database — there is no schema to ask at the time it runs. The compensating
+ * check is `rls.int.test.ts`, which asks the live database whether any table
+ * with a `user_id` is missing a policy, and fails if one is.
+ */
 const OWNED_TABLES = [
   'profile',
   'contexts',
@@ -40,6 +55,13 @@ const OWNED_TABLES = [
   'job_runs',
   'push_tokens',
   'weekly_reviews',
+  'cardio_sessions',
+  'daily_health',
+  'deloads',
+  'llm_usage',
+  'measurements',
+  'programs',
+  'sessions_tokens',
 ];
 
 /**
@@ -149,12 +171,25 @@ describe('no query decides the date for itself', () => {
 });
 
 describe('the owned-table list', () => {
-  it('matches the migration that added the columns', () => {
+  /**
+   * This used to assert the list *equals* what migration 011 made
+   * multi-tenant, which was true while 011 was the only place a `user_id`
+   * came from. Later migrations added more — cardio, measurements, health,
+   * deloads, an athlete's own programmes — and the equality made the list
+   * look verified while it was seven tables short.
+   *
+   * So: nothing 011 covered may fall off, and the list is allowed to grow
+   * past it. Whether it has grown *enough* is not a question source text can
+   * answer; `rls.int.test.ts` asks the live database instead, and fails if any
+   * table with a `user_id` has no policy on it.
+   */
+  it('never loses a table that migration 011 made multi-tenant', () => {
     const migration = readFileSync(join(root, '..', 'migrations', '011_users.sql'), 'utf8');
     const block = /foreach t in array array\[([\s\S]*?)\]/.exec(migration)?.[1] ?? '';
     const inMigration = [...block.matchAll(/'([a-z_]+)'/g)].map((match) => match[1]!);
 
-    expect(new Set(inMigration)).toEqual(new Set(OWNED_TABLES));
+    expect(inMigration.length).toBeGreaterThan(10);
+    expect(inMigration.filter((table) => !OWNED_TABLES.includes(table))).toEqual([]);
   });
 });
 

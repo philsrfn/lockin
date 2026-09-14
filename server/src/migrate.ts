@@ -41,6 +41,10 @@ export async function migrate(db: pg.Pool = pool): Promise<string[]> {
       const sql = readFileSync(join(migrationsDir, filename), 'utf8');
       try {
         await client.query('begin');
+        // Migration 028 puts row level security on every owned table, and the
+        // app owns them — so without this a seed or a backfill in a later
+        // migration would silently touch nothing. See crossTenant() in db.ts.
+        await client.query("select set_config('app.cross_tenant', 'on', true)");
         await client.query(sql);
         await client.query('insert into schema_migrations (filename) values ($1)', [filename]);
         await client.query('commit');

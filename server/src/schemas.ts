@@ -359,3 +359,6 @@ export const MealPlanSchema = z.object({
   /** The list must have been through his hands — §9 step 3. */
   confirmed: z.literal(true),
 });
+
+/** Which document is being agreed to. The version comes from the server. */
+export const ConsentSchema = z.object({ document: z.string().min(1).max(40) });

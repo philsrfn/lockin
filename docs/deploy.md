@@ -99,8 +99,41 @@ Back up the database:
 ssh root@YOUR_IP 'cd /opt/lockin/deploy && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U lockin lockin' > backup-$(date +%F).sql
 ```
 
-You own the backups on a VPS. Nothing takes them for you — worth a cron job
-once this is real.
+You own the backups on a VPS. `deploy/backup.sh` runs nightly from
+`/etc/cron.d/lockin-backup`, keeps 30 days, and checks that what it wrote is a
+valid gzip of non-zero size — a dump that failed halfway is worse than no dump,
+because it looks like one.
+
+**It refuses to run unless the copy leaves the box.** Thirty dumps on the same
+disk as the database they came from is a copy, not a backup: the failure they
+exist for takes them with it. Set `BACKUP_REMOTE` in `deploy/.env` to an
+[rclone](https://rclone.org) destination — any S3-compatible bucket, a second
+machine over SFTP, whatever you already pay for — and install rclone on the
+box:
+
+```sh
+apt-get install -y rclone
+rclone config        # once, interactively
+# then in deploy/.env:
+BACKUP_REMOTE=b2:lockin-backups
+```
+
+The script asks the far end how big the file is afterwards and fails if the
+answer does not match, because `rclone copy` exiting zero is not the same as
+the bytes being there. If you genuinely want local-only, `BACKUP_LOCAL_ONLY=1`
+says so out loud rather than leaving it as the default nobody noticed.
+
+**Check that they restore.** A backup nobody has restored is a hope.
+
+```sh
+./deploy/restore-check.sh
+```
+
+It loads the newest dump into a scratch database beside the real one, counts
+what came back, and throws the scratch away — reading the backup, writing
+nowhere near the database it came from. A dump that restores into an empty
+database passes every check that only looks at the file, so this one counts
+rows.
 
 ### Fly.io instead
 

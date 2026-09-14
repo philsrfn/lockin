@@ -465,6 +465,16 @@ const PHRASES = {
     en: 'What is stored, who it goes to and for how long — the privacy notice says. You can delete all of it below.',
   },
   agreedOn: { de: 'Zugestimmt am {date}', en: 'Agreed on {date}' },
+  exportData: { de: 'Daten exportieren', en: 'Export my data' },
+  exportPreparing: { de: 'Wird zusammengestellt …', en: 'Putting it together …' },
+  exportFailed: {
+    de: 'Der Export hat nicht geklappt. Versuch es nochmal, wenn du Empfang hast.',
+    en: 'That export did not work. Try again when you have signal.',
+  },
+  exportNoShareSheet: {
+    de: 'Die Datei ist fertig, aber dieses Gerät kann sie nicht teilen.',
+    en: 'The file is ready, but this device cannot share it.',
+  },
   withdrawConsent: { de: 'Zustimmung zurücknehmen', en: 'Withdraw agreement' },
   consentWithdrawn: {
     de: 'Zurückgenommen. Ohne Zustimmung kann der Trainer nicht arbeiten — beim nächsten Start wirst du wieder gefragt.',

@@ -647,9 +647,10 @@ repository is the trial.
 1. **Apple's half of the subscription.** StoreKit in the app, and server-side
    receipt verification setting the entitlement that already exists. It needs
    a product in App Store Connect, so it cannot be built blind.
-2. **In-app data export.** `GET /me/export` is complete and tested; putting a
-   download button on it needs `expo-file-system` and `expo-sharing`, and so a
-   native rebuild.
+2. **In-app data export.** Done: the button is on Account under "your data",
+   and reaches the same `GET /me/export` that was already there. It ships with
+   the next native build, because the two libraries it needs are not in the
+   current binary.
 3. **The box.** 961 MB and one core. The rate limiter no longer stands in the
    way of a second process: the ceilings that guard something finite — model
    spend, and the sign-in door — count in Postgres (migration 032), while the

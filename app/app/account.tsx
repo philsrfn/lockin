@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../src/api/client';
+import { exportMyData } from '../src/api/export';
 import type { Access, ConsentState, Profile, Program } from '../src/api/types';
 import { currentBaseUrl, isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
@@ -159,6 +160,25 @@ export default function AccountScreen() {
   );
   const withdrawn = privacy?.withdrawnAt != null || consents?.outstanding.includes('privacy');
   // When they agreed, which is not the same as which notice they agreed to.
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Failures are shown rather than thrown. This button is the one somebody
+   * presses when they are already unhappy enough to want their data out, and
+   * a red screen at that moment is the worst possible answer.
+   */
+  const runExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const result = await exportMyData();
+      if (result === 'unavailable') Alert.alert(t('exportData'), t('exportNoShareSheet'));
+    } catch (error) {
+      Alert.alert(t('exportData'), messageFor(error, 'exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
   const agreedOn =
     privacy && !withdrawn
       ? new Date(privacy.agreedAt).toLocaleDateString(deviceLocale())
@@ -395,12 +415,23 @@ export default function AccountScreen() {
       </Card>
 
       {/*
-        What is held, and the two rights that are a button rather than an
-        email. Deleting the account is above, on the account itself, because
-        that is where somebody looks for it.
+        What is held, and the rights that are a button rather than an email.
+        Deleting the account is above, on the account itself, because that is
+        where somebody looks for it.
       */}
       <Card label={t('yourData')}>
         <Text style={styles.blurb}>{t('dataBlurb')}</Text>
+        {/*
+          Articles 15 and 20 in one button: everything held, in a form that
+          can be taken elsewhere. Open to everybody for ever — §17 draws the
+          paid line around the trainer, never around somebody's own data.
+        */}
+        <Button
+          title={exporting ? t('exportPreparing') : t('exportData')}
+          variant="secondary"
+          disabled={exporting}
+          onPress={() => void runExport()}
+        />
         <Pressable onPress={() => openNotice('/privacy')} hitSlop={8}>
           <Text style={styles.noticeLink}>{t('consentReadPrivacy')}</Text>
         </Pressable>

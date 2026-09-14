@@ -168,6 +168,7 @@ deploy/              compose, Caddy, provision + deploy + backup scripts
 | [docs/api.md](docs/api.md) | every endpoint |
 | [docs/tenancy.md](docs/tenancy.md) | tenant isolation, and where it stops |
 | [docs/offline-sync.md](docs/offline-sync.md) | the queue, and how it fails |
+| [docs/workout.md](docs/workout.md) | the logger, progression and programmes — and what is wrong with them |
 | [docs/deploy.md](docs/deploy.md) | the box, the app, and the capability trap |
 | [docs/health.md](docs/health.md) | Apple Health |
 | [docs/generalisation.md](docs/generalisation.md) | what was deliberately not done, and why |

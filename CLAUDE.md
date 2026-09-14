@@ -398,6 +398,10 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
   exception to "numbers live in `server/src/domain/`", and it has its own
   tests: `npm --prefix app test`. **Offline-first**: writes go to local SQLite immediately
   and a queue drains to the backend. Never block a set on the network.
+
+  How the logger, progression and programmes actually hang together — and what
+  is wrong with the current design — is [docs/workout.md](docs/workout.md).
+  Read it before rewriting any of it.
 - **Food** — quick-add tiles for actual staples, then recents, then the
   athlete's own library, then manual entry. **No general nutrition database.**
   Protein remaining is the hero number, and precision on vegetables is not

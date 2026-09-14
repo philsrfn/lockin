@@ -44,7 +44,13 @@ import {
   updateContext,
 } from '../services/contexts';
 import { listExercises } from '../services/exercises';
-import { getProfile, isOnboarded, setLocale, setTimezone } from '../services/profile';
+import {
+  getProfile,
+  isOnboarded,
+  setCardioAddsCalories,
+  setLocale,
+  setTimezone,
+} from '../services/profile';
 import { verifyAppleIdentityToken } from '../auth/appleIdentity';
 import { legalPage } from '../legal';
 import { ConsentSchema } from '../schemas';
@@ -318,6 +324,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const body = UpdateProfileSchema.parse(request.body);
     if (body.timezone !== undefined) await setTimezone(request.ctx, body.timezone);
     if (body.locale !== undefined) await setLocale(request.ctx, body.locale);
+    if (body.cardioAddsCalories !== undefined) {
+      await setCardioAddsCalories(request.ctx, body.cardioAddsCalories);
+    }
     return { profile: await getProfile(request.ctx) };
   });
 

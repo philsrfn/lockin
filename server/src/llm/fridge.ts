@@ -20,6 +20,7 @@ import { activeContext } from '../services/contexts';
 import { macrosToday, mealsToday } from '../services/meals';
 import type { FridgeItem } from '../services/fridge';
 import { getProfile, macroTargets } from '../services/profile';
+import { todaysTargets } from '../services/dailyTargets';
 
 // The shape belongs to the service that stores it, not to the layer that
 // happens to generate a first draft of it. Re-exported because half the
@@ -160,7 +161,9 @@ export async function generateMealPlan(ctx: Ctx, items: FridgeItem[]): Promise<M
     mealsToday(ctx),
   ]);
 
-  const left = remaining(macroTargets(profile), consumed);
+  // Today's, not the week's average: a plan for the rest of a day somebody
+  // ran on should be allowed to feed the run.
+  const left = remaining(await todaysTargets(ctx, profile, profile.timezone), consumed);
   const active = rules.filter(
     (rule) => rule.active && (!rule.scope || rule.scope === context?.name),
   );

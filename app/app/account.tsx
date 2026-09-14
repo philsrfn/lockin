@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../src/api/client';
-import type { ConsentState, Program } from '../src/api/types';
+import type { ConsentState, Profile, Program } from '../src/api/types';
 import { currentBaseUrl, isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
   type Account,
@@ -45,6 +45,9 @@ export default function AccountScreen() {
   /** A programme is being created; both buttons that create one wait on it. */
   const [forking, setForking] = useState(false);
   const [consents, setConsents] = useState<ConsentState | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  /** The credit is computed from body weight, so without one it is always 0. */
+  const [hasWeighedIn, setHasWeighedIn] = useState(true);
 
   const [health, setHealth] = useState<'off' | 'on' | 'unsupported'>('off');
   const [healthNote, setHealthNote] = useState<string | null>(null);
@@ -57,13 +60,18 @@ export default function AccountScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [accountResult, programResult, consentResult] = await Promise.all([
-        loadAccount(),
-        api<{ programs: Program[]; current: Program }>('/programs'),
-        api<ConsentState>('/consents'),
-      ]);
+      const [accountResult, programResult, consentResult, profileResult, weightResult] =
+        await Promise.all([
+          loadAccount(),
+          api<{ programs: Program[]; current: Program }>('/programs'),
+          api<ConsentState>('/consents'),
+          api<{ profile: Profile }>('/profile'),
+          api<{ latest: unknown | null }>('/bodyweight'),
+        ]);
       setAccount(accountResult);
       setConsents(consentResult);
+      setProfile(profileResult.profile);
+      setHasWeighedIn(weightResult.latest != null);
       setPrograms(programResult.programs);
       setCurrent(programResult.current);
       setError(null);
@@ -137,15 +145,15 @@ export default function AccountScreen() {
     }
   }
 
-  /**
-   * The notices live on the server, so what somebody reads here is the same
-   * file the consent row points at.
-   */
   const privacy = consents?.given.find((entry) => entry.document === 'privacy');
   const withdrawn = privacy?.withdrawnAt != null || consents?.outstanding.includes('privacy');
   const agreedOn =
     privacy && !withdrawn ? new Date(privacy.version).toLocaleDateString(deviceLocale()) : null;
 
+  /**
+   * The notices live on the server, so what somebody reads here is the same
+   * file the consent row points at.
+   */
   const openNotice = (path: string) => {
     const base = currentBaseUrl();
     if (base) void Linking.openURL(`${base}${path}`);
@@ -159,6 +167,20 @@ export default function AccountScreen() {
    */
   async function withdraw() {
     setConsents(await api<ConsentState>('/consents/privacy', { method: 'DELETE' }));
+  }
+
+  /**
+   * The server is the one that knows. Reading the profile back rather than
+   * flipping a local boolean means the screen cannot disagree with what is
+   * actually stored.
+   */
+  async function toggleCardioCredit() {
+    const next = !(profile?.cardioAddsCalories ?? false);
+    const { profile: updated } = await api<{ profile: Profile }>('/profile', {
+      method: 'PATCH',
+      body: { cardioAddsCalories: next },
+    });
+    setProfile(updated);
   }
 
   async function connectHealth() {
@@ -296,6 +318,29 @@ export default function AccountScreen() {
           variant="secondary"
           onPress={() => router.push('/rules')}
         />
+      </Card>
+
+      {/*
+        Asked for rather than assumed: some people want the number to hold
+        still, so that a hard day is not also a bigger dinner. Off until
+        somebody says otherwise.
+      */}
+      <Card label={t('cardioSetting')}>
+        <Text style={styles.blurb}>{t('cardioAddsBlurb')}</Text>
+        <Pressable
+          onPress={() => void toggleCardioCredit()}
+          style={styles.toggleRow}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: profile?.cardioAddsCalories === true }}
+        >
+          <Text style={styles.toggleLabel}>{t('cardioAddsCalories')}</Text>
+          <Text style={[styles.toggleMark, profile?.cardioAddsCalories && styles.toggleMarkOn]}>
+            {profile?.cardioAddsCalories ? '✓' : '○'}
+          </Text>
+        </Pressable>
+        {profile?.cardioAddsCalories && !hasWeighedIn ? (
+          <Text style={styles.dim}>{t('cardioNeedsWeight')}</Text>
+        ) : null}
       </Card>
 
       <Card label={t('appleHealth')}>
@@ -456,6 +501,15 @@ const styles = StyleSheet.create({
   approved: { fontSize: 14, color: colors.accent },
   destructive: { fontSize: 14, color: colors.danger, paddingVertical: space.sm },
   noticeLink: { ...typo.body, color: colors.accent },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  toggleLabel: { ...typo.body, color: colors.text, flexShrink: 1 },
+  toggleMark: { fontSize: 18, color: colors.textFaint },
+  toggleMarkOn: { color: colors.accent },
 
   program: {
     paddingVertical: space.md,

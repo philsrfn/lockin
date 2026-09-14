@@ -63,6 +63,8 @@ export type Profile = {
   sex: Sex | null;
   activityLevel: ActivityLevel | null;
   goal: Goal | null;
+  /** Whether today's cardio raises today's calorie target. */
+  cardioAddsCalories: boolean;
   trainingDaysPerWeek: number | null;
   /** The rate the targets were sized from, after clamping. Negative is loss. */
   weeklyRateKg: number | null;
@@ -452,7 +454,13 @@ export type Today = {
   plan: WorkoutPlan;
   weight: WeightSummary;
   macros: {
-    targets: { kcal: number; proteinG: number; fatFloorG: number };
+    targets: {
+      kcal: number;
+      proteinG: number;
+      fatFloorG: number;
+      /** What today's cardio added. Zero when it added nothing. */
+      cardioCreditKcal: number;
+    };
     consumed: { kcal: number; proteinG: number; fatG: number; carbsG: number };
     remaining: {
       kcal: number;

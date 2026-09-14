@@ -97,10 +97,16 @@ export const UpdateProfileSchema = z
     timezone: z.string().min(1).max(64).optional(),
     /** null follows the device. */
     locale: z.string().min(2).max(35).nullish(),
+    /** Whether today's cardio raises today's calorie target. */
+    cardioAddsCalories: z.boolean().optional(),
   })
-  .refine((body) => body.timezone !== undefined || body.locale !== undefined, {
-    message: 'Nothing to change',
-  });
+  .refine(
+    (body) =>
+      body.timezone !== undefined ||
+      body.locale !== undefined ||
+      body.cardioAddsCalories !== undefined,
+    { message: 'Nothing to change' },
+  );
 
 /**
  * The questionnaire. Targets are computed from these in code (§1) — the body

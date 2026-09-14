@@ -14,7 +14,8 @@ import { recentCardio } from '../services/cardio';
 import { activeContext } from '../services/contexts';
 import { recoverySignals } from '../services/health';
 import { macrosToday, mealsToday } from '../services/meals';
-import { getProfile, macroTargets } from '../services/profile';
+import { getProfile } from '../services/profile';
+import { todaysTargets } from '../services/dailyTargets';
 import { listRules } from '../services/rules';
 import { firstSessionAt, recentSessions } from '../services/sessions';
 import { planFor, templateForToday } from '../services/workouts';
@@ -65,7 +66,10 @@ export async function assembleContext(ctx: Ctx): Promise<string> {
 
   const average7 = movingAverage(entries, asOf);
   const changeKg = weeklyChangeKg(entries, asOf);
-  const targets = macroTargets(profile);
+  // The same number the home screen shows. A trainer working from the weekly
+  // average while the screen shows today's is a trainer that contradicts the
+  // app in front of the person reading both.
+  const targets = await todaysTargets(ctx, profile, zone);
   const left = remaining(targets, consumed);
 
   const finished = sessions
@@ -165,7 +169,11 @@ ATHLETE
 - latest weigh-in: ${entries.length ? `${kg(entries[entries.length - 1]!.weightKg)}kg` : 'none yet'}
 - 7-day average: ${average7 ? `${kg(average7.avgKg)}kg from ${average7.sampleCount}/7 days` : 'not enough weigh-ins'}
 - week-over-week: ${changeKg == null ? 'not enough data' : `${changeKg > 0 ? '+' : '−'}${kg(Math.abs(changeKg))}kg`}
-- targets: ${targets.kcal} kcal, ${targets.proteinG}g protein, ${targets.fatFloorG}g fat floor
+- targets: ${targets.kcal} kcal, ${targets.proteinG}g protein, ${targets.fatFloorG}g fat floor${
+    targets.cardioCreditKcal > 0
+      ? `\n- ${targets.cardioCreditKcal} kcal of that is today's cardio, which they have asked to have credited. Explain it if they ask; it is net of resting metabolism and of what their target already assumed they train, which is why it is smaller than a watch would say.`
+      : ''
+  }
 
 CURRENT CONTEXT
 - city: ${context?.name ?? 'unset'}

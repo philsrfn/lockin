@@ -237,7 +237,7 @@ it in the keychain rather than the binary.
 ## The admin panel
 
 `https://YOUR_DOMAIN/admin`, in any browser. Press **Approve this browser**, and
-it shows a six-character code. Open lockin on your phone → Regeln → Admin, type
+it shows a six-character code. Open lockin on your phone → Konto → Admin, type
 the code, and the browser is in.
 
 The panel has no Sign in with Apple of its own: Apple's web flow wants a

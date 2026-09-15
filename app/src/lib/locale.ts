@@ -656,6 +656,16 @@ const PHRASES = {
     de: 'Noch keine Auswertung. Schließe eine Einheit ab, dann steht sie hier.',
     en: 'No write-up yet. Finish a session and it lands here.',
   },
+  openReport: { de: 'Auswertung ansehen', en: 'See the write-up' },
+
+  // The attendance grid at the top of the history screen.
+  trainingDaysTitle: { de: 'TRAININGSTAGE', en: 'TRAINING DAYS' },
+  trainingDaysSummary: {
+    de: 'An {trained} von {total} Tagen trainiert',
+    en: 'Trained on {trained} of {total} days',
+  },
+  gridRestDay: { de: 'frei', en: 'rest' },
+  gridTrainedDay: { de: 'Training', en: 'trained' },
   reportSets: { de: 'Sätze', en: 'Sets' },
   reportReps: { de: 'Wiederholungen', en: 'Reps' },
   reportExercises: { de: 'Übungen', en: 'Exercises' },

@@ -77,6 +77,13 @@ export function weekdayShort(iso: string): string {
     .slice(0, 2);
 }
 
+/** The month alone, abbreviated — the labels along the top of the training grid. */
+export function monthShort(iso: string): string {
+  return new Intl.DateTimeFormat(deviceLocale(), { month: 'short' })
+    .format(asDate(iso))
+    .replace(/\.$/, '');
+}
+
 export function shortDate(iso: string): string {
   return new Intl.DateTimeFormat(deviceLocale(), {
     day: 'numeric',

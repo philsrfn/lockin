@@ -10,6 +10,7 @@ import type {
 } from '../src/api/types';
 import { Card, Rule } from '../src/components/Card';
 import { Screen } from '../src/components/Screen';
+import { TrainingGrid } from '../src/components/TrainingGrid';
 import { kg, longDate } from '../src/lib/format';
 import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
@@ -95,6 +96,13 @@ export default function HistoryScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      {/* Above the totals, because the question "am I showing up" is answered
+          faster by a shape than by four figures — and because the range chips
+          directly above it are what changes the shape. */}
+      {data && !empty ? (
+        <TrainingGrid days={data.days} today={data.today} rangeDays={days} />
+      ) : null}
+
       {totals && !empty ? (
         <Card label={t('training')}>
           <View style={styles.statRow}>
@@ -127,6 +135,9 @@ export default function HistoryScreen() {
               session={session}
               open={expanded === session.id}
               onToggle={() => setExpanded(expanded === session.id ? null : session.id)}
+              onOpenReport={() =>
+                router.push({ pathname: '/report', params: { sessionId: String(session.id) } })
+              }
             />
           ))}
 
@@ -143,11 +154,24 @@ function SessionRow({
   session,
   open,
   onToggle,
+  onOpenReport,
 }: {
   session: HistorySession;
   open: boolean;
   onToggle: () => void;
+  onOpenReport: () => void;
 }) {
+  /**
+   * The same condition the server uses to decide whether to write one at all:
+   * a session that was closed out with an RPE and actually has sets in it.
+   * Asking the backend which sessions have a report would be more truthful and
+   * would cost a column, a join and a round trip to remove a link that leads to
+   * one honest sentence saying there is none. Generation can still fail, and
+   * then the screen says so — which is the same thing the athlete would see
+   * after tapping the push.
+   */
+  const hasReport = session.finished && session.rpe != null && session.summary.setCount > 0;
+
   return (
     <Card>
       <Pressable onPress={onToggle} accessibilityRole="button">
@@ -208,6 +232,16 @@ function SessionRow({
             </View>
           ))}
         </>
+      ) : null}
+
+      {/* Outside the toggle, or expanding the sets and opening the write-up
+          would be the same tap. This is the only way back to a report once the
+          push has been swiped away — the screen after finishing is gone the
+          moment somebody leaves it. */}
+      {hasReport ? (
+        <Pressable onPress={onOpenReport} hitSlop={8} accessibilityRole="button">
+          <Text style={styles.reportLink}>{t('openReport')}</Text>
+        </Pressable>
       ) : null}
     </Card>
   );
@@ -316,6 +350,7 @@ const styles = StyleSheet.create({
   footnote: { fontSize: 12, color: colors.textFaint, marginTop: space.sm },
   notes: { ...typo.bodyDim, color: colors.textDim, marginTop: space.xs, fontStyle: 'italic' },
   toggle: { fontSize: 12, color: colors.accent, marginTop: space.sm },
+  reportLink: { fontSize: 12, color: colors.accent, marginTop: space.sm },
 
   setRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: space.xs },
   setIndex: { ...typo.bodyDim, color: colors.textFaint, width: 20 },

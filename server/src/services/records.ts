@@ -52,3 +52,20 @@ export async function bestsFor(ctx: Ctx, exerciseId: number): Promise<ExerciseBe
   );
   return bestsByExercise(rows.map(toScored))[0] ?? null;
 }
+
+/**
+ * Every best as it stood before one particular session.
+ *
+ * The session is excluded by id rather than by date, because a set logged
+ * during it shares that session's `performed_at` and would land on the wrong
+ * side of any `<` comparison. `recordsBrokenBy` states the same requirement
+ * from the other end: a set compared against a history containing itself can
+ * never break a record, because it has already tied it.
+ */
+export async function bestsBefore(ctx: Ctx, sessionId: number): Promise<ExerciseBests[]> {
+  const { rows } = await ctx.db.query<Row>(
+    `${SELECT} and st.session_id <> $2 order by s.performed_at`,
+    [ctx.userId, sessionId],
+  );
+  return bestsByExercise(rows.map(toScored));
+}

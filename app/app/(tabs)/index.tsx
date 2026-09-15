@@ -112,9 +112,20 @@ export default function TodayScreen() {
    * Start the logger, optionally on a day the athlete picked rather than the
    * one the rotation proposed. An already-open session ignores the choice —
    * the logger keeps the day its logged sets belong to.
+   *
+   * Three cases, and they are genuinely three: `undefined` is "whatever comes
+   * next", a code is a named day, and `null` is a free session. Squeezing the
+   * last two into one string would mean a programme with a day called 'free'
+   * could never be trained.
    */
-  function startSession(template?: string) {
+  function startSession(template?: string | null) {
     setDayPickerOpen(false);
+
+    if (template === null) {
+      router.push({ pathname: '/workout', params: { free: '1' } });
+      return;
+    }
+
     router.push(template ? { pathname: '/workout', params: { template } } : '/workout');
   }
 

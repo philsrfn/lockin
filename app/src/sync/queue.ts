@@ -15,7 +15,7 @@ import { api } from '../api/client';
 import { database, setSessionServerId } from '../db/local';
 
 export type QueuedOp =
-  | { op: 'create_session'; payload: { template: string; performedAt?: string } }
+  | { op: 'create_session'; payload: { template: string | null; performedAt?: string } }
   | {
       op: 'record_set';
       payload: {

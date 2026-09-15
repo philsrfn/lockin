@@ -26,11 +26,37 @@ export const MAX_CODE_LENGTH = 12;
 export const MAX_DAYS = 7;
 export const MAX_SLOTS_PER_DAY = 12;
 
+/** No rest at all is a superset, not a mistake. Ten minutes is the far end. */
+export const MAX_REST_SECONDS = 600;
+
+/**
+ * The smallest jump worth offering and the largest worth believing.
+ *
+ * Quarter-kilo steps because that is the smallest plate anybody actually
+ * owns; a rack has no 0.1 kg on it, and an increment that does not exist in
+ * the room produces prescriptions that cannot be loaded.
+ */
+export const INCREMENT_STEP_KG = 0.25;
+export const MAX_INCREMENT_KG = 20;
+
 export type DraftSlot = {
   exerciseId: number;
   sets: number;
   repMin: number;
   repMax: number;
+  /**
+   * Absent means "the movement decides" — `defaultsForPattern` fills it in.
+   *
+   * That is not a convenience, it is where the §6 boundary sits. The trainer
+   * builds a draft too, and its tool declaration promises the model that it
+   * does not set increments or rest. Leaving these optional is what keeps
+   * that promise true by construction: the model's path never mentions them,
+   * so the numbers progression runs on stay derived in code per §1. The
+   * athlete may set them because which plates are in their gym is a fact
+   * about the room rather than a computation.
+   */
+  restSeconds?: number;
+  incrementKg?: number;
 };
 
 export type DraftDay = {
@@ -81,7 +107,22 @@ export type Problem =
   | 'too_many_slots'
   | 'duplicate_exercise'
   | 'bad_sets'
-  | 'bad_reps';
+  | 'bad_reps'
+  | 'bad_rest'
+  | 'bad_increment';
+
+/**
+ * An increment has to land on a plate that exists.
+ *
+ * Compared with a tolerance rather than with `%`, for the same reason
+ * `roundToIncrement` does: 2.5 / 0.25 is exact in binary but the next value
+ * somebody types may not be, and a validator that rejects 1.2000000000000002
+ * is a validator that rejects 1.2.
+ */
+function landsOnAPlate(incrementKg: number): boolean {
+  const steps = incrementKg / INCREMENT_STEP_KG;
+  return Math.abs(steps - Math.round(steps)) < 1e-9;
+}
 
 /**
  * Everything wrong with a draft, rather than the first thing.
@@ -117,6 +158,25 @@ export function validateDraft(draft: Draft): Problem[] {
         slot.repMax >= slot.repMin &&
         slot.repMax <= 50;
       if (!repsSane) problems.add('bad_reps');
+
+      // Only checked when given. Absent is the ordinary case and means the
+      // movement's own default, which is already known to be sane.
+      if (slot.restSeconds !== undefined) {
+        const restSane =
+          Number.isInteger(slot.restSeconds) &&
+          slot.restSeconds >= 0 &&
+          slot.restSeconds <= MAX_REST_SECONDS;
+        if (!restSane) problems.add('bad_rest');
+      }
+
+      if (slot.incrementKg !== undefined) {
+        const incrementSane =
+          Number.isFinite(slot.incrementKg) &&
+          slot.incrementKg > 0 &&
+          slot.incrementKg <= MAX_INCREMENT_KG &&
+          landsOnAPlate(slot.incrementKg);
+        if (!incrementSane) problems.add('bad_increment');
+      }
     }
   }
 

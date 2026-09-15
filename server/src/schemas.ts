@@ -19,7 +19,15 @@ export const IdParamSchema = z.object({
 export const CreateSessionSchema = z.object({
   performedAt: z.string().datetime({ offset: true }).optional(),
   contextId: z.number().int().positive().optional(),
-  template: TemplateIdSchema,
+  /**
+   * Null is a free session: one that belongs to no programme day.
+   *
+   * Nullable rather than optional, so that "no day" has to be said out loud.
+   * An absent key is nearly always a client that forgot to send one, and
+   * silently filing that as a free session would take it out of the rotation
+   * and out of every day-over-day comparison without anybody asking for it.
+   */
+  template: TemplateIdSchema.nullable(),
 });
 
 export const FinishSessionSchema = z.object({
@@ -296,6 +304,14 @@ export const SaveProgramSchema = z.object({
               sets: z.number().int().min(1).max(10),
               repMin: z.number().int().min(1).max(50),
               repMax: z.number().int().min(1).max(50),
+              /**
+               * Omitted means the movement's own default. The editor sends
+               * them, the trainer's `edit_program` does not — see the note on
+               * `DraftSlot` for why that asymmetry is the point rather than an
+               * oversight. `validateDraft` is the authority on the values.
+               */
+              restSeconds: z.number().int().min(0).max(600).optional(),
+              incrementKg: z.number().positive().max(20).optional(),
             }),
           )
           .max(12),

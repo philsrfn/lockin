@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Modal,
@@ -10,8 +10,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ExercisePrescription } from '../src/api/types';
+import { api } from '../src/api/client';
+import type { Exercise, ExercisePrescription } from '../src/api/types';
 import { Button } from '../src/components/Button';
+import { ExercisePicker } from '../src/components/ExercisePicker';
 import { RestTimer } from '../src/components/RestTimer';
 import { RirChips } from '../src/components/RirChips';
 import { Stepper } from '../src/components/Stepper';
@@ -30,17 +32,52 @@ export default function WorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   // A day chosen on the home screen. Absent when the rotation's suggestion
-  // was accepted, which is the ordinary case.
-  const { template } = useLocalSearchParams<{ template?: string }>();
-  const workout = useWorkout(template);
+  // was accepted, which is the ordinary case. `free=1` is the third answer:
+  // a session that belongs to no programme day at all.
+  const { template, free } = useLocalSearchParams<{ template?: string; free?: string }>();
+  const workout = useWorkout(free === '1' ? null : template);
 
   const [index, setIndex] = useState(0);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [rest, setRest] = useState<{ startedAt: number; seconds: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [library, setLibrary] = useState<Exercise[]>([]);
+
+  /**
+   * The movement library, fetched once and kept.
+   *
+   * Loaded on every session rather than only on a free one, because the add
+   * button is on every session: a machine being occupied is not a reason to
+   * skip a movement, it is a reason to do a different one, and that happens
+   * on programme days too.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void api<{ exercises: Exercise[] }>('/exercises')
+      .then((result) => {
+        if (!cancelled) setLibrary(result.exercises);
+      })
+      // No signal, no picker. The rest of the logger does not need it, and
+      // blocking a session on the library would break the one promise this
+      // screen makes.
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const exercises = workout.plan?.exercises ?? [];
   const exercise = exercises[Math.min(index, Math.max(0, exercises.length - 1))];
+
+  const addExercise = async (picked: Exercise) => {
+    setPicking(false);
+    await workout.addExercise(picked.id);
+    // Straight to it. Adding a movement and then having to find it in the
+    // pill strip is two taps for something that was already a decision.
+    setIndex(exercises.length);
+    setRest(null);
+  };
 
   const draft = useMemo<Draft>(() => {
     if (!exercise) return { weightKg: UNKNOWN_START_KG, reps: 10, rir: null };
@@ -61,13 +98,48 @@ export default function WorkoutScreen() {
     }));
   }
 
-  if (workout.loading || !exercise) {
+  if (workout.loading || (!exercise && !workout.plan)) {
     return (
       <View style={[styles.centred, { paddingTop: insets.top }]}>
         <Text style={styles.dim}>{workout.error ?? t('preparingSession')}</Text>
         {workout.error ? (
           <Button title={t('back')} variant="secondary" onPress={() => router.back()} />
         ) : null}
+      </View>
+    );
+  }
+
+  /**
+   * A free session before anything has been added to it.
+   *
+   * Not an error state and not a loading state — it is the ordinary opening
+   * move of a session that has no plan, so it says what to do next rather
+   * than what went wrong.
+   */
+  if (!exercise) {
+    return (
+      <View style={styles.root}>
+        <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
+            <Text style={styles.headerAction}>{t('close')}</Text>
+          </Pressable>
+          <Text style={styles.headerTitle}>{t('freeSession').toUpperCase()}</Text>
+          <View style={styles.headerButton} />
+        </View>
+
+        <View style={styles.centred}>
+          <Text style={styles.dim}>{t('noExercisesYet')}</Text>
+          <Button title={t('addExercise')} onPress={() => setPicking(true)} />
+        </View>
+
+        <ExercisePicker
+          visible={picking}
+          exercises={library}
+          used={exercises.map((item) => item.exerciseId)}
+          title="addExerciseTitle"
+          onPick={addExercise}
+          onClose={() => setPicking(false)}
+        />
       </View>
     );
   }
@@ -96,9 +168,11 @@ export default function WorkoutScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton}>
           <Text style={styles.headerAction}>{t('close')}</Text>
         </Pressable>
-        {/* The day's name, not its code: 'Push' reads, 'DAY Push' does not. */}
+        {/* The day's name, not its code: 'Push' reads, 'DAY Push' does not.
+            A free session has no name on the server, because the one it has
+            is a UI string in two languages. */}
         <Text style={styles.headerTitle}>
-          {(workout.plan?.dayName ?? '').toUpperCase()}
+          {(workout.plan?.dayName ?? t('freeSession')).toUpperCase()}
         </Text>
         <Pressable onPress={() => setFinishing(true)} hitSlop={12} style={styles.headerButton}>
           <Text style={[styles.headerAction, styles.headerFinish]}>{t('finishSession')}</Text>
@@ -236,6 +310,13 @@ export default function WorkoutScreen() {
           ) : null}
         </View>
 
+        {/* Last, and deliberately quiet. On a programme day this is the
+            exception; on a free session it is the whole interface, and it
+            reads the same either way. */}
+        <Pressable onPress={() => setPicking(true)} hitSlop={8} style={styles.addRow}>
+          <Text style={styles.addText}>+ {t('addExercise')}</Text>
+        </Pressable>
+
         {/* Pluralised through the locale rather than by appending an "s",
             which German does not do and which was the reason these two lines
             could not be translated in the first sweep. */}
@@ -252,10 +333,39 @@ export default function WorkoutScreen() {
         visible={finishing}
         onCancel={() => setFinishing(false)}
         onFinish={async (result) => {
-          await workout.finish(result);
+          const finishedId = await workout.finish(result);
           setFinishing(false);
-          router.back();
+          /**
+           * Replace, not push: going "back" from the write-up should land on
+           * Today, not in a logger for a session that is over.
+           *
+           * The report is generated behind the finish rather than during it,
+           * so arriving here a moment early is normal — the screen says it is
+           * still being written and a pull refreshes it. Waiting for the model
+           * before letting somebody out of the logger would be a spinner at
+           * the exact moment they are putting their shoes on.
+           *
+           * Always named, never "the latest one". Without the id the screen
+           * fell back to the most recent report there was, which after a
+           * session finished seconds ago is the *previous* session's — shown
+           * under a heading that says this one. `pending` is the honest
+           * version of that for a finish that has not reached the server yet.
+           */
+          router.replace(
+            finishedId == null
+              ? { pathname: '/report', params: { pending: '1' } }
+              : { pathname: '/report', params: { sessionId: String(finishedId) } },
+          );
         }}
+      />
+
+      <ExercisePicker
+        visible={picking}
+        exercises={library}
+        used={exercises.map((item) => item.exerciseId)}
+        title="addExerciseTitle"
+        onPick={addExercise}
+        onClose={() => setPicking(false)}
       />
     </View>
   );
@@ -489,6 +599,8 @@ const styles = StyleSheet.create({
 
   footerActions: { flexDirection: 'row', gap: space.sm },
   flex: { flex: 1 },
+  addRow: { alignItems: 'center', paddingTop: space.sm, minHeight: 44, justifyContent: 'center' },
+  addText: { ...typo.body, color: colors.accent },
   offline: { fontSize: 13, color: colors.warn, lineHeight: 19 },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },

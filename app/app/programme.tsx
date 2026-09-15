@@ -5,6 +5,7 @@ import { api } from '../src/api/client';
 import type { Exercise, ProgramWithSlots } from '../src/api/types';
 import { Button } from '../src/components/Button';
 import { Card, Rule } from '../src/components/Card';
+import { ExercisePicker } from '../src/components/ExercisePicker';
 import { Screen } from '../src/components/Screen';
 import { Stepper } from '../src/components/Stepper';
 import { t } from '../src/lib/locale';
@@ -12,10 +13,12 @@ import {
   DEFAULT_RANGE,
   type Draft,
   type DraftProblem,
+  INCREMENTS_KG,
   MAX_DAYS,
   MAX_SETS,
   MAX_SLOTS_PER_DAY,
   REP_RANGES,
+  REST_SECONDS,
   addDay,
   addSlot,
   describeSlot,
@@ -30,19 +33,9 @@ import {
   toSaveBody,
   updateSlot,
 } from '../src/lib/programmeDraft';
+import { incrementKg as formatIncrement, restTime } from '../src/lib/format';
 import { colors, radius, space, type as typo } from '../src/theme';
 import { messageFor } from '../src/lib/apiError';
-
-/** The order a programme is usually written in, big movements first. */
-const PATTERNS = [
-  { pattern: 'squat', label: 'patternSquat' },
-  { pattern: 'hinge', label: 'patternHinge' },
-  { pattern: 'h_push', label: 'patternHPush' },
-  { pattern: 'v_push', label: 'patternVPush' },
-  { pattern: 'h_pull', label: 'patternHPull' },
-  { pattern: 'v_pull', label: 'patternVPull' },
-  { pattern: 'iso', label: 'patternIso' },
-] as const;
 
 const PROBLEM_TEXT: Record<DraftProblem, Parameters<typeof t>[0]> = {
   name_missing: 'programmeNeedsName',
@@ -335,7 +328,7 @@ export default function ProgrammeScreen() {
   );
 }
 
-/** Sets, reps, order and removal for one movement. */
+/** Sets, reps, rest, increment, order and removal for one movement. */
 function SlotSheet({
   slot,
   canMoveUp,
@@ -346,10 +339,23 @@ function SlotSheet({
   onRemove,
   onClose,
 }: {
-  slot: { exerciseName: string; sets: number; repMin: number; repMax: number } | null;
+  slot: {
+    exerciseName: string;
+    sets: number;
+    repMin: number;
+    repMax: number;
+    restSeconds?: number;
+    incrementKg?: number;
+  } | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
-  onChange: (patch: { sets?: number; repMin?: number; repMax?: number }) => void;
+  onChange: (patch: {
+    sets?: number;
+    repMin?: number;
+    repMax?: number;
+    restSeconds?: number;
+    incrementKg?: number;
+  }) => void;
   onMove: (direction: -1 | 1) => void;
   onReplace: () => void;
   onRemove: () => void;
@@ -361,7 +367,13 @@ function SlotSheet({
         <Pressable style={styles.backdropFill} onPress={onClose} />
         <View style={styles.sheet}>
           {slot ? (
-            <>
+            // Scrollable since rest and increment joined it: on a small phone
+            // the remove button otherwise sits below the bottom edge, which is
+            // indistinguishable from it not being there.
+            <ScrollView
+              contentContainerStyle={styles.sheetScroll}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.sheetTitle}>{slot.exerciseName}</Text>
 
               <Text style={styles.label}>{t('setsLabel')}</Text>
@@ -397,6 +409,81 @@ function SlotSheet({
                 })}
               </View>
 
+              {/*
+                Rest and increment used to be computed from the movement
+                pattern and silently overwritten on every save. They are the
+                two things that differ between gyms rather than between
+                exercises — the smallest plate in the room, and whether the
+                isolation work is supersetted — so they belong to whoever is
+                standing in the room.
+
+                "By movement" is a chip rather than an absent selection: a row
+                with nothing lit reads as broken, and leaving it derived is a
+                real answer and usually the right one.
+              */}
+              <Text style={styles.label}>{t('restLabel')}</Text>
+              <View style={styles.chips}>
+                <Pressable
+                  onPress={() => onChange({ restSeconds: undefined })}
+                  style={[styles.chip, slot.restSeconds === undefined && styles.chipOn]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      slot.restSeconds === undefined && styles.chipTextOn,
+                    ]}
+                  >
+                    {t('byMovement')}
+                  </Text>
+                </Pressable>
+                {REST_SECONDS.map((seconds) => {
+                  const on = slot.restSeconds === seconds;
+                  return (
+                    <Pressable
+                      key={seconds}
+                      onPress={() => onChange({ restSeconds: seconds })}
+                      style={[styles.chip, on && styles.chipOn]}
+                    >
+                      <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                        {restTime(seconds)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.label}>{t('incrementLabel')}</Text>
+              <View style={styles.chips}>
+                <Pressable
+                  onPress={() => onChange({ incrementKg: undefined })}
+                  style={[styles.chip, slot.incrementKg === undefined && styles.chipOn]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      slot.incrementKg === undefined && styles.chipTextOn,
+                    ]}
+                  >
+                    {t('byMovement')}
+                  </Text>
+                </Pressable>
+                {INCREMENTS_KG.map((increment) => {
+                  const on = slot.incrementKg === increment;
+                  return (
+                    <Pressable
+                      key={increment}
+                      onPress={() => onChange({ incrementKg: increment })}
+                      style={[styles.chip, on && styles.chipOn]}
+                    >
+                      <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                        {formatIncrement(increment)} kg
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.hint}>{t('incrementHint')}</Text>
+
               <Button title={t('replaceExercise')} variant="secondary" onPress={onReplace} />
               <View style={styles.moveRow}>
                 <Button
@@ -415,7 +502,7 @@ function SlotSheet({
                 />
               </View>
               <Button title={t('removeExercise')} variant="ghost" onPress={onRemove} />
-            </>
+            </ScrollView>
           ) : null}
         </View>
       </View>
@@ -424,89 +511,12 @@ function SlotSheet({
 }
 
 /** The exercise library, grouped the way a programme is written. */
-function ExercisePicker({
-  visible,
-  exercises,
-  used,
-  onPick,
-  onClose,
-}: {
-  visible: boolean;
-  exercises: Exercise[];
-  used: number[];
-  onPick: (exercise: Exercise) => void;
-  onClose: () => void;
-}) {
-  const [query, setQuery] = useState('');
-
-  const needle = query.trim().toLowerCase();
-  const matching = needle
-    ? exercises.filter((exercise) => exercise.name.toLowerCase().includes(needle))
-    : exercises;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      onShow={() => setQuery('')}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={styles.backdropFill} onPress={onClose} />
-        <View style={styles.pickerSheet}>
-          <Text style={styles.label}>{t('pickExercise')}</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('searchExercise')}
-            placeholderTextColor={colors.textFaint}
-            autoCorrect={false}
-            style={styles.search}
-          />
-
-          <ScrollView keyboardShouldPersistTaps="handled" style={styles.pickerList}>
-            {matching.length === 0 ? <Text style={styles.dim}>{t('noExerciseFound')}</Text> : null}
-
-            {PATTERNS.map(({ pattern, label }) => {
-              const group = matching.filter((exercise) => exercise.pattern === pattern);
-              if (group.length === 0) return null;
-              return (
-                <View key={pattern} style={styles.group}>
-                  <Text style={styles.groupLabel}>{t(label)}</Text>
-                  {group.map((exercise) => {
-                    const already = used.includes(exercise.id);
-                    return (
-                      <Pressable
-                        key={exercise.id}
-                        onPress={() => onPick(exercise)}
-                        disabled={already}
-                        style={({ pressed }) => [styles.pickRow, pressed && styles.pressed]}
-                      >
-                        <Text style={[styles.pickName, already && styles.pickNameOff]}>
-                          {exercise.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              );
-            })}
-          </ScrollView>
-
-          <Pressable onPress={onClose} style={styles.cancel} hitSlop={8}>
-            <Text style={styles.cancelText}>{t('cancel')}</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 const styles = StyleSheet.create({
   header: { gap: space.xs },
   back: { ...typo.body, color: colors.textDim },
   label: { ...typo.label, color: colors.textFaint },
+  hint: { fontSize: 13, color: colors.textFaint, lineHeight: 18, marginTop: -space.xs },
   blurb: { fontSize: 14, color: colors.textBody, lineHeight: 20 },
   dim: { ...typo.bodyDim, color: colors.textFaint },
   error: { color: colors.danger, fontSize: 14 },
@@ -554,7 +564,9 @@ const styles = StyleSheet.create({
     padding: space.lg,
     paddingBottom: space.xxl,
     gap: space.md,
+    maxHeight: '85%',
   },
+  sheetScroll: { gap: space.md, paddingBottom: space.md },
   sheetTitle: { fontSize: 22, fontWeight: '400', color: colors.text },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
@@ -571,30 +583,6 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.accent },
 
   moveRow: { flexDirection: 'row', gap: space.sm },
-
-  pickerSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
-    paddingBottom: space.xl,
-    gap: space.md,
-    maxHeight: '85%',
-  },
-  search: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceHigh,
-    paddingHorizontal: space.lg,
-    color: colors.text,
-    fontSize: 16,
-  },
-  pickerList: { flexGrow: 0 },
-  group: { paddingBottom: space.md },
-  groupLabel: { ...typo.label, color: colors.textFaint, paddingBottom: space.xs },
-  pickRow: { minHeight: 48, justifyContent: 'center' },
-  pickName: { ...typo.body, color: colors.text },
-  pickNameOff: { color: colors.textFaint },
 
   cancel: { alignItems: 'center', paddingTop: space.sm },
   cancelText: { ...typo.body, color: colors.textDim },

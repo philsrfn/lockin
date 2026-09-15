@@ -187,7 +187,11 @@ async function sessionReminder(ctx: Ctx): Promise<JobResult> {
     .join(' · ');
 
   const result = await sendPush(ctx, {
-    title: today.plan.dayName,
+    // Today always resolves a programme day, so the fallback is unreachable
+    // in practice — it exists because the plan type also describes a free
+    // session, and a notification with the word "null" in the title is the
+    // kind of thing that ships when a type widens under a call site.
+    title: today.plan.dayName ?? today.plan.programName,
     body: [movements, today.context?.name].filter(Boolean).join(' — '),
     data: { screen: 'workout' },
   });

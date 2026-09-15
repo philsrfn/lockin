@@ -2,6 +2,7 @@ import { type Ctx, transactionFor } from '../db';
 import { HttpError, badRequest } from '../errors';
 import type { SyncOp } from '../schemas';
 import { createSession, finishSession } from './sessions';
+import { reportInBackground } from './sessionReports';
 import { recordSet } from './sets';
 import { logWeight } from './bodyweight';
 
@@ -104,8 +105,34 @@ async function applyOne(ctx: Ctx, op: SyncOp): Promise<SyncResult> {
  */
 export async function drain(ctx: Ctx, ops: SyncOp[]): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
+  const finished: number[] = [];
+
   for (const op of ops) {
-    results.push(await applyOne(ctx, op));
+    const result = await applyOne(ctx, op);
+    results.push(result);
+
+    // `applied` and not `duplicate`: a duplicate means this finish has been
+    // seen before, and the report it produced is already written. Reacting to
+    // it again would cost a model call to discover the unique constraint.
+    if (op.op === 'finish_session' && result.status === 'applied') {
+      const session = result.data as { id?: number; rpe?: number | null } | undefined;
+      // No RPE means the update coalesced to nothing and the session is still
+      // open — `finishedSql` is the authority on that, and it reads rpe.
+      if (session?.id != null && session.rpe != null) finished.push(session.id);
+    }
   }
+
+  /**
+   * After the whole batch, not after the op.
+   *
+   * A queue that has been waiting for signal drains everything it has in one
+   * request, and the order within it is the order things happened on the
+   * phone — but a report that starts reading while later ops are still
+   * committing would describe a session that is missing its last sets. The
+   * cost of waiting is the few hundred milliseconds the rest of the batch
+   * takes; the cost of not waiting is a write-up that is quietly wrong.
+   */
+  for (const id of finished) reportInBackground(ctx.userId, id);
+
   return results;
 }

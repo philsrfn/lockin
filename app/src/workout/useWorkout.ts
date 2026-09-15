@@ -13,6 +13,7 @@ import {
   insertSet,
   markSessionFinished,
   openLocalSession,
+  sessionServerId,
   setsForSession,
 } from '../db/local';
 import { type QueueSnapshot, drain, enqueue, snapshot, subscribe } from '../sync/queue';
@@ -43,7 +44,15 @@ export type Workout = {
   logSet: (input: { exerciseId: number; weightKg: number; reps: number; rir: number | null }) => void;
   undoLastSet: (exerciseId: number) => void;
   swap: (fromExerciseId: number, toExerciseId: number) => Promise<void>;
-  finish: (input: { rpe: number; jointPain: boolean; notes?: string }) => Promise<void>;
+  addExercise: (exerciseId: number) => Promise<void>;
+  /**
+   * Closes the session and answers with the id the server knows it by, or
+   * `null` when the finish is still sitting in the queue. The screen needs
+   * that id to ask for *this* session's write-up: sending it to "the latest
+   * report" instead showed the previous session's one, which reads as a
+   * write-up of the session just finished and is not.
+   */
+  finish: (input: { rpe: number; jointPain: boolean; notes?: string }) => Promise<number | null>;
 };
 
 // Same key useResource writes under, so Today and the logger share one cache.
@@ -58,6 +67,9 @@ const PLAN_CACHE_KEY = '/today';
  */
 const planCacheKey = (template: string) => `/workouts/next?template=${template}`;
 
+/** The free session's shell has one key, because there is only one of it. */
+const FREE_PLAN_CACHE_KEY = '/workouts/free';
+
 /**
  * Local-first. A set is written to SQLite and rendered before the network is
  * touched at all; the queue carries it to the backend whenever it can.
@@ -69,8 +81,11 @@ const planCacheKey = (template: string) => `/workouts/next?template=${template}`
  *   rotation proposed. Applied only when starting a *new* session — an
  *   already-open one keeps the day it was started with, because changing it
  *   underneath logged sets would re-file work that has already happened.
+ *
+ *   `null` is an explicit choice too: a free session, belonging to no
+ *   programme day. `undefined` means "whatever the rotation says".
  */
-export function useWorkout(chosenTemplate?: string): Workout {
+export function useWorkout(chosenTemplate?: string | null): Workout {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
@@ -122,6 +137,33 @@ export function useWorkout(chosenTemplate?: string): Workout {
 
       let current = openLocalSession();
 
+      // Every day the current programme actually has. A session whose day is
+      // not on this list belongs to a programme that has since been left.
+      const dayCodes = today.plan.days.map((day) => day.code);
+      const belongsToProgramme = (session: LocalSession) =>
+        session.template === null || dayCodes.includes(session.template);
+
+      /**
+       * A session left open under a programme that has since been swapped.
+       *
+       * This is the bug that put "this phone has never loaded that day" on
+       * screen with full signal: the session said 'B', the new programme has
+       * Push/Pull/Legs, the logger asked for day B by name and the server
+       * answered 404 — correctly, because that day no longer exists. The
+       * phone then looked in its cache, found nothing under that key, and
+       * reported it as an offline problem.
+       *
+       * Dropped locally rather than finished over the wire. Closing it would
+       * need an RPE, and inventing one would be putting a number into the
+       * history that nobody said. Its sets stay exactly where they are, and
+       * the server counts a session with sets and no RPE as finished once it
+       * is old enough — which is what walking away from one is.
+       */
+      if (current && !belongsToProgramme(current)) {
+        markSessionFinished(current.clientId);
+        current = null;
+      }
+
       // The server knows about a session this device has not seen: adopt it
       // rather than starting a second one.
       if (!current && today.openSession) {
@@ -132,26 +174,33 @@ export function useWorkout(chosenTemplate?: string): Workout {
           performedAt: today.openSession.performedAt,
           finished: false,
         };
-        insertSession(adopted);
-        for (const set of today.openSession.sets) {
-          insertSet({
-            clientId: `server-${set.id}`,
-            sessionClientId: adopted.clientId,
-            exerciseId: set.exerciseId,
-            setIndex: set.setIndex,
-            weightKg: set.weightKg,
-            reps: set.reps,
-            rir: set.rir,
-          });
+
+        // Not ours to adopt, for the same reason as above. Left untouched on
+        // the server, where it is history.
+        if (belongsToProgramme(adopted)) {
+          insertSession(adopted);
+          for (const set of today.openSession.sets) {
+            insertSet({
+              clientId: `server-${set.id}`,
+              sessionClientId: adopted.clientId,
+              exerciseId: set.exerciseId,
+              setIndex: set.setIndex,
+              weightKg: set.weightKg,
+              reps: set.reps,
+              rir: set.rir,
+            });
+          }
+          current = adopted;
         }
-        current = adopted;
       }
 
       if (!current) {
         current = {
           clientId: randomUUID(),
           serverId: null,
-          template: chosenTemplate ?? today.plan.template,
+          // `undefined` means the rotation decides; `null` is a deliberate
+          // free session and must survive the fallback.
+          template: chosenTemplate === undefined ? today.plan.template : chosenTemplate,
           performedAt: new Date().toISOString(),
           finished: false,
         };
@@ -172,7 +221,28 @@ export function useWorkout(chosenTemplate?: string): Workout {
        * this backwards showed one day's exercises while writing them into
        * another day's session, which is worse than not offering the choice.
        */
-      if (current.template === today.plan.template) {
+      if (current.template === null) {
+        // A free session starts empty on purpose: what it contains is decided
+        // one exercise at a time, by somebody standing in the gym.
+        try {
+          const free = await api<WorkoutPlan>('/workouts/free');
+          cacheWrite(FREE_PLAN_CACHE_KEY, free);
+          if (!cancelled) setPlan(free);
+        } catch {
+          const cached = cacheRead<WorkoutPlan>(FREE_PLAN_CACHE_KEY);
+          if (!cached) {
+            if (!cancelled) {
+              setError(t('freeSessionUnavailable'));
+              setLoading(false);
+            }
+            return;
+          }
+          if (!cancelled) {
+            setPlan(cached);
+            setStale(true);
+          }
+        }
+      } else if (current.template === today.plan.template) {
         setPlan(today.plan);
       } else {
         const key = planCacheKey(current.template);
@@ -292,9 +362,34 @@ export function useWorkout(chosenTemplate?: string): Workout {
     [session],
   );
 
+  /**
+   * Adds a movement to what is on screen, load and all.
+   *
+   * The same prescription endpoint the swap button uses, so an exercise added
+   * halfway through a free session arrives with the weight this athlete's own
+   * history says it should carry — not an empty field. Appending rather than
+   * replacing is the only difference between this and `swap`.
+   */
+  const addExercise = useCallback(
+    async (exerciseId: number) => {
+      const query = session?.serverId ? `?excludeSessionId=${session.serverId}` : '';
+      const result = await api<{ prescription: ExercisePrescription }>(
+        `/exercises/${exerciseId}/prescription${query}`,
+      );
+
+      setPlan((current) => {
+        if (!current) return current;
+        // Already there — scroll to it rather than list it twice.
+        if (current.exercises.some((exercise) => exercise.exerciseId === exerciseId)) return current;
+        return { ...current, exercises: [...current.exercises, result.prescription] };
+      });
+    },
+    [session],
+  );
+
   const finish = useCallback(
     async (input: { rpe: number; jointPain: boolean; notes?: string }) => {
-      if (!session) return;
+      if (!session) return null;
 
       markSessionFinished(session.clientId);
       enqueue(randomUUID(), {
@@ -310,6 +405,10 @@ export function useWorkout(chosenTemplate?: string): Workout {
       // Best effort: if there is signal, land it now so Today is right when he
       // gets back to it.
       await drain();
+
+      // After the drain, because that is when a session started offline is
+      // given its id.
+      return sessionServerId(session.clientId);
     },
     [session],
   );
@@ -326,7 +425,11 @@ export function useWorkout(chosenTemplate?: string): Workout {
         const today = await api<Today>('/today');
         if (cancelled) return;
         cacheWrite(PLAN_CACHE_KEY, today);
-        setPlan(today.plan);
+        // Only when the session on screen is the rotation's own day. A free
+        // session, or one picked off the day list, has a different plan
+        // entirely, and overwriting it here would swap the exercises out from
+        // under sets that are already logged against them.
+        if (session && session.template === today.plan.template) setPlan(today.plan);
         setStale(false);
       } catch {
         // Still offline. The banner is correct; try again on the next drain.
@@ -336,7 +439,7 @@ export function useWorkout(chosenTemplate?: string): Workout {
     return () => {
       cancelled = true;
     };
-  }, [stale, queue.pending.size]);
+  }, [stale, queue.pending.size, session]);
 
   // Each set's state is read from the queue itself. Deriving it from "the
   // queue is empty" was wrong: a rejected write also empties the queue, and
@@ -359,9 +462,23 @@ export function useWorkout(chosenTemplate?: string): Workout {
       logSet,
       undoLastSet,
       swap,
+      addExercise,
       finish,
     }),
-    [loading, error, plan, stale, queue, decorated, setsFor, logSet, undoLastSet, swap, finish],
+    [
+      loading,
+      error,
+      plan,
+      stale,
+      queue,
+      decorated,
+      setsFor,
+      logSet,
+      undoLastSet,
+      swap,
+      addExercise,
+      finish,
+    ],
   );
 }
 

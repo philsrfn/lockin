@@ -21,6 +21,14 @@ export type DraftSlot = {
   sets: number;
   repMin: number;
   repMax: number;
+  /**
+   * Undefined means the movement's pattern decides, which is what a slot that
+   * has never been saved wants. A slot loaded from the server always has both,
+   * because the columns are not null — so in practice these are only absent
+   * for a movement added or swapped in this editing session.
+   */
+  restSeconds?: number;
+  incrementKg?: number;
 };
 
 export type DraftDay = {
@@ -60,6 +68,26 @@ export const MAX_DAYS = 7;
 export const MAX_SLOTS_PER_DAY = 12;
 export const MAX_SETS = 10;
 
+/**
+ * Rest, as chips for the same reason the rep ranges are chips.
+ *
+ * Every value `defaultsForPattern` produces on the server is in this list —
+ * 60, 150 and 180 — because a slot loaded from the server that matched no
+ * chip would render with nothing selected and read as broken.
+ */
+export const REST_SECONDS: readonly number[] = [60, 90, 120, 150, 180, 240];
+
+/**
+ * The jumps that exist on a rack.
+ *
+ * This is the field the whole change is for: the pattern default assumes 2.5
+ * kg plates and 1.25 kg for isolation, and somebody whose gym has 0.5 kg
+ * micro-plates — or whose machine stack moves in fives — was stuck with an
+ * assumption made about a different room. 1.25 and 2.5 are the defaults, 5 is
+ * what the catalogue already gives the hack squat.
+ */
+export const INCREMENTS_KG: readonly number[] = [0.5, 1, 1.25, 2.5, 5];
+
 export function draftFrom(program: ProgramWithSlots): Draft {
   return {
     name: program.name,
@@ -72,6 +100,8 @@ export function draftFrom(program: ProgramWithSlots): Draft {
         sets: slot.sets,
         repMin: slot.range.min,
         repMax: slot.range.max,
+        restSeconds: slot.restSeconds,
+        incrementKg: slot.incrementKg,
       })),
     })),
   };
@@ -89,6 +119,11 @@ export function toSaveBody(draft: Draft) {
         sets: slot.sets,
         repMin: slot.repMin,
         repMax: slot.repMax,
+        // Omitted rather than sent as null when absent: the server reads
+        // "not given" as "let the movement decide", and a null would have to
+        // mean something else again.
+        ...(slot.restSeconds !== undefined ? { restSeconds: slot.restSeconds } : {}),
+        ...(slot.incrementKg !== undefined ? { incrementKg: slot.incrementKg } : {}),
       })),
     })),
   };
@@ -149,7 +184,18 @@ export function replaceSlot(
     ...day,
     slots: day.slots.map((slot, at) =>
       at === slotIndex
-        ? { ...slot, exerciseId: exercise.id, exerciseName: exercise.name }
+        ? {
+            ...slot,
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            // Rest and increment do not travel with the swap, unlike sets and
+            // reps. Three sets of eight means the same thing on a cable fly
+            // as on a squat; a 5 kg jump does not, and carrying one over from
+            // the movement that used to be here is how a lateral raise ends
+            // up prescribed in fives.
+            restSeconds: undefined,
+            incrementKg: undefined,
+          }
         : slot,
     ),
   });
@@ -159,7 +205,7 @@ export function updateSlot(
   draft: Draft,
   dayIndex: number,
   slotIndex: number,
-  patch: Partial<Pick<DraftSlot, 'sets' | 'repMin' | 'repMax'>>,
+  patch: Partial<Pick<DraftSlot, 'sets' | 'repMin' | 'repMax' | 'restSeconds' | 'incrementKg'>>,
 ): Draft {
   const day = draft.days[dayIndex];
   if (!day || !day.slots[slotIndex]) return draft;

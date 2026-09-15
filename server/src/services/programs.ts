@@ -275,9 +275,23 @@ export async function saveProgram(ctx: Ctx, programId: number, draft: Draft): Pr
       const dayId = rows[0].id;
 
       for (const [slotPosition, slot] of day.slots.entries()) {
-        // Increment, rest and the default range come from the movement
-        // pattern, not from the athlete: those are the numbers progression
-        // runs on, and §1 keeps them in code.
+        /**
+         * The movement pattern is the default, not the verdict.
+         *
+         * It used to be the verdict, and that was wrong in the one place it
+         * mattered most: a pattern knows what a hinge usually rests and
+         * usually jumps by, but it does not know that this gym's smallest
+         * plate is 0.5 kg, or that this athlete supersets the isolation work
+         * and rests thirty seconds. Those are facts about the room and the
+         * person, and overwriting them on every save meant the editor showed
+         * a field it then silently discarded.
+         *
+         * What has not moved is who may set them. The trainer's `edit_program`
+         * sends no increment and no rest — §6 promises the model exactly that
+         * — so its drafts still land here as `undefined` and still take the
+         * derived value. §1's line is between the model and these numbers,
+         * not between the athlete and them.
+         */
         const { rows: exerciseRows } = await inner.db.query<{ pattern: string }>(
           'select pattern from exercises where id = $1',
           [slot.exerciseId],
@@ -296,8 +310,8 @@ export async function saveProgram(ctx: Ctx, programId: number, draft: Draft): Pr
             slotPosition,
             slot.exerciseId,
             slot.sets,
-            defaults.incrementKg,
-            defaults.restSeconds,
+            slot.incrementKg ?? defaults.incrementKg,
+            slot.restSeconds ?? defaults.restSeconds,
             slot.repMin,
             slot.repMax,
           ],
@@ -373,6 +387,14 @@ export async function createProgram(
             sets: slot.sets,
             repMin: slot.range.min,
             repMax: slot.range.max,
+            // Carried rather than re-derived. The catalogue does not always
+            // agree with `defaultsForPattern` — migration 015 gives the hack
+            // squat and the hip thrust 5 kg jumps where the squat pattern
+            // says 2.5 — and before these were carried, taking a copy of a
+            // built-in quietly halved them. A fork has to be the programme it
+            // was forked from, or it is not a fork.
+            restSeconds: slot.restSeconds,
+            incrementKg: slot.incrementKg,
           })),
         });
       }

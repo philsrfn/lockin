@@ -13,6 +13,13 @@ import { colors, radius, space, type as typo } from '../theme';
  * months of progression, which is the thing this app is for.
  *
  * So the day is a choice. The rotation's pick is marked, not enforced.
+ *
+ * The last row is none of the programme's days. Some sessions are not a day
+ * at all — a stranger's gym with none of the right machines, twenty minutes
+ * before a train, a sport that is not lifting. Those used to be logged under
+ * whichever day happened to be next, which is the same corruption in a
+ * politer form: the progression then reads a improvised session as a failed
+ * attempt at Pull. `null` says "no day", and the history stays honest.
  */
 export function DayPicker({
   days,
@@ -22,7 +29,8 @@ export function DayPicker({
 }: {
   days: { code: string; name: string; isToday: boolean }[];
   visible: boolean;
-  onPick: (code: string) => void;
+  /** `null` is the free session: a workout belonging to no programme day. */
+  onPick: (code: string | null) => void;
   onClose: () => void;
 }) {
   return (
@@ -42,6 +50,16 @@ export function DayPicker({
               {day.isToday ? <Text style={styles.suggested}>{t('suggested')}</Text> : null}
             </Pressable>
           ))}
+
+          <Pressable
+            onPress={() => onPick(null)}
+            style={({ pressed }) => [styles.row, styles.free, pressed && styles.pressed]}
+          >
+            <View style={styles.freeText}>
+              <Text style={styles.name}>{t('freeSession')}</Text>
+              <Text style={styles.hint}>{t('freeSessionHint')}</Text>
+            </View>
+          </Pressable>
 
           <Pressable onPress={onClose} style={styles.cancel} hitSlop={8}>
             <Text style={styles.cancelText}>{t('cancel')}</Text>
@@ -75,6 +93,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
   },
   pressed: { opacity: 0.7 },
+  free: { marginTop: space.sm, paddingVertical: space.sm },
+  freeText: { gap: 2 },
+  hint: { fontSize: 12, color: colors.textDim },
   name: { ...typo.body, color: colors.text, fontWeight: '600' },
   suggested: { fontSize: 12, color: colors.accent },
   cancel: { alignItems: 'center', paddingTop: space.md },

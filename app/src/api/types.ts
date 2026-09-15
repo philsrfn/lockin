@@ -230,9 +230,15 @@ export type ExercisePrescription = {
 };
 
 export type WorkoutPlan = {
-  template: TemplateId;
-  /** What to call this day on screen: 'Full body A', 'Upper', 'Push'. */
-  dayName: string;
+  /** The programme day, or null for a free session that belongs to none. */
+  template: TemplateId | null;
+  /**
+   * What to call this day on screen: 'Full body A', 'Upper', 'Push'.
+   *
+   * Null for a free session. The name for that one is a UI string in two
+   * languages, so it comes from `locale.ts` rather than from the server.
+   */
+  dayName: string | null;
   programName: string;
   /** Every day of the programme, so today's can be chosen rather than assumed. */
   days: { code: string; name: string; isToday: boolean }[];
@@ -433,8 +439,72 @@ export type WeeklyReview = {
   model: string;
 };
 
-export type RuleTier = 'hard' | 'soft' | 'never';
+/**
+ * The write-up after a session.
+ *
+ * `facts` is arithmetic the server did and this screen only formats — §1, the
+ * same rule that keeps loads and macros out of the model. `headline`,
+ * `assessment` and `oneThing` are the model's prose about those facts.
+ */
+export type SessionReportExercise = {
+  exerciseId: number;
+  name: string;
+  sets: number;
+  reps: number;
+  volumeKg: number;
+  topSet: { weightKg: number; reps: number };
+  previous: {
+    performedAt: string;
+    topSet: { weightKg: number; reps: number };
+    volumeKg: number;
+  } | null;
+  loadDeltaKg: number | null;
+  estimatedMaxDeltaKg: number | null;
+  volumeDeltaKg: number | null;
+  inRange: boolean | null;
+};
 
+export type SessionReportFacts = {
+  totalSets: number;
+  totalReps: number;
+  volumeKg: number;
+  exerciseCount: number;
+  exercises: SessionReportExercise[];
+  /** Null the first time this day is trained: there is nothing to compare to. */
+  versusLast: {
+    performedAt: string;
+    volumeKg: number;
+    deltaKg: number;
+    deltaPct: number;
+  } | null;
+  records: {
+    exerciseId: number;
+    name: string;
+    kind: string;
+    weightKg: number;
+    reps: number;
+  }[];
+  /** Null for a free session, or one logged under a day the programme has lost. */
+  plan: {
+    exercisesPlanned: number;
+    exercisesDone: number;
+    setsPlanned: number;
+    setsDone: number;
+  } | null;
+};
+
+export type SessionReport = {
+  sessionId: number;
+  performedAt: string;
+  dayName: string | null;
+  facts: SessionReportFacts;
+  headline: string;
+  assessment: string;
+  oneThing: string | null;
+  createdAt: string;
+};
+
+export type RuleTier = 'hard' | 'soft' | 'never';
 export type Rule = {
   id: number;
   tier: RuleTier;

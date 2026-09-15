@@ -82,14 +82,58 @@ describe('building one from nothing', () => {
     expect(slots.map((slot) => slot.exerciseName)).toEqual(['Lat Pulldown', 'Barbell Row']);
   });
 
-  it('takes increment and rest from the movement, not from the athlete', async () => {
-    // §1: those are the numbers progression runs on, so they stay in code.
+  it('falls back to the movement when the athlete says nothing', async () => {
+    // Absent is the ordinary case, and it is the only case the trainer's
+    // edit_program can produce — §6 promises the model it does not set these.
     const created = await createProgram(phil, { name: 'Mein Plan' });
     const saved = await saveProgram(phil, created.id, await draft());
 
     const [pulldown] = await slotsFor(phil, saved.id, saved.days[0]!.code);
-    expect(pulldown?.incrementKg).toBeGreaterThan(0);
-    expect(pulldown?.restSeconds).toBeGreaterThan(0);
+    // Lat Pulldown is v_pull: 2.5 kg and 150 s from defaultsForPattern.
+    expect(pulldown?.incrementKg).toBe(2.5);
+    expect(pulldown?.restSeconds).toBe(150);
+  });
+
+  it('keeps a rest and an increment the athlete did set', async () => {
+    // The pattern knows what a pulldown usually rests. It does not know that
+    // this gym's stack moves in fives, and it used to overwrite the answer.
+    const created = await createProgram(phil, { name: 'Mein Plan' });
+    const base = await draft();
+    const saved = await saveProgram(phil, created.id, {
+      ...base,
+      days: [
+        {
+          ...base.days[0]!,
+          slots: [
+            { ...base.days[0]!.slots[0]!, restSeconds: 45, incrementKg: 5 },
+            base.days[0]!.slots[1]!,
+          ],
+        },
+      ],
+    });
+
+    const [pulldown, row] = await slotsFor(phil, saved.id, saved.days[0]!.code);
+    expect(pulldown?.restSeconds).toBe(45);
+    expect(pulldown?.incrementKg).toBe(5);
+    // The movement next to it is untouched, so an override is a slot's own.
+    expect(row?.incrementKg).toBe(2.5);
+  });
+
+  it('refuses an increment that is not on any plate', async () => {
+    const created = await createProgram(phil, { name: 'Mein Plan' });
+    const base = await draft();
+
+    await expect(
+      saveProgram(phil, created.id, {
+        ...base,
+        days: [
+          {
+            ...base.days[0]!,
+            slots: [{ ...base.days[0]!.slots[0]!, incrementKg: 0.3 }],
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it('refuses a programme nobody could train', async () => {
@@ -120,6 +164,24 @@ describe('forking one from the catalogue', () => {
     // Same names, and codes derived fresh rather than inherited.
     expect(fork.days.map((d) => d.name)).toEqual(ppl.days.map((d) => d.name));
     expect(fork.id).not.toBe(ppl.id);
+  });
+
+  it('copies the catalogue\'s own increments rather than re-deriving them', async () => {
+    /**
+     * Migration 015 gives the hack squat a 5 kg jump where the squat pattern
+     * says 2.5. Before the fork carried them, taking a copy of a built-in
+     * quietly halved it — the programme looked identical and progressed at a
+     * different rate, which is the worst shape a bug can take here.
+     */
+    const fullBody = (await programBySlug(pool, 'full_body_3'))!;
+    const fork = await createProgram(phil, { name: 'Full body, meins', fromProgramId: fullBody.id });
+
+    const dayC = fork.days.find((day) => day.name === 'Full body C')!;
+    const hackSquat = (await slotsFor(phil, fork.id, dayC.code)).find(
+      (slot) => slot.exerciseName === 'Hack Squat',
+    );
+
+    expect(hackSquat?.incrementKg).toBe(5);
   });
 });
 

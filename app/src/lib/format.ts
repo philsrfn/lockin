@@ -15,6 +15,43 @@ export function signedKg(value: number | null | undefined, decimals = 1): string
 }
 
 /**
+ * A plate jump: 5, 2.5, 1.25 — as many decimals as the number needs and no
+ * more. `kg()` cannot do this, because it takes a fixed number of places and
+ * the increments in one list want two of them and none of them.
+ */
+export function incrementKg(value: number): string {
+  return value.toFixed(2).replace(/0$/, '').replace(/\.0?$/, '');
+}
+
+/**
+ * A rest interval, as a clock rather than as a count of seconds.
+ *
+ * "2:30" is read at a glance; "150 s" has to be divided first, and this sits
+ * on a chip somebody taps between sets. Under a minute stays in seconds,
+ * because "0:45" reads as a stopwatch that is running.
+ */
+export function restTime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+/**
+ * A calendar day and a moment in time are not the same string, and this takes
+ * either.
+ *
+ * `2026-09-14` is a day with no time in it: read as midnight UTC it can fall
+ * on the day before in the reader's own timezone, so it is pinned to noon,
+ * which no timezone can push across a date boundary. A full timestamp already
+ * names an instant and is handed to Intl as it stands — appending noon to it
+ * produced `...T14:32:16.848ZT12:00:00`, which is not a date at all, and the
+ * session report crashed on exactly that.
+ */
+function asDate(iso: string): Date {
+  return new Date(iso.length > 10 ? iso : `${iso}T12:00:00`);
+}
+
+/**
  * The masthead date, in the reader's own language. It is the one moment of the
  * interface that should feel like it belongs to a person rather than to a
  * product — which is precisely why it cannot be hardcoded to somebody else's.
@@ -24,7 +61,7 @@ export function signedKg(value: number | null | undefined, decimals = 1): string
  * hand would only get it wrong somewhere.
  */
 export function longDate(iso: string): string {
-  const date = new Date(`${iso}T12:00:00`);
+  const date = asDate(iso);
   const locale = deviceLocale();
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date);
   const dayMonth = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(date);

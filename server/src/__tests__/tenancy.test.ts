@@ -62,6 +62,7 @@ const OWNED_TABLES = [
   'measurements',
   'programs',
   'sessions_tokens',
+  'session_reports',
 ];
 
 /**

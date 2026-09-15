@@ -16,10 +16,18 @@ Every option below terminates TLS for you.
 
 ## Backend
 
-### Hetzner (chosen)
+### One small VPS
 
-One CX22 in Nuremberg or Falkenstein, ~€3.79/month, running the whole stack:
-Caddy for TLS, the API, and Postgres. Only Caddy binds a public port.
+Production runs on a **1 GB DigitalOcean droplet in Frankfurt**, running the
+whole stack: Caddy for TLS, the API, and Postgres. Only Caddy binds a public
+port. Any VPS with Docker has the same shape; the steps below were first
+written for a Hetzner CX22 (~€3.79/month, Nuremberg or Falkenstein), and this
+file said Hetzner for a long time after the box was somewhere else.
+
+**The host is named in the privacy notice** (`server/legal/privacy.de.md`), as
+a processor people agreed to. Moving providers is therefore not only an ops
+change: the notice changes, its version in `domain/consent.ts` is bumped, and
+everybody is asked again.
 
 **1. Create the server** (web console, ~2 minutes)
 

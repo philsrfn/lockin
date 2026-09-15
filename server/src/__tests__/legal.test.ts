@@ -43,7 +43,7 @@ describe('the notices as pages', () => {
   });
 
   it('names every processor the code actually talks to', () => {
-    for (const processor of ['Google', 'Apple', 'OpenFoodFacts', 'Hetzner']) {
+    for (const processor of ['Google', 'Apple', 'OpenFoodFacts', 'DigitalOcean']) {
       expect(privacy).toContain(processor);
     }
   });
@@ -55,5 +55,17 @@ describe('the notices as pages', () => {
   it('renders bullets as a list, not as stray hyphens', () => {
     expect(privacy).toContain('<ul>');
     expect(privacy).not.toMatch(/<p>- /);
+  });
+
+  /**
+   * App Store Connect will not take a listing without a support URL, and a
+   * support page that cannot answer the two questions somebody arrives with —
+   * how do I leave, how do I take my data — is not one.
+   */
+  it('serves a support page that says how to leave and how to take your data', () => {
+    const support = legalPage('support.de.md');
+    expect(support).toContain('<title>Hilfe · lockin</title>');
+    expect(support).toMatch(/Konto löschen/);
+    expect(support).toMatch(/Daten exportieren/);
   });
 });

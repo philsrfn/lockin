@@ -82,7 +82,7 @@ for common changes. What is left to build is in
 | DB | PostgreSQL 16 | plain `.sql` migrations, applied in filename order |
 | LLM | Gemini via `@google/genai` | see the model note below |
 | Push | APNs via Expo Notifications | proactive coaching, §8 |
-| Hosting | Hetzner box, Docker Compose, Caddy for TLS | `deploy/` |
+| Hosting | One DigitalOcean droplet in Frankfurt (1 GB), Docker Compose, Caddy for TLS | `deploy/` |
 
 **Never put the Gemini API key in the app.** The app talks only to the backend.
 

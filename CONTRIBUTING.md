@@ -183,7 +183,7 @@ not hold.
 ## Deploying
 
 Backend and app both: [docs/deploy.md](docs/deploy.md). Short version — the
-server is a Hetzner box running Docker Compose behind Caddy, `deploy/deploy.sh`
+server is a DigitalOcean droplet in Frankfurt running Docker Compose behind Caddy, `deploy/deploy.sh`
 ships it, and `deploy/backup.sh` takes the `pg_dump` you want before any
 migration.
 

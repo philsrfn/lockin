@@ -51,7 +51,8 @@
           "NSHealthUpdateUsageDescription": "So the sessions you log here appear in Apple Health alongside everything else.",
           "background": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

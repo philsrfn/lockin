@@ -223,6 +223,15 @@ default, so `printf '\n\n\n' |` is enough if it is not being run by hand.
 Do it in the same sitting as the capability's first build; a profile minted
 before the capability existed will fail every build until it is replaced.
 
+### A native module is not the same thing as a capability
+
+`expo-file-system` and `expo-sharing`, added for the data export, declare no
+entitlement — they need a new native build like any native module, and nothing
+else. The command above is for the list Apple keeps on the App ID: push,
+HealthKit, Sign in with Apple, and **In-App Purchase** when StoreKit arrives.
+Running it for a plain native module costs nothing but proves nothing either;
+skipping it for a capability costs a build cycle.
+
 ## Rotating the token later
 
 ```sh

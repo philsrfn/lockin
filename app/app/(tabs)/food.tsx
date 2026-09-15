@@ -20,10 +20,10 @@ import { FoodCapture } from '../../src/components/FoodCapture';
 import { FoodEditor } from '../../src/components/FoodEditor';
 import { PortionSheet } from '../../src/components/PortionSheet';
 import { t } from '../../src/lib/locale';
+import { MEAL_SLOTS, slotLabelKey } from '../../src/lib/mealSlots';
 import { colors, radius, space, tabBarHeight, type as typo } from '../../src/theme';
 import { messageFor } from '../../src/lib/apiError';
 
-const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 /**
  * §11: quick-add tiles for actual staples, then his own library ordered by what
@@ -199,7 +199,7 @@ export default function FoodScreen() {
                     <Text style={styles.mealName} numberOfLines={1}>
                       {meal.description}
                     </Text>
-                    <Text style={styles.mealSlot}>{meal.slot}</Text>
+                    <Text style={styles.mealSlot}>{t(slotLabelKey(meal.slot))}</Text>
                   </View>
                   <Text style={styles.mealMacros}>
                     {meal.proteinG ?? 0} g P · {meal.kcal ?? 0} kcal
@@ -400,14 +400,14 @@ function ManualEntry({
           </View>
 
           <View style={styles.slotRow}>
-            {SLOTS.map((option) => (
+            {MEAL_SLOTS.map((option) => (
               <Pressable
                 key={option}
                 onPress={() => setSlot(option)}
                 style={[styles.slotChip, slot === option && styles.slotChipActive]}
               >
                 <Text style={[styles.slotText, slot === option && styles.slotTextActive]}>
-                  {option}
+                  {t(slotLabelKey(option))}
                 </Text>
               </Pressable>
             ))}

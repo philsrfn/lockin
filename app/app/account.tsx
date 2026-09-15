@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../src/api/client';
 import { exportMyData } from '../src/api/export';
+import { PURCHASES_AVAILABLE } from '../src/lib/purchases';
 import type { Access, ConsentState, Profile, Program } from '../src/api/types';
 import { currentBaseUrl, isHealthConnected, setHealthConnected } from '../src/api/config';
 import {
@@ -365,7 +366,8 @@ export default function AccountScreen() {
         anybody assumes when a subscription lapses is that their data went
         with it.
       */}
-      {access ? (
+      {/* Hidden until this build can sell something — see lib/purchases.ts. */}
+      {access && PURCHASES_AVAILABLE ? (
         <Card label={t('accessSetting')}>
           <Text style={styles.accessState}>
             {access.kind === 'comped'

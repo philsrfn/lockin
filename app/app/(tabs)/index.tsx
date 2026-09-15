@@ -328,7 +328,15 @@ export default function TodayScreen() {
         */}
         {isToday ? (
           <View style={styles.section}>
-            <SessionPreview plan={plan} onPickDay={() => setDayPickerOpen(true)} />
+            {/*
+              No day to pick while a session is open. The logger keeps the day
+              its sets belong to and ignores the choice, and a picker that
+              changes nothing reads as a broken button. Resume is below.
+            */}
+            <SessionPreview
+              plan={plan}
+              onPickDay={inProgress ? undefined : () => setDayPickerOpen(true)}
+            />
           </View>
         ) : null}
       </ScrollView>

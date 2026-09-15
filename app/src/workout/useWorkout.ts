@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import { api } from '../api/client';
 import { t } from '../lib/locale';
+import { isAbandoned } from '../lib/sessionAge';
 import type { ExercisePrescription, Today, WorkoutPlan } from '../api/types';
 import {
   type LocalSession,
@@ -164,6 +165,18 @@ export function useWorkout(chosenTemplate?: string | null): Workout {
         current = null;
       }
 
+      /**
+       * Left open for longer than the server counts as live, which is what
+       * walking away from a session is. Closed the same way as the one above
+       * and for the same reason: locally, with no RPE invented and nothing sent
+       * over the wire, because the server already counts it by the same rule.
+       * Anything still queued for it drains as normal. See lib/sessionAge.ts.
+       */
+      if (current && isAbandoned(current.performedAt)) {
+        markSessionFinished(current.clientId);
+        current = null;
+      }
+
       // The server knows about a session this device has not seen: adopt it
       // rather than starting a second one.
       if (!current && today.openSession) {
@@ -177,7 +190,7 @@ export function useWorkout(chosenTemplate?: string | null): Workout {
 
         // Not ours to adopt, for the same reason as above. Left untouched on
         // the server, where it is history.
-        if (belongsToProgramme(adopted)) {
+        if (belongsToProgramme(adopted) && !isAbandoned(adopted.performedAt)) {
           insertSession(adopted);
           for (const set of today.openSession.sets) {
             insertSet({

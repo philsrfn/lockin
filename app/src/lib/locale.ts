@@ -442,8 +442,8 @@ const PHRASES = {
   // ——— consent, before anything else happens ———
   consentTitle: { de: 'Bevor es losgeht', en: 'Before we start' },
   consentBlurb: {
-    de: 'lockin speichert dein Training, dein Gewicht und was du isst — und schickt deine Nachrichten an ein Sprachmodell, damit der Trainer antworten kann. Das sind Gesundheitsdaten, und dafür braucht es deine ausdrückliche Zustimmung.',
-    en: 'lockin stores your training, your weight and what you eat — and sends your messages to a language model so the trainer can answer. That is health data, and it needs your explicit agreement.',
+    de: 'lockin speichert dein Training, dein Gewicht, was du isst und — wenn du es verbindest — Daten aus Apple Health. Damit der Trainer antworten kann, gehen deine Nachrichten, diese Daten und Fotos von Essen oder Kühlschrank an Gemini, das Sprachmodell von Google. Das sind Gesundheitsdaten, und dafür braucht es deine ausdrückliche Zustimmung.',
+    en: 'lockin stores your training, your weight, what you eat and — if you connect it — data from Apple Health. So the trainer can answer, your messages, that data and any photos of your food or fridge go to Gemini, the language model made by Google. That is health data, and it needs your explicit agreement.',
   },
   consentReadPrivacy: { de: 'Datenschutzerklärung lesen', en: 'Read the privacy notice' },
   consentReadTerms: { de: 'Nutzungsbedingungen lesen', en: 'Read the terms' },

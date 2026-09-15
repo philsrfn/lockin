@@ -4,6 +4,7 @@
  * state the application itself could not produce.
  */
 import { type Ctx, ctxFor, pool } from '../db';
+import { resetSharedBuckets } from '../rateLimit';
 import { provisionUser } from '../services/users';
 
 /**
@@ -62,6 +63,21 @@ async function transactionalTables(): Promise<string[]> {
 export async function resetData(): Promise<void> {
   const tables = await transactionalTables();
   await pool.query(`truncate ${tables.join(', ')} restart identity cascade`);
+
+  /**
+   * Named by hand, because the derivation above cannot see it: `rate_limits`
+   * holds counters keyed by athlete id *or* by address, so it carries no
+   * user_id, and no amount of reading the schema will find it.
+   *
+   * It has to be cleared all the same. The sign-in limit is twenty an hour per
+   * address, every test in a file signs in from the same one, and the counter
+   * now outlives the process-local Map that `resetBuckets` clears. Left in
+   * place it spends the allowance partway through a suite and every later
+   * sign-in fails somewhere further downstream — the symptom was twenty auth
+   * tests reporting a nonce that had never been issued, which was true: the
+   * request that would have issued it was refused.
+   */
+  await resetSharedBuckets();
 
   // Programmes an athlete built. The catalogue rows stay — truncating this
   // table would take the training programme with it, which is why it is

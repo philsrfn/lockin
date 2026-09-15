@@ -185,6 +185,8 @@ push_tokens           addressed, never broadcast
 weekly_reviews
 llm_usage             tokens and cost per call — what the admin panel bills against
 sync_log              idempotency for the offline queue
+rate_limits           shared counters — keyed by athlete *or* by address, so
+                      no user_id, and therefore no tenant policy
 sessions_tokens       device pairing for the admin panel
 admin_actions         an audit trail of what an admin did
 ```
@@ -648,8 +650,11 @@ repository is the trial.
 2. **In-app data export.** `GET /me/export` is complete and tested; putting a
    download button on it needs `expo-file-system` and `expo-sharing`, and so a
    native rebuild.
-3. **The box.** 961 MB and one core, with the rate limiter still in memory —
-   fine for one process, wrong for two.
+3. **The box.** 961 MB and one core. The rate limiter no longer stands in the
+   way of a second process: the ceilings that guard something finite — model
+   spend, and the sign-in door — count in Postgres (migration 032), while the
+   per-request ceiling stays in memory because a second worker brings its own
+   capacity along with its own counter. What is left here is the box itself.
 4. **A lawyer reads `server/legal/`.** The documents describe what the code
    actually does, which is the hard part and is done. Whether they say it the
    way German law wants is not something to guess at.

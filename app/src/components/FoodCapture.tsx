@@ -17,18 +17,11 @@ import { BarcodeScanner } from './BarcodeScanner';
 import { MealCamera } from './MealCamera';
 import { Button } from './Button';
 import { t } from '../lib/locale';
+import { MEAL_SLOTS, slotLabelKey } from '../lib/mealSlots';
 import { useGramsField } from '../lib/useGramsField';
 import { colors, radius, space, type as typo } from '../theme';
 import { messageFor } from '../lib/apiError';
 
-const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-
-const SLOT_LABELS = {
-  breakfast: 'slotBreakfast',
-  lunch: 'slotLunch',
-  dinner: 'slotDinner',
-  snack: 'slotSnack',
-} as const;
 
 /** What both routes converge on before anything is written. */
 type Draft = {
@@ -298,14 +291,14 @@ export function FoodCapture({
               </View>
 
               <View style={styles.slotRow}>
-                {SLOTS.map((option) => (
+                {MEAL_SLOTS.map((option) => (
                   <Pressable
                     key={option}
                     onPress={() => setSlot(option)}
                     style={[styles.slotChip, slot === option && styles.slotChipActive]}
                   >
                     <Text style={[styles.slotText, slot === option && styles.slotTextActive]}>
-                      {t(SLOT_LABELS[option])}
+                      {t(slotLabelKey(option))}
                     </Text>
                   </Pressable>
                 ))}

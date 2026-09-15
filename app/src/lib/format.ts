@@ -91,6 +91,23 @@ export function shortDate(iso: string): string {
   }).format(new Date(`${iso}T12:00:00`));
 }
 
+/**
+ * The day this phone is having, as a key rather than as something to read.
+ *
+ * In local time, not UTC. `toISOString().slice(0, 10)` would file a
+ * photograph taken at half past eleven on a Sunday night under Monday, and
+ * which week a progress photo belongs to is the entire point of it.
+ *
+ * It is allowed to disagree with the server's idea of today — the server keys
+ * its rows on the athlete's configured timezone, this keys a file on the
+ * device's — because nothing joins the two.
+ */
+export function deviceDay(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 export function clock(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds));
   const minutes = Math.floor(safe / 60);

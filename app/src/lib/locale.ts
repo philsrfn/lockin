@@ -506,6 +506,56 @@ const PHRASES = {
     en: 'Estimated from the photo. Give it a look.',
   },
 
+  // ——— the weekly progress photo ———
+  // Every string here says the same thing twice in different words: the
+  // picture stays on the phone. It is the one promise this feature makes and
+  // the one people will check before they take the first photograph.
+  physiqueTitle: { de: 'FORTSCHRITTSFOTO', en: 'PROGRESS PHOTO' },
+  physiqueDue: { de: 'Diese Woche ist wieder eins fällig', en: 'This week\'s is due' },
+  physiqueFirst: {
+    de: 'Das erste Foto ist die Nulllinie. Alles danach wird daran gemessen.',
+    en: 'The first photo is the baseline. Everything after is measured against it.',
+  },
+  physiqueDaysAgo: { de: 'Vor {days} Tagen', en: '{days} days ago' },
+  physiqueToday: { de: 'Heute', en: 'Today' },
+  physiqueTakePhoto: { de: 'Foto machen', en: 'Take the photo' },
+  physiqueRetake: { de: 'Neues Foto', en: 'New photo' },
+  physiqueAnalysing: { de: 'Wird angeschaut …', en: 'Looking at it…' },
+  physiqueStaysHere: {
+    de: 'Bleibt auf dem Telefon. Zum Vergleichen geht es einmal an das Modell und ist danach weg — gespeichert wird nur, was der Trainer dazu sagt.',
+    en: 'Stays on this phone. It goes to the model once for the comparison and is gone — only what the trainer says about it is stored.',
+  },
+  physiqueNoNumbers: {
+    de: 'Zahlen kommen von der Waage und vom Maßband, nicht aus dem Bild.',
+    en: 'Numbers come from the scale and the tape, not from a picture.',
+  },
+  physiqueCameraWhy: {
+    de: 'lockin braucht die Kamera für dein Wochenfoto. Das Bild bleibt auf dem Telefon; zum Vergleich geht es einmal an das Modell.',
+    en: 'lockin needs the camera for your weekly photo. The picture stays on this phone; it goes to the model once for the comparison.',
+  },
+  physiquePhotoHint: {
+    de: 'Morgens, nüchtern, gleiches Licht, gleiche Stelle. Ganzer Oberkörper ins Bild, Arme locker seitlich.',
+    en: 'Morning, fasted, same light, same spot. Whole torso in frame, arms relaxed at your sides.',
+  },
+  physiqueFailed: {
+    de: 'Das Foto ist gespeichert, aber der Trainer konnte nichts dazu sagen. Versuch es später noch einmal.',
+    en: 'The photo is saved, but the trainer could not read it. Try again later.',
+  },
+  physiqueDelete: { de: 'Foto löschen', en: 'Delete photo' },
+  physiqueDeleted: { de: 'Vom Telefon gelöscht.', en: 'Deleted from this phone.' },
+  physiqueCompared: {
+    de: 'Verglichen mit {count} früheren Fotos',
+    en: 'Compared with {count} earlier photos',
+  },
+  physiqueComparedOne: {
+    de: 'Verglichen mit einem früheren Foto',
+    en: 'Compared with one earlier photo',
+  },
+  physiqueNothingYet: {
+    de: 'Noch kein Foto. Eines pro Woche reicht.',
+    en: 'No photo yet. One a week is enough.',
+  },
+
   cardioNeedsWeight: {
     de: 'Wieg dich einmal, sonst lässt sich das nicht rechnen.',
     en: 'Weigh yourself once, or there is nothing to compute it from.',

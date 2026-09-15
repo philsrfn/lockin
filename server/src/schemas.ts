@@ -362,6 +362,7 @@ export const JobNameSchema = z.enum([
   'dinner_prompt',
   'weekly_review',
   'log_nudge',
+  'physique_checkin',
 ]);
 
 export const FridgePhotoSchema = z.object({
@@ -397,4 +398,30 @@ export const MealPhotoSchema = z.object({
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
   /** "mit 200 g Reis" — the weight a picture cannot hold. */
   note: z.string().max(200).optional(),
+});
+
+/**
+ * This week's progress photograph and the earlier ones it is compared against.
+ *
+ * Four images rather than one, which changes the arithmetic on the size
+ * bound: the meal photo may fill the whole 12 MB body on its own, this one
+ * has to share. 2.5 MB each is roughly seven times what the camera actually
+ * produces at quality 0.35, so it is a guard against a client that stopped
+ * compressing rather than a limit anybody meets.
+ *
+ * Newest first, and the server trusts that order — it is the only thing that
+ * tells the model which picture is this week's. The dates are carried
+ * alongside for the same reason, and are the athlete's own days.
+ */
+export const ProgressPhotoSchema = z.object({
+  photos: z
+    .array(
+      z.object({
+        imageBase64: z.string().min(100).max(2_500_000),
+        mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+        takenOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    )
+    .min(1)
+    .max(4),
 });

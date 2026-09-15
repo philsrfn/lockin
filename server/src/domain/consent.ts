@@ -29,7 +29,12 @@ export const CURRENT_VERSIONS: Record<ConsentDocument, string> = {
   // server has always run at DigitalOcean, a US company, which is a different
   // processor and a different transfer. It now also says in so many words that
   // Health data, photos and each session's numbers go to Gemini.
-  privacy: '2026-09-15',
+  // And once more on 2026-09-16, for the weekly progress photo. A picture of
+  // somebody's body is the most personal thing this app has ever asked for,
+  // and where it is kept — the phone, never the server — is the whole reason
+  // it was safe to ask. Consent given the day before was given to a document
+  // that did not mention it, so it does not carry over.
+  privacy: '2026-09-16',
   terms: '2026-09-13',
 };
 

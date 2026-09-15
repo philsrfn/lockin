@@ -13,6 +13,10 @@ import { sendPush } from '../push';
 import { generateWeeklyReview } from '../llm/review';
 import { cachedNote, generateNote } from '../llm/coach';
 import { activeContext } from '../services/contexts';
+import { athleteToday } from '../services/clock';
+import { checkinDue } from '../domain/physique';
+import { accessForAthlete } from '../services/entitlements';
+import { latestCheckin } from '../services/physique';
 import { openSession } from '../services/sessions';
 import { macrosToday } from '../services/meals';
 import { getProfile } from '../services/profile';
@@ -202,12 +206,55 @@ async function sessionReminder(ctx: Ctx): Promise<JobResult> {
   };
 }
 
+/**
+ * Sunday 09:00 — the weekly progress photograph.
+ *
+ * The one job in here that asks for something rather than telling them
+ * something, and the only one that costs nothing to run: it sends no model
+ * call, it just knocks on the door while the conditions for a comparable
+ * photograph still hold. Morning, before breakfast, same light, same hour —
+ * that is what makes this week's picture worth putting next to last week's,
+ * and it is the entire reason this is not folded into the 18:00 review.
+ *
+ * It stays quiet when the check-in has already happened this week, and when
+ * the trainer is out of reach: the analysis is behind the §17 gate, so a
+ * reminder to somebody without access would be a nudge towards a locked door.
+ */
+async function physiqueCheckin(ctx: Ctx): Promise<JobResult> {
+  const here = await stillHere(ctx);
+  if (!here.push) {
+    return { status: 'skipped', detail: { reason: 'gone quiet', daysAway: here.daysAway } };
+  }
+
+  const access = await accessForAthlete(ctx);
+  if (!access.coach) return { status: 'skipped', detail: { reason: 'no trainer access' } };
+
+  const [latest, today] = await Promise.all([latestCheckin(ctx), athleteToday(ctx)]);
+  if (!checkinDue(latest?.takenOn ?? null, today)) {
+    return { status: 'skipped', detail: { reason: 'already done this week', last: latest?.takenOn } };
+  }
+
+  const result = await sendPush(ctx, {
+    title: 'Progress photo',
+    body: latest
+      ? 'Same spot, same light, before breakfast. I will tell you what changed.'
+      : 'Take the first one now — everything after it is measured against today.',
+    data: { screen: 'weight' },
+  });
+
+  return {
+    status: result.sent > 0 ? 'sent' : 'no_devices',
+    detail: { ...result, last: latest?.takenOn ?? null },
+  };
+}
+
 export const jobHandlers = {
   morning_checkin: morningCheckin,
   dinner_prompt: dinnerPrompt,
   weekly_review: weeklyReview,
   log_nudge: logNudge,
   session_reminder: sessionReminder,
+  physique_checkin: physiqueCheckin,
 };
 
 export type JobName = keyof typeof jobHandlers;

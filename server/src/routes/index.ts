@@ -13,6 +13,7 @@ import {
   CreateProgramSchema,
   FridgePhotoSchema,
   MealPhotoSchema,
+  ProgressPhotoSchema,
   JobNameSchema,
   MealPlanSchema,
   SaveProgramSchema,
@@ -90,6 +91,7 @@ import {
 import { deleteSet, recordSet } from '../services/sets';
 import { personalBests } from '../services/records';
 import { latestReport, reportFor, reportInBackground } from '../services/sessionReports';
+import { checkinStatus, recordCheckin } from '../services/physique';
 import { expenditure } from '../services/expenditure';
 import { drain } from '../services/sync';
 import { getToday } from '../services/today';
@@ -793,6 +795,34 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const body = FridgePhotoSchema.parse(request.body);
     return { items: await readFridgePhoto(request.ctx, body.imageBase64, body.mimeType) };
   });
+
+  /**
+   * The weekly progress photograph.
+   *
+   * The pictures live on the phone and arrive here only for the length of one
+   * model call. What is stored is the paragraph that comes back — see
+   * migration 034 for why, at length.
+   *
+   * Reading the check-ins back is not gated, and writing one is: the words
+   * cost a model call, the archive of what was already said is the athlete's
+   * own data and stays readable for ever (§17).
+   */
+  app.post('/physique/checkin', async (request) => {
+    await requireCoach(request);
+    const body = ProgressPhotoSchema.parse(request.body);
+    return {
+      checkin: await recordCheckin(
+        request.ctx,
+        body.photos.map((photo) => ({
+          data: photo.imageBase64,
+          mimeType: photo.mimeType,
+          takenOn: photo.takenOn,
+        })),
+      ),
+    };
+  });
+
+  app.get('/physique', async (request) => await checkinStatus(request.ctx));
 
   /**
    * Plans against what is LEFT of today (§9 step 5), and only from a list the

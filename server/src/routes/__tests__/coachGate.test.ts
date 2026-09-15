@@ -25,6 +25,7 @@ const MUST_BE_GATED = [
   "app.post('/foods/photo'",
   "app.post('/fridge/read'",
   "app.post('/fridge/plan'",
+  "app.post('/physique/checkin'",
 ];
 
 /**
@@ -70,7 +71,7 @@ describe('the subscription gate', () => {
     for (const match of routes.matchAll(/app\.(post|get)\('([^']+)'[\s\S]{0,700}?\n  \}\)/g)) {
       const body = match[0];
       const reachesModel =
-        /generateWeeklyReview|sendMessage|noteForToday|estimateFood|readFridgePhoto|generateMealPlan/.test(
+        /generateWeeklyReview|sendMessage|noteForToday|estimateFood|readFridgePhoto|generateMealPlan|recordCheckin/.test(
           body,
         );
       if (reachesModel && !body.includes('requireCoach')) missed.push(match[2]!);

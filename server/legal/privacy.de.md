@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-**Fassung 2026-09-14**
+**Fassung 2026-09-15**
 
 Diese Erklärung beschreibt, was lockin speichert, warum, und wer es sonst noch
 zu sehen bekommt. Sie ist absichtlich konkret: sie zählt auf, was tatsächlich
@@ -40,6 +40,9 @@ Trainingseinheiten und Gewicht von einer Waage.
 **Deine Unterhaltung mit dem Trainer**, vollständig, weil er sich sonst nicht
 an sie erinnern könnte.
 
+**Auswertungen nach dem Training:** die Zahlen einer Einheit und der kurze
+Text, den der Trainer dazu geschrieben hat.
+
 **Technisch:** ein Push-Token je Gerät, und eine Zählung, wie viele Anfragen an
 das Sprachmodell auf dein Konto entfallen sind.
 
@@ -56,9 +59,11 @@ Weitergabe an Dritte zu deren eigenen Zwecken. Kein Profil für Werbezwecke.
 ## Wer es sonst sieht
 
 **Google (Gemini).** Damit der Trainer antworten kann, gehen deine Nachrichten
-und der Zusammenhang, den er dafür braucht — deine aktuellen Zahlen, dein Plan,
-die letzten zwei Wochen — an Googles Sprachmodell. Das findet außerhalb der EU
-statt, auf Grundlage der EU-Standardvertragsklauseln. Ohne diese Übermittlung
+und der Zusammenhang, den er dafür braucht — deine aktuellen Zahlen samt der
+Daten aus Apple Health, dein Plan, die letzten zwei Wochen — an Googles
+Sprachmodell. Ebenso Fotos von Essen oder Kühlschrank, damit es sie lesen kann,
+und nach jedem Training die Zahlen dieser Einheit für die Auswertung. Das
+findet außerhalb der EU statt, auf Grundlage der EU-Standardvertragsklauseln. Ohne diese Übermittlung
 gibt es keinen Trainer; alles andere in der App funktioniert auch ohne.
 
 **Apple.** Push-Nachrichten laufen über Apples Dienst. Der Inhalt einer
@@ -67,7 +72,9 @@ Nachricht geht dabei durch Apples Infrastruktur.
 **OpenFoodFacts.** Beim Scannen eines Barcodes wird die Nummer des Produkts
 abgefragt. Es wird nichts über dich mitgeschickt.
 
-**Hetzner.** Der Server steht in Deutschland.
+**DigitalOcean.** Der Server mit der Datenbank steht in einem Rechenzentrum
+von DigitalOcean in Frankfurt am Main. DigitalOcean ist ein US-Unternehmen; die
+Auftragsverarbeitung stützt sich auf die EU-Standardvertragsklauseln.
 
 ## Wie lange
 

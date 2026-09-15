@@ -163,6 +163,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   for (const [path, file] of [
     ['/privacy', 'privacy.de.md'],
     ['/terms', 'terms.de.md'],
+    // App Store Connect requires a support URL, and it has to open without an account.
+    ['/support', 'support.de.md'],
   ] as const) {
     app.get(path, async (_request, reply) =>
       reply.type('text/html; charset=utf-8').send(legalPage(file)),

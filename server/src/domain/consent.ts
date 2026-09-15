@@ -25,7 +25,11 @@ export const CURRENT_VERSIONS: Record<ConsentDocument, string> = {
   // A notice that changed is a different thing to have agreed to, so everybody
   // is asked again. That is the cost of changing it, and the reason not to
   // change it carelessly.
-  privacy: '2026-09-14',
+  // Bumped again on 2026-09-15. The notice named Hetzner as the host; the
+  // server has always run at DigitalOcean, a US company, which is a different
+  // processor and a different transfer. It now also says in so many words that
+  // Health data, photos and each session's numbers go to Gemini.
+  privacy: '2026-09-15',
   terms: '2026-09-13',
 };
 

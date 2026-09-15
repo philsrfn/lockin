@@ -17,6 +17,7 @@ const PUBLIC_PATHS = new Set([
   // be readable before you decide to sign in at all.
   '/privacy',
   '/terms',
+  '/support',
   // The admin page itself is a shell: the sign-in flow and the script that
   // fills it in. A browser cannot send an Authorization header for its own
   // document request, so the HTML is public and every byte of data behind it

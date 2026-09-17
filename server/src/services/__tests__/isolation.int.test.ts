@@ -23,7 +23,7 @@ import {
 import { listEntries, logWeight, summary } from '../bodyweight';
 import { activateContext, activeContext, listContexts } from '../contexts';
 import { archiveFood, createFood, getFood, listFoods } from '../foods';
-import { deleteMeal, logMeal, macrosToday, mealsToday } from '../meals';
+import { deleteMeal, logMeal, macrosToday, mealsToday, updateMeal } from '../meals';
 import { getProfile, setTimezone, updateTargets } from '../profile';
 import { addRule, deactivateRule, listRules } from '../rules';
 import { createSession, finishSession, getSession, listSessions } from '../sessions';
@@ -201,6 +201,15 @@ describe('food', () => {
 
     await expect(deleteMeal(sam, meal.meal.id)).rejects.toMatchObject({ statusCode: 404 });
     expect(await mealsToday(phil)).toHaveLength(1);
+  });
+
+  it('refuses to edit someone else\'s meal', async () => {
+    const meal = await logMeal(phil, { slot: 'breakfast', description: 'Skyr', proteinG: 55 });
+
+    await expect(updateMeal(sam, meal.meal.id, { proteinG: 0 })).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect((await mealsToday(phil))[0]?.proteinG).toBe(55);
   });
 });
 

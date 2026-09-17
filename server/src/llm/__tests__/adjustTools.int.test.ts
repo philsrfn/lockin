@@ -72,6 +72,81 @@ describe('undoing a mis-log', () => {
   });
 });
 
+describe('correcting a meal', () => {
+  it('halves a portion they over-reported, and hands back the day', async () => {
+    const { meal } = await logMeal(phil, {
+      slot: 'dinner',
+      description: 'Lasagne',
+      kcal: 900,
+      proteinG: 40,
+      fatG: 45,
+      carbsG: 80,
+    });
+
+    const outcome = await call(phil, 'edit_meal', {
+      id: meal.id,
+      description: 'Lasagne, half portion',
+      kcal: 450,
+      proteinG: 20,
+      fatG: 22.6,
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.meal).toMatchObject({
+      description: 'Lasagne, half portion',
+      kcal: 450,
+      proteinG: 20,
+      // The model sends what it has; a fraction is rounded, not refused.
+      fatG: 23,
+      // Not mentioned, so not touched.
+      carbsG: 80,
+      slot: 'dinner',
+    });
+    expect((outcome.consumedToday as { kcal: number }).kcal).toBe(450);
+    expect(typeof outcome.proteinRemaining).toBe('number');
+    expect(await mealsToday(phil)).toHaveLength(1);
+  });
+
+  it('moves a meal to the slot they meant, and changes nothing else', async () => {
+    const { meal } = await logMeal(phil, { slot: 'snack', description: 'Skyr', kcal: 300, proteinG: 30 });
+
+    const outcome = await call(phil, 'edit_meal', { id: meal.id, slot: 'breakfast' });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.meal).toMatchObject({ slot: 'breakfast', kcal: 300, proteinG: 30, description: 'Skyr' });
+  });
+
+  it('refuses a call that changes nothing, rather than reporting success', async () => {
+    const { meal } = await logMeal(phil, { slot: 'lunch', description: 'Skyr', kcal: 300, proteinG: 30 });
+
+    const outcome = await call(phil, 'edit_meal', { id: meal.id });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.hint).toMatch(/slot|description|kcal/);
+  });
+
+  it('refuses numbers no meal has, with the reason', async () => {
+    const { meal } = await logMeal(phil, { slot: 'lunch', description: 'Skyr', kcal: 300, proteinG: 30 });
+
+    // 9000 kcal is a number the table would store and the Food tab's editor
+    // would refuse; the chat must refuse it too, and say which field.
+    const outcome = await call(phil, 'edit_meal', { id: meal.id, kcal: 9000 });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.hint).toMatch(/kcal/);
+    expect((await mealsToday(phil))[0]?.kcal).toBe(300);
+  });
+
+  it('cannot reach into another athlete\'s log', async () => {
+    const { meal } = await logMeal(phil, { slot: 'lunch', description: 'Skyr', kcal: 300, proteinG: 30 });
+
+    const outcome = await call(sam, 'edit_meal', { id: meal.id, kcal: 0 });
+
+    expect(outcome.ok).toBe(false);
+    expect((await mealsToday(phil))[0]?.kcal).toBe(300);
+  });
+});
+
 describe('adding a place', () => {
   it('adds one they mentioned, without switching to it', async () => {
     const outcome = await call(phil, 'add_place', { name: 'Berlin', equipment: ['barbell', 'rack'] });

@@ -19,3 +19,18 @@ const LABELS: Record<MealSlot, PhraseKey> = {
 };
 
 export const slotLabelKey = (slot: MealSlot): PhraseKey => LABELS[slot];
+
+/**
+ * The slot a meal most likely belongs to, from the hour it is being logged.
+ *
+ * Every sheet used to open on "snack", so logging lunch at 13:00 took an extra
+ * tap that nobody remembered to make — and the day's list said four snacks.
+ * A guess from the clock is right most of the time and costs one tap when it
+ * is not, which is the trade the whole Food tab is built on.
+ */
+export function slotForHour(hour: number): MealSlot {
+  if (hour >= 5 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 15) return 'lunch';
+  if (hour >= 17 && hour < 22) return 'dinner';
+  return 'snack';
+}

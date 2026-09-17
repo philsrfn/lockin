@@ -22,8 +22,23 @@ export type Language = 'de' | 'en';
  */
 let preferred: string | null = null;
 
+const localeListeners = new Set<() => void>();
+
 export function setPreferredLocale(locale: string | null): void {
+  if (locale === preferred) return;
   preferred = locale;
+  for (const listener of localeListeners) listener();
+}
+
+/**
+ * For the few things that render once and are not re-rendered by navigation.
+ * The native tab bar is one: its labels are handed to UIKit when the layout
+ * mounts, so on a first launch they stayed in the device's language after the
+ * profile had said German. Shaped for `useSyncExternalStore`.
+ */
+export function subscribeToLocale(listener: () => void): () => void {
+  localeListeners.add(listener);
+  return () => localeListeners.delete(listener);
 }
 
 export function preferredLocale(): string | null {
@@ -260,7 +275,6 @@ const PHRASES = {
   removeIt: { de: 'Ja, entfernen', en: 'Yes, remove it' },
   keepIt: { de: 'Behalten', en: 'Keep it' },
   nameItPlaceholder: { de: 'Benenn es — Hähnchen mit Reis', en: 'Name it — chicken and rice' },
-  holdToRemove: { de: 'Halte eine Zeile gedrückt, um sie zu entfernen.', en: 'Hold a row to remove it.' },
 
   // ——— camera ———
   cameraAccess: { de: 'Kamerazugriff', en: 'Camera access' },
@@ -490,7 +504,6 @@ const PHRASES = {
     en: 'On days you do cardio you may eat more. What counts is the session above what resting would have cost — minus what your target already assumes you train. That is less than a watch shows, deliberately: credited too generously, you are on the same weight in four weeks.',
   },
   // ——— photographing a meal ———
-  photographIt: { de: 'Foto machen', en: 'Photograph it' },
   takePhoto: { de: 'Auslösen', en: 'Take the photo' },
   mealPhotoHint: {
     de: 'Ganzer Teller ins Bild, von schräg oben. Ein Besteckteil daneben hilft beim Abschätzen der Menge.',
@@ -782,6 +795,7 @@ const PHRASES = {
   toolGetProgram: { de: 'Programm gelesen', en: 'read your programme' },
   toolSetProgram: { de: 'Programm gewechselt', en: 'switched programme' },
   toolEditProgram: { de: 'Programm angepasst', en: 'changed your programme' },
+  toolEditMeal: { de: 'Eintrag korrigiert', en: 'corrected an entry' },
   toolUndo: { de: 'Eintrag entfernt', en: 'removed an entry' },
   toolAddPlace: { de: 'Ort hinzugefügt', en: 'added a place' },
   toolTrainingDays: { de: 'Trainingstage geändert', en: 'changed your training days' },
@@ -790,7 +804,6 @@ const PHRASES = {
   gProtein: { de: 'g Protein', en: 'g protein' },
   stillToGo: { de: 'noch offen', en: 'still to go' },
   kcalLeftOf: { de: 'kcal übrig von', en: 'kcal left of' },
-  toTheFatFloor: { de: 'bis zum Fett-Minimum', en: 'to the fat floor' },
   fatFloorCleared: { de: 'Fett-Minimum erreicht', en: 'fat floor cleared' },
   // "Ein Tipp" is German for a piece of advice, not for one tap — the
   // heading above his staples read as "here is a hint". Say what it does.
@@ -798,13 +811,47 @@ const PHRASES = {
   myFoods: { de: 'MEIN ESSEN', en: 'MY FOODS' },
   scan: { de: 'Scannen', en: 'Scan' },
   describeIt: { de: 'Beschreiben', en: 'Describe it' },
-  whatsInTheFridge: { de: 'Was ist im Kühlschrank?', en: "What's in the fridge?" },
-  enterByHand: { de: 'Von Hand eintragen', en: 'Enter by hand' },
   logIt: { de: 'Eintragen', en: 'Log it' },
   tapToLogHoldToEdit: {
     de: 'Tippen zum Eintragen · halten zum Bearbeiten',
     en: 'Tap to log · hold to edit',
   },
+  // The Food tab's capture row. A tile is ~110 pt wide, so these are the
+  // shortest honest name for each way in rather than a sentence.
+  addFood: { de: 'HINZUFÜGEN', en: 'ADD FOOD' },
+  tilePhoto: { de: 'Foto', en: 'Photo' },
+  tileBarcode: { de: 'Barcode', en: 'Barcode' },
+  tileDescribe: { de: 'Beschreiben', en: 'Describe' },
+  byHand: { de: 'Von Hand', en: 'By hand' },
+  fridgeShort: { de: 'Kühlschrank', en: 'Fridge' },
+  searchMyFoods: { de: 'In meinem Essen suchen', en: 'Search my foods' },
+  noFoodMatches: { de: 'Nichts gefunden.', en: 'No match.' },
+  nothingLoggedToday: {
+    de: 'Heute noch nichts eingetragen.',
+    en: 'Nothing logged yet today.',
+  },
+  foodEmptyHint: {
+    de: 'Fotografier deinen Teller, scann eine Packung oder beschreib, was du gegessen hast. Was du oft isst, landet hier zum schnellen Eintragen.',
+    en: 'Photograph your plate, scan a packet, or describe what you ate. What you eat often ends up here, one tap away.',
+  },
+  loggedName: { de: '{name} eingetragen', en: '{name} logged' },
+  logged: { de: 'Eingetragen', en: 'Logged' },
+  removeMealTitle: { de: 'Eintrag entfernen?', en: 'Remove this entry?' },
+  removeEntry: { de: 'Entfernen', en: 'Remove' },
+  logFoodA11y: { de: '{name} eintragen', en: 'Log {name}' },
+  // The line at the top of the Food tab. The example is the point: without
+  // one, an empty field reads as a search box.
+  quickDescribePlaceholder: { de: 'z. B. 2 Eier und Toast', en: 'e.g. 2 eggs and toast' },
+  whatDidYouEatShort: { de: 'Was hast du gegessen?', en: 'What did you eat?' },
+  estimateWithAi: { de: 'Mit KI auswerten', en: 'Estimate with AI' },
+  editMeal: { de: 'EINTRAG BEARBEITEN', en: 'EDIT ENTRY' },
+  estimateAgain: { de: 'Mit KI neu schätzen', en: 'Estimate again with AI' },
+  mealUpdated: { de: 'Eintrag geändert', en: 'Entry updated' },
+  mealRemoved: { de: 'Eintrag entfernt', en: 'Entry removed' },
+  editMealA11y: { de: '{name} bearbeiten', en: 'Edit {name}' },
+  tapToEdit: { de: 'Tippen zum Bearbeiten', en: 'Tap to edit' },
+  kcalLeft: { de: 'kcal übrig', en: 'kcal left' },
+  fatToGo: { de: 'g Fett bis zum Minimum', en: 'g fat to the floor' },
   thinking: { de: 'denkt nach', en: 'thinking' },
 
   signInBlurb: {

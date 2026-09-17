@@ -200,6 +200,28 @@ export const TOOLS: ToolDeclaration[] = [
     },
   },
   {
+    name: 'edit_meal',
+    description:
+      'Correct a meal that is already logged — it was half a portion, it was ' +
+      'lunch not a snack, the estimate was off. Use this rather than removing ' +
+      'and logging again: it keeps when the meal was eaten. Ids come from ' +
+      'get_today (macros.meals). Send only what changes; when the portion ' +
+      'changes, send the new macros you estimate for it.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: int('The id of the meal'),
+        slot: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] },
+        description: str('What they ate, as it should now read'),
+        kcal: int('Corrected calories'),
+        proteinG: int('Corrected protein in grams'),
+        fatG: int('Corrected fat in grams'),
+        carbsG: int('Corrected carbohydrates in grams'),
+      },
+      required: ['id'],
+    },
+  },
+  {
     name: 'undo_entry',
     description:
       'Remove something logged by mistake — a meal entered twice, a set typed ' +

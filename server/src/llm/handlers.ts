@@ -18,7 +18,8 @@ import { logWeight, summary as weightSummary } from '../services/bodyweight';
 import { activateContext, createContext, listContexts } from '../services/contexts';
 import { listExercises } from '../services/exercises';
 import { type CardioKind, logCardio } from '../services/cardio';
-import { deleteMeal, logMeal } from '../services/meals';
+import { deleteMeal, logMeal, updateMeal } from '../services/meals';
+import { UpdateMealSchema } from '../schemas';
 import { getProfile, setTrainingDays, updateTargets } from '../services/profile';
 import { addRule, deactivateRule, listRules } from '../services/rules';
 import { createSession, finishSession, listSessions, openSession } from '../services/sessions';
@@ -247,6 +248,60 @@ const HANDLERS: Record<
 
   async deactivate_rule(ctx, args) {
     return { ok: true, rule: await deactivateRule(ctx, Number(args.ruleId)), rules: await listRules(ctx) };
+  },
+
+  /**
+   * Correcting a logged meal — "that was only half", "that was lunch".
+   *
+   * Validated by the same schema as `PATCH /meals/:id` and written by the same
+   * service, so the chat cannot store a meal the Food tab's editor would have
+   * refused (§11: one path to a table). Numbers are rounded before they are
+   * checked: the model estimates 22.5 g of fat as readily as 22, and refusing
+   * a fraction would turn a sensible correction into a failed one.
+   *
+   * A call naming nothing to change is refused rather than reported as done —
+   * otherwise "fixed it" can be said about a meal nobody touched.
+   */
+  async edit_meal(ctx, args) {
+    const id = Number(args.id);
+    if (!Number.isInteger(id) || id <= 0) return fail('That is not an id');
+
+    const round = (value: unknown) =>
+      value === undefined || value === null ? value : Math.round(Number(value));
+    const parsed = UpdateMealSchema.safeParse({
+      slot: args.slot,
+      description: args.description === undefined ? undefined : String(args.description),
+      kcal: round(args.kcal),
+      proteinG: round(args.proteinG),
+      fatG: round(args.fatG),
+      carbsG: round(args.carbsG),
+    });
+    if (!parsed.success) {
+      return fail(
+        'Those numbers are not a meal',
+        parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '),
+      );
+    }
+
+    const patch = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(patch).length === 0) {
+      return fail(
+        'Nothing to change',
+        'Send at least one of slot, description, kcal, proteinG, fatG, carbsG.',
+      );
+    }
+
+    const result = await updateMeal(ctx, id, patch);
+    const profile = await getProfile(ctx);
+    return {
+      ok: true,
+      meal: result.meal,
+      consumedToday: result.today,
+      proteinRemaining: profile.proteinTargetG - result.today.proteinG,
+      kcalRemaining: profile.calorieTarget - result.today.kcal,
+    };
   },
 
   /**

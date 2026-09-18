@@ -15,6 +15,7 @@ import { kg, longDate } from '../src/lib/format';
 import { t } from '../src/lib/locale';
 import { colors, radius, space, type as typo } from '../src/theme';
 import { messageFor } from '../src/lib/apiError';
+import { setsByExercise } from '../src/lib/setsByExercise';
 
 /**
  * What was actually done.
@@ -172,6 +173,18 @@ function SessionRow({
    */
   const hasReport = session.finished && session.rpe != null && session.summary.setCount > 0;
 
+  /**
+   * The summary and the expanded sets list their movements in one order.
+   * The server's summary follows the rows as they arrive, and the first sets
+   * of two movements share an index — so without this the collapsed card said
+   * fly, dip, press and the expanded one said dip, fly, press.
+   */
+  const groups = setsByExercise(session.sets);
+  const position = new Map(groups.map((group, index) => [group.exerciseId, index]));
+  const exercises = [...session.summary.exercises].sort(
+    (a, b) => (position.get(a.exerciseId) ?? 0) - (position.get(b.exerciseId) ?? 0),
+  );
+
   return (
     <Card>
       <Pressable onPress={onToggle} accessibilityRole="button">
@@ -185,7 +198,7 @@ function SessionRow({
           </Text>
         </View>
 
-        {session.summary.exercises.map((exercise) => (
+        {exercises.map((exercise) => (
           <View key={exercise.exerciseId} style={styles.exerciseRow}>
             <Text style={styles.exerciseName} numberOfLines={1}>
               {exercise.exerciseName}
@@ -217,18 +230,24 @@ function SessionRow({
       {open ? (
         <>
           <Rule />
-          {session.sets.map((performed) => (
-            <View key={performed.id} style={styles.setRow}>
-              <Text style={styles.setIndex}>{performed.setIndex}</Text>
-              <Text style={styles.setName} numberOfLines={1}>
-                {performed.exerciseName}
+          {/* One movement at a time, the way it was trained — the rows
+              arrive per set index, which interleaves every exercise. */}
+          {groups.map((exercise) => (
+            <View key={exercise.exerciseId} style={styles.setGroup}>
+              <Text style={styles.setGroupName} numberOfLines={1}>
+                {exercise.exerciseName}
               </Text>
-              <Text style={styles.setNumbers}>
-                {kg(performed.weightKg)} kg × {performed.reps}
-                {performed.rir != null ? (
-                  <Text style={styles.dim}>{`  RIR ${performed.rir}`}</Text>
-                ) : null}
-              </Text>
+              {exercise.sets.map((performed) => (
+                <View key={performed.id} style={styles.setRow}>
+                  <Text style={styles.setIndex}>{performed.setIndex}</Text>
+                  <Text style={styles.setNumbers}>
+                    {kg(performed.weightKg)} kg × {performed.reps}
+                    {performed.rir != null ? (
+                      <Text style={styles.dim}>{`  RIR ${performed.rir}`}</Text>
+                    ) : null}
+                  </Text>
+                </View>
+              ))}
             </View>
           ))}
         </>
@@ -260,6 +279,10 @@ function CardioRow({ cardio }: { cardio: CardioSession }) {
       </View>
       <Text style={styles.footnote}>
         {[
+          // Measured by the watch, so it sits with the other measurements. A
+          // session typed into the app has none, and inventing one would put
+          // a guess in a row of facts.
+          cardio.activeKcal != null ? `${cardio.activeKcal} ${t('macroKcal')}` : null,
           cardio.distanceKm != null ? `${cardio.distanceKm} km` : null,
           cardio.avgHr != null ? `${cardio.avgHr} bpm` : null,
           cardio.contextName,
@@ -326,11 +349,15 @@ const styles = StyleSheet.create({
   error: { ...typo.body, color: colors.danger, marginBottom: space.md },
   empty: { ...typo.bodyDim, color: colors.textFaint, marginTop: space.xl },
 
-  day: { marginTop: space.lg },
+  /**
+   * The gap is what keeps two sessions on one day apart. A card has no border
+   * and no shadow — only one step of lightness against the page — so two of
+   * them touching read as one card with a strange seam in it.
+   */
+  day: { marginTop: space.lg, gap: space.sm },
   dayLabel: {
     ...typo.label,
     color: colors.textFaint,
-    marginBottom: space.xs,
     marginLeft: space.xs,
   },
 
@@ -352,9 +379,10 @@ const styles = StyleSheet.create({
   toggle: { fontSize: 12, color: colors.accent, marginTop: space.sm },
   reportLink: { fontSize: 12, color: colors.accent, marginTop: space.sm },
 
-  setRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: space.xs },
-  setIndex: { ...typo.bodyDim, color: colors.textFaint, width: 20 },
-  setName: { ...typo.bodyDim, color: colors.textDim, flex: 1, marginRight: space.sm },
+  setGroup: { gap: space.xs },
+  setGroupName: { ...typo.bodyDim, color: colors.textDim },
+  setRow: { flexDirection: 'row', alignItems: 'baseline' },
+  setIndex: { ...typo.bodyDim, ...typo.mono, color: colors.textFaint, width: 20 },
   setNumbers: { ...typo.body, ...typo.mono, color: colors.text },
 
   statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.lg },

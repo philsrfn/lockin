@@ -377,6 +377,8 @@ export type CardioSession = {
   avgHr: number | null;
   rpe: number | null;
   contextName: string | null;
+  /** What the watch measured, for a workout imported from Health. Null otherwise. */
+  activeKcal: number | null;
   /** Whether this one moves the weekly tally. A walk does not. */
   counts: boolean;
 };

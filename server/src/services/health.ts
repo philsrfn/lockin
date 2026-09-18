@@ -36,6 +36,8 @@ export type HealthWorkout = {
   description?: string | null;
   distanceKm?: number | null;
   avgHr?: number | null;
+  /** What the watch measured the workout burned. Shown in the history, nothing more. */
+  activeKcal?: number | null;
 };
 
 export type HealthWeight = {
@@ -115,12 +117,19 @@ export async function syncHealth(ctx: Ctx, payload: SyncPayload): Promise<SyncRe
     const minutes = inRange(workout.minutes, 1, 600);
     if (minutes === null) continue;
 
-    const { rowCount } = await ctx.db.query(
+    const { rows } = await ctx.db.query<{ inserted: boolean }>(
       `insert into cardio_sessions
          (user_id, performed_at, kind, minutes, description, distance_km, avg_hr,
-          source, external_id)
-       values ($1, $2::timestamptz, $3, $4, $5, $6, $7, 'health', $8)
-       on conflict (user_id, external_id) where external_id is not null do nothing`,
+          active_kcal, source, external_id)
+       values ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, 'health', $9)
+       on conflict (user_id, external_id) where external_id is not null do update
+         -- Only ever fills a blank. Every workout imported before the phone
+         -- sent kcal already has its row, and this overlapping window is the
+         -- one chance to complete it; nothing else about a row that exists is
+         -- touched, so the sync stays as idempotent as it was.
+         set active_kcal = excluded.active_kcal
+         where cardio_sessions.active_kcal is null and excluded.active_kcal is not null
+       returning (xmax = 0) as inserted`,
       [
         ctx.userId,
         workout.startedAt,
@@ -129,11 +138,14 @@ export async function syncHealth(ctx: Ctx, payload: SyncPayload): Promise<SyncRe
         workout.description?.trim() || null,
         workout.distanceKm ?? null,
         inRange(workout.avgHr, 30, 240),
+        inRange(workout.activeKcal, 0, 10_000),
         workout.externalId,
       ],
     );
 
-    if (rowCount) result.workouts.imported += 1;
+    // xmax is zero only on a row this statement created. A row that was
+    // merely completed with its kcal is one the athlete already had.
+    if (rows[0]?.inserted) result.workouts.imported += 1;
     else result.workouts.alreadyHad += 1;
   }
 

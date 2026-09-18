@@ -389,12 +389,7 @@ export default function TodayScreen() {
             its own tab; the one with nowhere to go was cardio — the coach
             prescribed it and had no way to know whether it happened.
           */}
-          <Pressable
-            onPress={() => setCardioOpen(true)}
-            style={({ pressed }) => [styles.cardioAction, pressed && styles.cardioActionOn]}
-          >
-            <Text style={styles.cardioActionText}>{t('cardio')}</Text>
-          </Pressable>
+          <Button title={t('cardio')} variant="secondary" onPress={() => setCardioOpen(true)} />
         </View>
       </View>
 
@@ -565,16 +560,6 @@ const styles = StyleSheet.create({
   factLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: colors.textFaint },
 
   primaryAction: { flex: 1 },
-  cardioAction: {
-    minHeight: 54,
-    paddingHorizontal: space.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceHigh,
-  },
-  cardioActionOn: { opacity: 0.7 },
-  cardioActionText: { fontSize: 16, fontWeight: '600', color: colors.text, letterSpacing: -0.2 },
   footer: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,

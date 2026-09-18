@@ -503,3 +503,31 @@ describe('the history route', () => {
     expect((await app.inject({ method: 'GET', url: '/history' })).statusCode).toBe(401);
   });
 });
+
+describe('the Health sync route', () => {
+  it('carries what the watch burned all the way to the history', async () => {
+    // The service took activeKcal and its tests passed, while the route's
+    // schema quietly stripped the field before the service ever saw it. Only
+    // a request through the whole stack catches that.
+    const sync = await app.inject({
+      method: 'POST',
+      url: '/vitals/sync',
+      headers: auth,
+      payload: {
+        workouts: [
+          {
+            externalId: 'healthkit-uuid-route',
+            startedAt: new Date().toISOString(),
+            minutes: 42,
+            kind: 'zone2',
+            activeKcal: 487,
+          },
+        ],
+      },
+    });
+    expect(sync.statusCode).toBe(200);
+
+    const history = await app.inject({ method: 'GET', url: '/history', headers: auth });
+    expect(history.json().days[0].cardio[0].activeKcal).toBe(487);
+  });
+});

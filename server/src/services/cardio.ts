@@ -41,6 +41,8 @@ export type CardioSession = {
   avgHr: number | null;
   rpe: number | null;
   contextName: string | null;
+  /** Measured by the watch, for a session imported from Health. Null otherwise. */
+  activeKcal: number | null;
   /** Whether this one moves the weekly tally. */
   counts: boolean;
 };
@@ -55,11 +57,12 @@ type Row = {
   avg_hr: number | null;
   rpe: number | null;
   context_name: string | null;
+  active_kcal: number | null;
 };
 
 const SELECT = `
   select c.id, c.performed_at, c.kind, c.minutes, c.description,
-         c.distance_km, c.avg_hr, c.rpe, x.name as context_name
+         c.distance_km, c.avg_hr, c.rpe, c.active_kcal, x.name as context_name
   from cardio_sessions c
   left join contexts x on x.id = c.context_id
   where c.user_id = $1
@@ -75,6 +78,7 @@ const toSession = (row: Row): CardioSession => ({
   avgHr: row.avg_hr,
   rpe: row.rpe,
   contextName: row.context_name,
+  activeKcal: row.active_kcal,
   counts: countsTowardWeek(row.kind as CardioKind, row.minutes),
 });
 
@@ -113,7 +117,7 @@ export async function logCardio(
        returning *
      )
      select i.id, i.performed_at, i.kind, i.minutes, i.description,
-            i.distance_km, i.avg_hr, i.rpe, x.name as context_name
+            i.distance_km, i.avg_hr, i.rpe, i.active_kcal, x.name as context_name
      from inserted i left join contexts x on x.id = i.context_id`,
     [
       ctx.userId,

@@ -122,6 +122,36 @@ describe('workouts', () => {
 
     expect(hers.workouts.imported).toBe(1);
   });
+
+  it('keeps what the watch says it burned', async () => {
+    await syncHealth(phil, { workouts: [{ ...RUN, activeKcal: 412.6 }] });
+
+    expect((await recentCardio(phil))[0]?.activeKcal).toBe(413);
+  });
+
+  it('has no burn for a workout that did not report one', async () => {
+    await syncHealth(phil, { workouts: [RUN] });
+
+    expect((await recentCardio(phil))[0]?.activeKcal).toBeNull();
+  });
+
+  it('fills the burn into a workout imported before it was sent', async () => {
+    // Every run imported before the phone sent kcal already has its row, and
+    // `do nothing` on the dedupe key would leave those blank for ever. The next
+    // overlapping sync is the only chance to fill them in.
+    await syncHealth(phil, { workouts: [RUN] });
+    const again = await syncHealth(phil, { workouts: [{ ...RUN, activeKcal: 412 }] });
+
+    expect(again.workouts).toEqual({ imported: 0, alreadyHad: 1 });
+    expect(await recentCardio(phil)).toHaveLength(1);
+    expect((await recentCardio(phil))[0]?.activeKcal).toBe(412);
+  });
+
+  it('drops a burn that is not a number a body produces', async () => {
+    await syncHealth(phil, { workouts: [{ ...RUN, activeKcal: 90_000 }] });
+
+    expect((await recentCardio(phil))[0]?.activeKcal).toBeNull();
+  });
 });
 
 describe('weight from a scale', () => {

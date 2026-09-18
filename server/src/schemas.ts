@@ -225,6 +225,9 @@ export const HealthSyncSchema = z.object({
         description: z.string().max(200).nullish(),
         distanceKm: z.number().nullish(),
         avgHr: z.number().nullish(),
+        // Named here as well as on the service's type: zod drops a key it was
+        // not told about without a word, and the service would never see it.
+        activeKcal: z.number().nullish(),
       }),
     )
     .max(500)

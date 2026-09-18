@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassView } from 'expo-glass-effect';
 import { ApiError, api } from '../../src/api/client';
+import { GLASS } from '../../src/components/Button';
 import type { ChatMessage, ChatReply } from '../../src/api/types';
 import { plainText } from '../../src/lib/format';
 import { t } from '../../src/lib/locale';
@@ -203,17 +205,35 @@ export default function ChatScreen() {
           onSubmitEditing={send}
           editable={!sending}
         />
-        <Pressable
-          onPress={send}
-          disabled={!draft.trim() || sending}
-          style={({ pressed }) => [
-            styles.send,
-            (!draft.trim() || sending) && styles.sendDisabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.sendText}>↑</Text>
-        </Pressable>
+        {/* Glass on iOS 26 for the same reason as Button: it is the one
+            action on this screen, and it should look like the system's own
+            send button rather than an amber disc beside it. */}
+        {GLASS && draft.trim() && !sending ? (
+          <Pressable onPress={send} accessibilityRole="button" style={styles.sendGlassOuter}>
+            <GlassView
+              glassEffectStyle="regular"
+              colorScheme="dark"
+              isInteractive
+              tintColor={colors.accent}
+              style={styles.sendGlass}
+            >
+              <Text style={styles.sendText}>↑</Text>
+            </GlassView>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={send}
+            disabled={!draft.trim() || sending}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.send,
+              (!draft.trim() || sending) && styles.sendDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.sendText}>↑</Text>
+          </Pressable>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -299,6 +319,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   sendDisabled: { backgroundColor: colors.surfaceHigh },
+  sendGlassOuter: { width: 48, height: 48, borderRadius: 24 },
+  sendGlass: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pressed: { opacity: 0.7 },
   sendText: { fontSize: 22, fontWeight: '400', color: '#08130C', marginTop: -2 },
 });

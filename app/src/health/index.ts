@@ -250,6 +250,12 @@ export async function syncHealth(): Promise<SyncResult | null> {
         distanceKm: workout.totalDistance
           ? Math.round((workout.totalDistance.quantity / 1000) * 100) / 100
           : null,
+        // Already kilocalories: the library converts before it hands it over.
+        // Covered by the ActiveEnergyBurned read permission the daily totals
+        // already ask for, so no new prompt and no new native build.
+        activeKcal: workout.totalEnergyBurned
+          ? Math.round(workout.totalEnergyBurned.quantity)
+          : null,
       });
     }
   });

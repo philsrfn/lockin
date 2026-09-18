@@ -35,7 +35,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "lockin scans food barcodes to log what you eat."
+          "cameraPermission": "So you can log food by photographing it or scanning its barcode, photograph your fridge, and take your weekly progress photo."
         }
       ],
       [

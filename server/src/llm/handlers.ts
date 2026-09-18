@@ -43,7 +43,7 @@ const fail = (error: string, hint?: string): ToolOutcome => ({ ok: false, error,
 
 /** Exercise names come from the model, so match generously but never guess wildly. */
 async function resolveExercise(ctx: Ctx, name: string) {
-  const exercises = await listExercises(ctx.db);
+  const exercises = await listExercises(ctx);
   const wanted = name.trim().toLowerCase();
 
   return (
@@ -398,7 +398,7 @@ const HANDLERS: Record<
    * loudly here rather than become a day nobody can train.
    */
   async edit_program(ctx, args) {
-    const library = await listExercises(ctx.db);
+    const library = await listExercises(ctx);
     const byName = new Map(library.map((exercise) => [exercise.name.toLowerCase(), exercise]));
     const unknown: string[] = [];
 

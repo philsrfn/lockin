@@ -224,19 +224,23 @@ export function removeSlot(draft: Draft, dayIndex: number, slotIndex: number): D
   });
 }
 
-/** Order is the order they are performed, so it has to be changeable. */
-export function moveSlot(
-  draft: Draft,
-  dayIndex: number,
-  slotIndex: number,
-  direction: -1 | 1,
-): Draft {
+/**
+ * Order is the order they are performed, so it has to be changeable — and
+ * since the row is dragged, it has to be changeable across any distance.
+ *
+ * Not a swap. Dragging the fifth movement to the top means the four above it
+ * each shift down one; swapping first and fifth would leave the first
+ * movement stranded in the middle, which is not what anybody's hand just
+ * described. This replaced a one-step `moveSlot` behind up/down buttons,
+ * which said the same thing one neighbour at a time.
+ */
+export function reorderSlot(draft: Draft, dayIndex: number, from: number, to: number): Draft {
   const day = draft.days[dayIndex];
-  const target = slotIndex + direction;
-  if (!day || !day.slots[slotIndex] || !day.slots[target]) return draft;
+  if (!day || !day.slots[from] || !day.slots[to] || from === to) return draft;
 
   const slots = [...day.slots];
-  [slots[slotIndex], slots[target]] = [slots[target]!, slots[slotIndex]!];
+  const [moved] = slots.splice(from, 1);
+  slots.splice(to, 0, moved!);
   return replaceDay(draft, dayIndex, { ...day, slots });
 }
 

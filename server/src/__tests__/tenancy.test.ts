@@ -64,6 +64,9 @@ const OWNED_TABLES = [
   'sessions_tokens',
   'session_reports',
   'physique_checkins',
+  // Shared and owned at once, like `programs`: a null user_id is the catalogue
+  // everybody reads, a set one is a movement somebody added themselves.
+  'exercises',
 ];
 
 /**

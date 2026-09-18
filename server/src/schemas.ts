@@ -292,6 +292,26 @@ export const LogFoodSchema = z.object({
   grams: z.number().positive().max(MAX_PORTION_G).optional(),
 });
 
+/**
+ * A movement the catalogue does not have.
+ *
+ * The pattern is required and closed, because it is not a label: §6 lets a
+ * swap trade only inside one, and `defaultsForPattern` reads it to decide the
+ * rep range, the rest and the load increment the logger pre-fills. A free
+ * string here would produce a movement the progression code has no numbers
+ * for, which fails much later and much further away.
+ *
+ * Equipment is free text against the vocabulary migration 016 established.
+ * Not an enum: a place that has not inventoried itself can do everything, so
+ * an unknown token costs nothing, and the alternative is a closed list that
+ * refuses somebody's landmine attachment.
+ */
+export const CreateExerciseSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  pattern: z.enum(['squat', 'hinge', 'h_push', 'v_push', 'h_pull', 'v_pull', 'iso']),
+  equipment: z.array(z.string().min(1).max(24)).max(8).optional(),
+});
+
 export const CreateProgramSchema = z.object({
   name: z.string().min(1).max(60),
   /** Fork a catalogue programme rather than starting from nothing. */

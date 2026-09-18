@@ -183,7 +183,7 @@ async function sanitise(
   }
 
   // A swap must stay inside the movement pattern, and both names must exist.
-  const exercises = await listExercises(ctx.db);
+  const exercises = await listExercises(ctx);
   const byName = new Map(exercises.map((exercise) => [exercise.name.toLowerCase(), exercise]));
   const swaps = (raw.swaps ?? []).filter((swap) => {
     const from = byName.get(String(swap.from).toLowerCase());

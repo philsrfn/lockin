@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/api/client';
 import type { ConsentState, Profile } from '../src/api/types';
@@ -24,7 +25,22 @@ import { startAutoDrain } from '../src/sync/queue';
 import { registerForPush, screenFromNotification } from '../src/push';
 import { colors } from '../src/theme';
 
+/**
+ * Gesture Handler wants a root view above everything that recognises a
+ * gesture, and it has to sit outside the branching below: the app returns
+ * from six different places depending on whether it has a token, a consent
+ * and a body on file, and a provider inside those is a provider that is
+ * there in some states and missing in others.
+ */
 export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <RootNavigator />
+    </GestureHandlerRootView>
+  );
+}
+
+function RootNavigator() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   /** Signed in, but not yet let in by whoever runs the server. */

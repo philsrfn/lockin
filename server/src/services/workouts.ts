@@ -209,7 +209,7 @@ export async function planFor(
 
   const [slots, allExercises, firstAt, finished, context, deload] = await Promise.all([
     slotsFor(ctx, program.id, day.code),
-    listExercises(ctx.db),
+    listExercises(ctx),
     firstSessionAt(ctx),
     finishedSessions(ctx),
     activeContext(ctx),
@@ -344,8 +344,8 @@ export async function prescribeExercise(
   const now = options.now ?? new Date();
 
   const [exercise, allExercises, firstAt, finished, context] = await Promise.all([
-    getExercise(exerciseId, ctx.db),
-    listExercises(ctx.db),
+    getExercise(ctx, exerciseId),
+    listExercises(ctx),
     firstSessionAt(ctx),
     finishedSessions(ctx),
     activeContext(ctx),

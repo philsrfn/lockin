@@ -7,7 +7,7 @@ import {
   addSlot,
   draftFrom,
   firstProblem,
-  moveSlot,
+  reorderSlot,
   removeDay,
   removeSlot,
   renameDay,
@@ -17,9 +17,21 @@ import {
   type Draft,
 } from '../programmeDraft';
 
-const squat: Exercise = { id: 1, name: 'Back Squat', pattern: 'squat', equipment: [] };
-const press: Exercise = { id: 2, name: 'Overhead Press', pattern: 'v_push', equipment: [] };
-const row: Exercise = { id: 3, name: 'Seated Cable Row', pattern: 'h_pull', equipment: [] };
+const squat: Exercise = { id: 1, name: 'Back Squat', pattern: 'squat', equipment: [], custom: false };
+const press: Exercise = {
+  id: 2,
+  name: 'Overhead Press',
+  pattern: 'v_push',
+  equipment: [],
+  custom: false,
+};
+const row: Exercise = {
+  id: 3,
+  name: 'Seated Cable Row',
+  pattern: 'h_pull',
+  equipment: [],
+  custom: false,
+};
 
 const slot = (exercise: Exercise) => ({
   exerciseId: exercise.id,
@@ -166,28 +178,64 @@ describe('editing the movements of a day', () => {
     expect(fresh.incrementKg).toBeUndefined();
   });
 
-  it('moves a movement up past the one above it', () => {
-    const moved = moveSlot(draft(), 0, 1, -1);
+  it('removes by index within the day', () => {
+    const without = removeSlot(draft(), 0, 0);
 
-    expect(moved.days[0]!.slots.map((s) => s.exerciseName)).toEqual([
+    expect(without.days[0]!.slots.map((s) => s.exerciseName)).toEqual(['Overhead Press']);
+  });
+});
+
+describe('dragging a movement to a new place in the day', () => {
+  /** Three, because two cannot tell a move apart from a swap. */
+  const three = (): Draft => ({
+    name: 'Mein Plan',
+    days: [{ code: 'PUSH', name: 'Push', slots: [slot(squat), slot(press), slot(row)] }],
+  });
+
+  const names = (d: Draft) => d.days[0]!.slots.map((s) => s.exerciseName);
+
+  it('carries the row to the top and shifts the rest down', () => {
+    expect(names(reorderSlot(three(), 0, 2, 0))).toEqual([
+      'Seated Cable Row',
+      'Back Squat',
+      'Overhead Press',
+    ]);
+  });
+
+  it('carries the row to the bottom and shifts the rest up', () => {
+    expect(names(reorderSlot(three(), 0, 0, 2))).toEqual([
+      'Overhead Press',
+      'Seated Cable Row',
+      'Back Squat',
+    ]);
+  });
+
+  /**
+   * The bug this guards against, and the reason the up/down buttons could not
+   * simply be pointed at a longer distance. A swap of the ends would read
+   * ['Row', 'Press', 'Squat'] — the middle movement left where it was, which
+   * is not what a finger dragging past it described.
+   */
+  it('is a move and not a swap', () => {
+    expect(names(reorderSlot(three(), 0, 0, 2))).not.toEqual([
+      'Seated Cable Row',
       'Overhead Press',
       'Back Squat',
     ]);
   });
 
-  it('does nothing at either end rather than dropping a movement', () => {
-    // The bug this guards: an out-of-range swap that reads undefined and
-    // leaves a hole where an exercise was.
-    const start = draft();
+  it('leaves the day alone when the row was put back where it started', () => {
+    const start = three();
 
-    expect(moveSlot(start, 0, 0, -1)).toEqual(start);
-    expect(moveSlot(start, 0, 1, 1)).toEqual(start);
+    expect(reorderSlot(start, 0, 1, 1)).toEqual(start);
   });
 
-  it('removes by index within the day', () => {
-    const without = removeSlot(draft(), 0, 0);
+  it('leaves the day alone rather than dropping a movement off either end', () => {
+    const start = three();
 
-    expect(without.days[0]!.slots.map((s) => s.exerciseName)).toEqual(['Overhead Press']);
+    expect(reorderSlot(start, 0, 0, 3)).toEqual(start);
+    expect(reorderSlot(start, 0, -1, 0)).toEqual(start);
+    expect(reorderSlot(start, 1, 0, 1)).toEqual(start);
   });
 });
 

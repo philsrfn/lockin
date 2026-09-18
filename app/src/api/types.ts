@@ -46,6 +46,8 @@ export type Exercise = {
   name: string;
   pattern: string;
   equipment: string[];
+  /** True when this athlete added it, false for the shared catalogue. */
+  custom: boolean;
 };
 
 export type Profile = {

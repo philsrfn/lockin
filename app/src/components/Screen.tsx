@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollViewContainer } from 'react-native-reorderable-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, space } from '../theme';
 
@@ -8,6 +9,7 @@ export function Screen({
   onRefresh,
   refreshing = false,
   keyboardAware = false,
+  reorderable = false,
 }: {
   children: ReactNode;
   onRefresh?: () => void;
@@ -18,12 +20,23 @@ export function Screen({
    * keyboard is up, and most screens here have nothing to type into.
    */
   keyboardAware?: boolean;
+  /**
+   * For a screen holding a `NestedReorderableList`. The nested list has to
+   * reach the scroll view it lives in — to know where the finger is on the
+   * page, and to scroll the page when a dragged row reaches the edge — and it
+   * does that through a context this container provides.
+   *
+   * Opt-in because it is an animated scroll view with a worklet on every
+   * frame of scrolling, and one screen in the app needs it.
+   */
+  reorderable?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const Container = reorderable ? ScrollViewContainer : ScrollView;
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <Container
         contentContainerStyle={[
           styles.content,
           {
@@ -50,7 +63,7 @@ export function Screen({
         }
       >
         {children}
-      </ScrollView>
+      </Container>
     </View>
   );
 }

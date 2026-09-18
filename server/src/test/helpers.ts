@@ -40,6 +40,12 @@ const CONFIGURATION = [
   // The programme catalogue: shared rows whose user_id is null, plus anything
   // an athlete owns. Truncating it would take the training programme with it.
   'programs',
+  // The movement library, for the same reason and more sharply: migration 035
+  // gave it a user_id, which put it in the derived list below, and truncating
+  // it cascades through program_slots and sets. The first run of the suite
+  // after that migration emptied the catalogue in the first test and failed
+  // every one after it. Owned rows are cleared by hand further down.
+  'exercises',
 ];
 
 /**
@@ -94,6 +100,10 @@ export async function resetData(): Promise<void> {
      where program_id in (select id from programs where user_id is not null)`,
   );
   await pool.query('delete from programs where user_id is not null');
+  // Movements an athlete added themselves, for the same reason: the catalogue
+  // rows stay, a row a test invented does not. Sets referencing one are gone
+  // already — they went with the truncate above.
+  await pool.query('delete from exercises where user_id is not null');
   // Athletes provisioned by a test, and the rows that came with them. User 1 is
   // the seed and stays — but returns to the shape it was seeded in. A linked
   // Apple ID is state a test wrote, and leaving it behind makes the next test
@@ -127,7 +137,7 @@ export async function resetProfile(): Promise<void> {
 
 export async function exerciseIdByName(name: string): Promise<number> {
   const { rows } = await pool.query<{ id: number }>(
-    'select id from exercises where name = $1',
+    'select id from exercises where name = $1 and user_id is null',
     [name],
   );
   if (!rows[0]) throw new Error(`No seeded exercise named ${name}`);

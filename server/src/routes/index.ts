@@ -10,6 +10,7 @@ import {
   AddRuleSchema,
   BarcodeQuerySchema,
   EstimateFoodSchema,
+  CreateExerciseSchema,
   CreateProgramSchema,
   FridgePhotoSchema,
   MealPhotoSchema,
@@ -46,7 +47,7 @@ import {
   listContexts,
   updateContext,
 } from '../services/contexts';
-import { listExercises } from '../services/exercises';
+import { createExercise, listExercises } from '../services/exercises';
 import {
   getProfile,
   isOnboarded,
@@ -373,7 +374,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { contexts: await archiveContext(request.ctx, id) };
   });
 
-  app.get('/exercises', async () => ({ exercises: await listExercises() }));
+  /** The shared catalogue plus whatever this athlete has added to it. */
+  app.get('/exercises', async (request) => ({ exercises: await listExercises(request.ctx) }));
+
+  /**
+   * A movement the catalogue does not have.
+   *
+   * No matching DELETE, and that is the same reasoning archiving a place
+   * follows: sets reference an exercise, so removing one would either orphan
+   * history or cascade it away. A movement tried once and abandoned costs a
+   * line in a picker that has a search box; a deleted one costs the sessions
+   * logged against it.
+   */
+  app.post('/exercises', async (request, reply) => {
+    const body = CreateExerciseSchema.parse(request.body);
+    return reply.code(201).send({ exercise: await createExercise(request.ctx, body) });
+  });
 
   /**
    * The catalogue, and which one he is on. §14: a short list of programmes

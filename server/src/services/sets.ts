@@ -37,11 +37,14 @@ export async function recordSet(
     ]);
     if (!session.rowCount) throw notFound(`No session ${input.sessionId}`);
 
-    // Exercises are a shared catalog of movements, not anyone's data, so this
-    // one lookup is deliberately unscoped.
-    const exercise = await inner.db.query('select id from exercises where id = $1', [
-      input.exerciseId,
-    ]);
+    // The shared catalogue, plus anything this athlete added to it themselves
+    // (migration 035). Scoped, so a set cannot be logged against somebody
+    // else's movement — which would otherwise put their exercise name into
+    // this athlete's history.
+    const exercise = await inner.db.query(
+      'select id from exercises where id = $1 and (user_id is null or user_id = $2)',
+      [input.exerciseId, inner.userId],
+    );
     if (!exercise.rowCount) throw notFound(`No exercise ${input.exerciseId}`);
 
     const { rows } = await inner.db.query<{ id: number }>(

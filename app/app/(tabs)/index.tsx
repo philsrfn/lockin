@@ -341,7 +341,16 @@ export default function TodayScreen() {
         ) : null}
       </ScrollView>
 
-      <View style={styles.footer}>
+      {/*
+        Padded by the bottom inset, which on iOS 26 is where the native tab
+        bar reports its own height. This footer is a sibling of the scroll
+        view rather than content inside it, so nothing else was ever going to
+        push it clear: Liquid Glass floats over the window, and the two
+        buttons underneath it took the tap on the bar instead. Every other
+        screen already did this — `Screen.tsx` for most, the composer inset in
+        chat — and this was the one that ended in a fixed row and got missed.
+      */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         {/*
           Its own row above the actions, not squeezed in beside them. Sharing
           the row left the primary button a third of its width, and the two
@@ -569,7 +578,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
-    paddingBottom: space.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     gap: space.md,

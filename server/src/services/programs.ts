@@ -159,9 +159,10 @@ export async function slotsFor(
      from program_slots s
      join program_days d on d.id = s.program_day_id
      join exercises e on e.id = s.exercise_id
+                     and (e.user_id is null or e.user_id = $3)
      where d.program_id = $1 and d.code = $2
      order by s.position`,
-    [programId, code],
+    [programId, code, ctx.userId],
   );
 
   return rows.map((row) => ({
@@ -293,8 +294,8 @@ export async function saveProgram(ctx: Ctx, programId: number, draft: Draft): Pr
          * not between the athlete and them.
          */
         const { rows: exerciseRows } = await inner.db.query<{ pattern: string }>(
-          'select pattern from exercises where id = $1',
-          [slot.exerciseId],
+          'select pattern from exercises where id = $1 and (user_id is null or user_id = $2)',
+          [slot.exerciseId, inner.userId],
         );
         const pattern = exerciseRows[0]?.pattern;
         if (!pattern) throw badRequest(`No exercise ${slot.exerciseId}`);

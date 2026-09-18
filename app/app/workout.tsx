@@ -138,6 +138,7 @@ export default function WorkoutScreen() {
           used={exercises.map((item) => item.exerciseId)}
           title="addExerciseTitle"
           onPick={addExercise}
+          onCreated={(created) => setLibrary((current) => [...current, created])}
           onClose={() => setPicking(false)}
         />
       </View>
@@ -365,6 +366,7 @@ export default function WorkoutScreen() {
         used={exercises.map((item) => item.exerciseId)}
         title="addExerciseTitle"
         onPick={addExercise}
+        onCreated={(created) => setLibrary((current) => [...current, created])}
         onClose={() => setPicking(false)}
       />
     </View>

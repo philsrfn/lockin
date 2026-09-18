@@ -646,8 +646,6 @@ const PHRASES = {
   newDayName: { de: 'Neuer Tag', en: 'New day' },
   noExercisesInDay: { de: 'Noch keine Übung an diesem Tag.', en: 'No movements on this day yet.' },
   replaceExercise: { de: 'Andere Übung', en: 'Different exercise' },
-  moveUp: { de: 'Nach oben', en: 'Move up' },
-  moveDown: { de: 'Nach unten', en: 'Move down' },
   removeExercise: { de: 'Übung entfernen', en: 'Remove movement' },
   repsLabel: { de: 'WIEDERHOLUNGEN', en: 'REPS' },
   setsLabel: { de: 'SÄTZE', en: 'SETS' },
@@ -678,6 +676,21 @@ const PHRASES = {
   },
   noExerciseFound: { de: 'Keine Übung gefunden.', en: 'No movement found.' },
 
+  // Adding a movement the library does not have. No catalogue is ever
+  // complete, and the alternative is somebody logging their calf raises as
+  // something else for a year.
+  createExercise: { de: '„{name}“ anlegen', en: 'Create “{name}”' },
+  createExerciseTitle: { de: 'Eigene Übung', en: 'Your own movement' },
+  createExerciseWhy: {
+    de: 'Die Bewegungsart entscheidet, wo die Übung in deiner Liste steht und was dir als Ersatz angeboten wird.',
+    en: 'The movement pattern decides where it sits in your list and what gets offered as an alternative.',
+  },
+  createExerciseSave: { de: 'Anlegen', en: 'Create' },
+  createExerciseFailed: {
+    de: 'Die Übung konnte nicht angelegt werden',
+    en: 'Could not create the movement',
+  },
+  reorderExercise: { de: 'Übung verschieben', en: 'Move movement' },
   // The movement patterns, which is how the exercise list is grouped. Named
   // the way somebody in a gym would name them, not the way the column does.
   patternSquat: { de: 'Kniebeuge', en: 'Squat' },

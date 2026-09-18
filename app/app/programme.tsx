@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { NestedReorderableList, useReorderableDrag } from 'react-native-reorderable-list';
+import { SymbolView } from 'expo-symbols';
 import { api } from '../src/api/client';
 import type { Exercise, ProgramWithSlots } from '../src/api/types';
 import { Button } from '../src/components/Button';
-import { Card, Rule } from '../src/components/Card';
+import { Card } from '../src/components/Card';
 import { ExercisePicker } from '../src/components/ExercisePicker';
 import { Screen } from '../src/components/Screen';
 import { Stepper } from '../src/components/Stepper';
@@ -13,6 +15,7 @@ import {
   DEFAULT_RANGE,
   type Draft,
   type DraftProblem,
+  type DraftSlot,
   INCREMENTS_KG,
   MAX_DAYS,
   MAX_SETS,
@@ -24,11 +27,11 @@ import {
   describeSlot,
   draftFrom,
   firstProblem,
-  moveSlot,
   removeDay,
   removeSlot,
   rename,
   renameDay,
+  reorderSlot,
   replaceSlot,
   toSaveBody,
   updateSlot,
@@ -149,7 +152,7 @@ export default function ProgrammeScreen() {
   const problem = draft ? firstProblem(draft) : 'no_days';
 
   return (
-    <Screen keyboardAware>
+    <Screen keyboardAware reorderable>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>‹ {t('back')}</Text>
@@ -198,20 +201,23 @@ export default function ProgrammeScreen() {
               {day.slots.length === 0 ? (
                 <Text style={styles.dim}>{t('noExercisesInDay')}</Text>
               ) : (
-                day.slots.map((slot, slotIndex) => (
-                  <View key={`${slot.exerciseId}-${slotIndex}`}>
-                    {slotIndex > 0 ? <Rule /> : null}
-                    <Pressable
-                      onPress={() => setTuning({ dayIndex, slotIndex })}
-                      style={({ pressed }) => [styles.slot, pressed && styles.pressed]}
-                    >
-                      <Text style={styles.slotName} numberOfLines={1}>
-                        {slot.exerciseName}
-                      </Text>
-                      <Text style={styles.slotReps}>{describeSlot(slot)}</Text>
-                    </Pressable>
-                  </View>
-                ))
+                <NestedReorderableList
+                  data={day.slots}
+                  // Unique within a day: the picker will not hand back a
+                  // movement the day already has. Never the index — the
+                  // library tracks a row through the reorder by its key, and
+                  // a key that is the position cannot follow anything.
+                  keyExtractor={(slot) => String(slot.exerciseId)}
+                  renderItem={({ item, index }) => (
+                    <SlotRow slot={item} onOpen={() => setTuning({ dayIndex, slotIndex: index })} />
+                  )}
+                  onReorder={({ from, to }) =>
+                    setDraft(reorderSlot(draft, dayIndex, from, to))
+                  }
+                  // The day is as long as it is — never more than twelve rows
+                  // — and it scrolls with the page rather than inside itself.
+                  scrollEnabled={false}
+                />
               )}
 
               <View style={styles.dayActions}>
@@ -275,20 +281,9 @@ export default function ProgrammeScreen() {
         slot={
           tuning && draft ? (draft.days[tuning.dayIndex]?.slots[tuning.slotIndex] ?? null) : null
         }
-        canMoveUp={tuning ? tuning.slotIndex > 0 : false}
-        canMoveDown={
-          tuning && draft
-            ? tuning.slotIndex < (draft.days[tuning.dayIndex]?.slots.length ?? 0) - 1
-            : false
-        }
         onChange={(patch) => {
           if (!tuning || !draft) return;
           setDraft(updateSlot(draft, tuning.dayIndex, tuning.slotIndex, patch));
-        }}
-        onMove={(direction) => {
-          if (!tuning || !draft) return;
-          setDraft(moveSlot(draft, tuning.dayIndex, tuning.slotIndex, direction));
-          setTuning({ ...tuning, slotIndex: tuning.slotIndex + direction });
         }}
         onReplace={() => {
           if (!tuning) return;
@@ -306,6 +301,7 @@ export default function ProgrammeScreen() {
       <ExercisePicker
         visible={picking !== null}
         exercises={exercises}
+        onCreated={(created) => setExercises((current) => [...current, created])}
         // Dimmed rather than hidden: "it is already on this day" is a better
         // answer than a movement that has vanished from the library.
         used={
@@ -328,13 +324,53 @@ export default function ProgrammeScreen() {
   );
 }
 
-/** Sets, reps, rest, increment, order and removal for one movement. */
+/**
+ * One movement of one day: tap it to tune it, drag the grip to move it.
+ *
+ * A grip rather than a long press on the row. The row already does something
+ * on tap, the list already lives inside a scroll view, and a gesture that has
+ * to be disambiguated from both of those is a gesture people trigger by
+ * accident. A handle says which finger-down means "carry this", and
+ * `onPressIn` rather than `onLongPress` means it starts moving the moment it
+ * is touched — there is nothing else the grip could have meant.
+ */
+function SlotRow({ slot, onOpen }: { slot: DraftSlot; onOpen: () => void }) {
+  const drag = useReorderableDrag();
+
+  return (
+    <View style={styles.slotRow}>
+      <Pressable
+        onPress={onOpen}
+        style={({ pressed }) => [styles.slotTap, pressed && styles.pressed]}
+      >
+        <Text style={styles.slotName} numberOfLines={1}>
+          {slot.exerciseName}
+        </Text>
+        <Text style={styles.slotReps}>{describeSlot(slot)}</Text>
+      </Pressable>
+
+      <Pressable
+        onPressIn={drag}
+        hitSlop={12}
+        accessibilityRole="adjustable"
+        accessibilityLabel={t('reorderExercise')}
+        style={styles.grip}
+      >
+        <SymbolView
+          name="line.3.horizontal"
+          size={18}
+          tintColor={colors.textFaint}
+          resizeMode="scaleAspectFit"
+        />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Sets, reps, rest, increment, replacement and removal for one movement. */
 function SlotSheet({
   slot,
-  canMoveUp,
-  canMoveDown,
   onChange,
-  onMove,
   onReplace,
   onRemove,
   onClose,
@@ -347,8 +383,6 @@ function SlotSheet({
     restSeconds?: number;
     incrementKg?: number;
   } | null;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
   onChange: (patch: {
     sets?: number;
     repMin?: number;
@@ -356,7 +390,6 @@ function SlotSheet({
     restSeconds?: number;
     incrementKg?: number;
   }) => void;
-  onMove: (direction: -1 | 1) => void;
   onReplace: () => void;
   onRemove: () => void;
   onClose: () => void;
@@ -485,22 +518,6 @@ function SlotSheet({
               <Text style={styles.hint}>{t('incrementHint')}</Text>
 
               <Button title={t('replaceExercise')} variant="secondary" onPress={onReplace} />
-              <View style={styles.moveRow}>
-                <Button
-                  title={t('moveUp')}
-                  variant="ghost"
-                  style={styles.flex}
-                  disabled={!canMoveUp}
-                  onPress={() => onMove(-1)}
-                />
-                <Button
-                  title={t('moveDown')}
-                  variant="ghost"
-                  style={styles.flex}
-                  disabled={!canMoveDown}
-                  onPress={() => onMove(1)}
-                />
-              </View>
               <Button title={t('removeExercise')} variant="ghost" onPress={onRemove} />
             </ScrollView>
           ) : null}
@@ -520,7 +537,6 @@ const styles = StyleSheet.create({
   blurb: { fontSize: 14, color: colors.textBody, lineHeight: 20 },
   dim: { ...typo.bodyDim, color: colors.textFaint },
   error: { color: colors.danger, fontSize: 14 },
-  flex: { flex: 1 },
   pressed: { opacity: 0.6 },
 
   nameBlock: { gap: space.sm },
@@ -538,13 +554,33 @@ const styles = StyleSheet.create({
     marginBottom: space.xs,
   },
 
-  slot: {
+  /**
+   * Full-bleed inside the padded card, the way `Rule` is, so the hairline
+   * between two movements runs edge to edge.
+   *
+   * Opaque, because a dragged row is carried over its neighbours and a
+   * translucent one would read as two rows printed on top of each other.
+   */
+  slotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    minHeight: 52,
+    marginHorizontal: -space.lg,
+    paddingHorizontal: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  slotTap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.md,
-    minHeight: 44,
+    minHeight: 52,
   },
+  grip: { paddingLeft: space.sm, alignItems: 'center', justifyContent: 'center' },
   slotName: { ...typo.body, color: colors.text, flexShrink: 1 },
   slotReps: { fontSize: 14, color: colors.textDim, ...typo.mono },
 
@@ -581,8 +617,6 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.accentDeep },
   chipText: { ...typo.body, color: colors.textDim, ...typo.mono },
   chipTextOn: { color: colors.accent },
-
-  moveRow: { flexDirection: 'row', gap: space.sm },
 
   cancel: { alignItems: 'center', paddingTop: space.sm },
   cancelText: { ...typo.body, color: colors.textDim },

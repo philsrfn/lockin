@@ -8,8 +8,15 @@
  * a quietly obeyed write.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { pool } from '../../db';
-import { contextIdByName, exerciseIdByName, resetData, resetProfile, phil } from '../../test/helpers';
+import { type Ctx, pool } from '../../db';
+import {
+  anotherAthlete,
+  contextIdByName,
+  exerciseIdByName,
+  resetData,
+  resetProfile,
+  phil,
+} from '../../test/helpers';
 import {
   activateContext,
   activeContext,
@@ -18,7 +25,7 @@ import {
   listContexts,
   updateContext,
 } from '../contexts';
-import { exercisesByName, getExercise, listExercises } from '../exercises';
+import { createExercise, exercisesByName, getExercise, listExercises } from '../exercises';
 import { getProfile, macroTargets, updateTargets } from '../profile';
 import { addRule, deactivateRule, listRules, updateRule } from '../rules';
 
@@ -315,7 +322,7 @@ describe('rules', () => {
 
 describe('exercises', () => {
   it('seeds a library with substitutes wired within each movement pattern', async () => {
-    const all = await listExercises();
+    const all = await listExercises(phil);
     const squat = all.find((exercise) => exercise.name === 'Back Squat');
 
     expect(all.length).toBeGreaterThan(30);
@@ -326,8 +333,69 @@ describe('exercises', () => {
     expect(new Set(substitutePatterns)).toEqual(new Set(['squat']));
   });
 
+  /**
+   * Migration 035 wired seventy-six more movements into the substitute chains
+   * by name, in two passes, one of which appends. A typo in either lands a
+   * press in a squat's alternatives, and the swap button is where somebody
+   * finds out — mid-session, in a gym, looking for something they can
+   * actually do.
+   *
+   * The rule is not quite "same pattern", and writing it that way is how this
+   * test failed the first time it ran. `iso` is a catch-all rather than a
+   * movement pattern, and the seed has always paired across it on purpose:
+   * 002 offers a Romanian deadlift when the leg curl machine is taken, and
+   * 016 offers a Nordic curl. Both are hamstrings, both are the right answer,
+   * and neither shares a bucket with a leg curl because there is no bucket
+   * for hamstrings. So: identical patterns, or one side is the catch-all.
+   *
+   * The `swap_exercise` tool is stricter and demands an exact match, which
+   * means the model cannot offer those pairs and the button can. That is a
+   * known asymmetry, not something this test is asserting away.
+   */
+  it('never offers a substitute from an unrelated movement pattern', async () => {
+    const all = await listExercises(phil);
+    const byId = new Map(all.map((exercise) => [exercise.id, exercise]));
+
+    const crossed = all.flatMap((exercise) =>
+      exercise.substitutes
+        .map((id) => byId.get(id))
+        .filter(
+          (sub) =>
+            sub &&
+            sub.pattern !== exercise.pattern &&
+            sub.pattern !== 'iso' &&
+            exercise.pattern !== 'iso',
+        )
+        .map((sub) => `${exercise.name} -> ${sub!.name}`),
+    );
+
+    expect(crossed).toEqual([]);
+  });
+
+  /**
+   * The holes 035 was written to close. Named individually rather than
+   * counted, because "more than a hundred exercises" passes happily while the
+   * app still cannot log a deadlift.
+   */
+  it('covers the movements somebody arriving from another app looks for first', async () => {
+    const names = new Set((await listExercises(phil)).map((exercise) => exercise.name));
+
+    for (const wanted of [
+      'Conventional Deadlift',
+      'Front Squat',
+      'Incline Barbell Bench Press',
+      'T-Bar Row',
+      'Standing Calf Raise',
+      'Hanging Leg Raise',
+      'Preacher Curl',
+      'Plank',
+    ]) {
+      expect(names, wanted).toContain(wanted);
+    }
+  });
+
   it('never lists an exercise as its own substitute', async () => {
-    for (const exercise of await listExercises()) {
+    for (const exercise of await listExercises(phil)) {
       expect(exercise.substitutes).not.toContain(exercise.id);
     }
   });
@@ -347,6 +415,70 @@ describe('exercises', () => {
   });
 
   it('404s on an exercise id that does not exist', async () => {
-    await expect(getExercise(9999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(getExercise(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+/**
+ * Movements somebody adds themselves (migration 035).
+ *
+ * `exercises` was the one table in the app that belonged to nobody, and these
+ * are the tests that the half-owned version of it did not quietly become a
+ * shared one: a movement Phil invents is his, Sam cannot see it, and neither
+ * of them can log a set against the other's.
+ */
+describe('exercises somebody added themselves', () => {
+  let sam: Ctx;
+
+  beforeEach(async () => {
+    sam = await anotherAthlete();
+  });
+
+  it('appears in their library and nowhere else', async () => {
+    const made = await createExercise(phil, {
+      name: 'Reverse Hyper',
+      pattern: 'hinge',
+      equipment: ['machine'],
+    });
+
+    expect(made.custom).toBe(true);
+    expect(made.substitutes).toEqual([]);
+
+    const mine = await listExercises(phil);
+    expect(mine.map((exercise) => exercise.name)).toContain('Reverse Hyper');
+    // The catalogue leads; what somebody invented sits under it.
+    expect(mine.filter((exercise) => exercise.custom).map((e) => e.name)).toEqual(['Reverse Hyper']);
+
+    const theirs = await listExercises(sam);
+    expect(theirs.map((exercise) => exercise.name)).not.toContain('Reverse Hyper');
+    await expect(getExercise(sam, made.id)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('refuses a name the catalogue already has, whatever the casing', async () => {
+    await expect(createExercise(phil, { name: 'back squat', pattern: 'squat' })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it('refuses a second copy of one they made', async () => {
+    await createExercise(phil, { name: 'Belt Squat', pattern: 'squat' });
+
+    await expect(createExercise(phil, { name: '  belt   squat ', pattern: 'squat' })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it('lets two athletes invent the same movement independently', async () => {
+    await createExercise(phil, { name: 'Club Row', pattern: 'h_pull' });
+    const hers = await createExercise(sam, { name: 'Club Row', pattern: 'h_pull' });
+
+    expect(hers.custom).toBe(true);
+    expect(hers.name).toBe('Club Row');
+  });
+
+  it('takes a pattern the swap logic understands, and nothing else', async () => {
+    await expect(
+      createExercise(phil, { name: 'Something', pattern: 'cardio' }),
+    ).rejects.toThrow();
   });
 });

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, space, tabBarHeight } from '../theme';
+import { colors, space } from '../theme';
 
 export function Screen({
   children,
@@ -28,12 +28,11 @@ export function Screen({
           styles.content,
           {
             paddingTop: insets.top + space.md,
-            // The tab bar floats over the scroll view, and the safe-area inset
-            // does not know about it — the last paragraph of the weight screen
-            // was running underneath. Allowed for on every screen: the ones
-            // without a tab bar simply end with more air, which this design
-            // prefers anyway.
-            paddingBottom: insets.bottom + tabBarHeight + space.xl,
+            // The native tab bar floats over the scroll view and reports its
+            // height through the bottom safe-area inset, so the inset alone
+            // keeps the last paragraph clear of it. The old JS bar did not,
+            // and every screen added its height by hand.
+            paddingBottom: insets.bottom + space.xl,
           },
         ]}
         automaticallyAdjustKeyboardInsets={keyboardAware}

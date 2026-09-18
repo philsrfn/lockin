@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,7 +17,7 @@ import { BarcodeScanner } from './BarcodeScanner';
 import { MealCamera } from './MealCamera';
 import { Button } from './Button';
 import { t } from '../lib/locale';
-import { MEAL_SLOTS, slotLabelKey } from '../lib/mealSlots';
+import { MEAL_SLOTS, slotForHour, slotLabelKey } from '../lib/mealSlots';
 import { useGramsField } from '../lib/useGramsField';
 import { colors, radius, space, type as typo } from '../theme';
 import { messageFor } from '../lib/apiError';
@@ -45,10 +45,17 @@ type Draft = {
 
 export function FoodCapture({
   mode,
+  initialText,
   onClose,
   onLogged,
 }: {
   mode: 'scan' | 'describe' | 'photo' | null;
+  /**
+   * Text already typed into the Food tab's own line. The sheet opens straight
+   * into estimating it, so the line is one step — type, send, confirm — and
+   * not a shortcut into a form asking for the same sentence again.
+   */
+  initialText?: string;
   onClose: () => void;
   onLogged: () => void;
 }) {
@@ -62,6 +69,18 @@ export function FoodCapture({
   const [suggested, setSuggested] = useState<number | null>(null);
   const gramsField = useGramsField(suggested);
   const [slot, setSlot] = useState<MealSlot>('snack');
+
+  // Guessed from the clock each time the sheet opens, not once at mount: it
+  // stays mounted all day, and lunch logged at 13:00 should not say snack.
+  useEffect(() => {
+    if (mode !== null) setSlot(slotForHour(new Date().getHours()));
+    if (mode === 'describe' && initialText && initialText.trim().length >= 2) {
+      setText(initialText);
+      void estimate(initialText);
+    }
+    // Only on opening: re-running as the text prop changes would estimate
+    // every keystroke typed on the tab behind the sheet.
+  }, [mode]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,14 +121,14 @@ export function FoodCapture({
     }
   }
 
-  async function estimate() {
-    if (text.trim().length < 2) return;
+  async function estimate(input: string = text) {
+    if (input.trim().length < 2) return;
     setBusy(true);
     setError(null);
     try {
       const result = await api<{ estimate: FoodEstimate }>('/foods/estimate', {
         method: 'POST',
-        body: { text: text.trim() },
+        body: { text: input.trim() },
         timeoutMs: 60_000,
       });
       const e = result.estimate;
@@ -260,7 +279,7 @@ export function FoodCapture({
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <Button
                 title={busy ? t('estimating') : t('estimateMacros')}
-                onPress={estimate}
+                onPress={() => void estimate()}
                 disabled={busy || text.trim().length < 2}
               />
             </>

@@ -172,6 +172,67 @@ export async function deleteMeal(ctx: Ctx, id: number, zone?: string): Promise<{
   return { today: await macrosToday(ctx, zone) };
 }
 
+export type UpdateMealInput = Partial<
+  Pick<LogMealInput, 'slot' | 'description' | 'kcal' | 'proteinG' | 'fatG' | 'carbsG'>
+>;
+
+/**
+ * Correct a meal that was logged wrong — the estimate was high, it was lunch
+ * rather than a snack, it was 150 g and not 100.
+ *
+ * Deleting and logging again did the same job with two taps too many, and it
+ * moved the meal to the end of the day and off the food it came from. An edit
+ * keeps both: `eaten_at` and `food_id` are deliberately not settable here.
+ *
+ * `undefined` leaves a field as it is and `null` clears it, the same contract
+ * as `updateFood`, so "I do not know the fat" can be said after the fact.
+ */
+export async function updateMeal(
+  ctx: Ctx,
+  id: number,
+  input: UpdateMealInput,
+  zone?: string,
+): Promise<{ meal: Meal; today: Macros }> {
+  if (input.slot !== undefined && !SLOTS.includes(input.slot)) {
+    throw badRequest(`slot must be one of ${SLOTS.join(', ')}`);
+  }
+  if (input.description !== undefined && input.description.trim().length === 0) {
+    throw badRequest('description must not be empty');
+  }
+
+  const keep = (value: unknown) => value === undefined;
+  const { rows } = await ctx.db.query<MealRow>(
+    `update meals set
+       slot        = case when $3 then slot        else $4 end,
+       description = case when $5 then description else $6 end,
+       kcal        = case when $7 then kcal        else $8::int end,
+       protein_g   = case when $9 then protein_g   else $10::int end,
+       fat_g       = case when $11 then fat_g      else $12::int end,
+       carbs_g     = case when $13 then carbs_g    else $14::int end
+     where id = $2 and user_id = $1
+     returning ${MEAL_COLUMNS}`,
+    [
+      ctx.userId,
+      id,
+      keep(input.slot),
+      input.slot ?? null,
+      keep(input.description),
+      input.description?.trim() ?? null,
+      keep(input.kcal),
+      input.kcal ?? null,
+      keep(input.proteinG),
+      input.proteinG ?? null,
+      keep(input.fatG),
+      input.fatG ?? null,
+      keep(input.carbsG),
+      input.carbsG ?? null,
+    ],
+  );
+  if (!rows[0]) throw notFound(`No meal ${id}`);
+
+  return { meal: toMeal(rows[0]), today: await macrosToday(ctx, zone) };
+}
+
 export async function macrosToday(ctx: Ctx, zone?: string): Promise<Macros> {
   const meals = await mealsToday(ctx, zone);
   return sumMacros(meals.map(mealToMacros));

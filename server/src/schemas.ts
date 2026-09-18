@@ -270,6 +270,16 @@ export const LogMealSchema = z.object({
   eatenAt: z.string().datetime({ offset: true }).optional(),
 });
 
+/** Correcting a logged meal. When it was eaten and what it came from stay put. */
+export const UpdateMealSchema = LogMealSchema.pick({
+  slot: true,
+  description: true,
+  kcal: true,
+  proteinG: true,
+  fatG: true,
+  carbsG: true,
+}).partial();
+
 /** Logging a quick-add tile: one id, everything else comes from the library. */
 export const LogFoodSchema = z.object({
   foodId: z.number().int().positive(),

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -36,6 +37,7 @@ const TOOL_LABELS: Record<string, () => string> = {
   get_program: () => t('toolGetProgram'),
   set_program: () => t('toolSetProgram'),
   edit_program: () => t('toolEditProgram'),
+  edit_meal: () => t('toolEditMeal'),
   undo_entry: () => t('toolUndo'),
   add_place: () => t('toolAddPlace'),
   set_training_days: () => t('toolTrainingDays'),
@@ -50,6 +52,22 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  /**
+   * The native tab bar floats over this screen and reports itself through the
+   * bottom inset, so the composer sits above `insets.bottom` while the keyboard
+   * is down. With the keyboard up the bar is covered and that padding would be
+   * a gap between the field and the keys, so it goes.
+   */
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -122,7 +140,6 @@ export default function ChatScreen() {
       // clip below the status bar, not slide under the clock.
       style={[styles.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.bottom + 49}
     >
       <ScrollView
         ref={scroller}
@@ -170,7 +187,12 @@ export default function ChatScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={[styles.composer, { paddingBottom: space.md }]}>
+      <View
+        style={[
+          styles.composer,
+          { paddingBottom: keyboardUp ? space.md : insets.bottom + space.sm },
+        ]}
+      >
         <TextInput
           value={draft}
           onChangeText={setDraft}

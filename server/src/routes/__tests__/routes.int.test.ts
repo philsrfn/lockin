@@ -213,6 +213,47 @@ describe('the routes themselves', () => {
     expect(set.json().session.sets).toHaveLength(1);
   });
 
+  it('corrects a logged meal and hands back the corrected day', async () => {
+    const logged = await app.inject({
+      method: 'POST',
+      url: '/meals',
+      headers: auth,
+      payload: { slot: 'snack', description: 'Pasta', kcal: 900, proteinG: 30 },
+    });
+    expect(logged.statusCode).toBe(201);
+
+    const edited = await app.inject({
+      method: 'PATCH',
+      url: `/meals/${logged.json().meal.id}`,
+      headers: auth,
+      payload: { slot: 'lunch', kcal: 450 },
+    });
+
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json()).toMatchObject({
+      meal: { slot: 'lunch', kcal: 450, proteinG: 30, description: 'Pasta' },
+      consumed: { kcal: 450, proteinG: 30 },
+    });
+  });
+
+  it('400s a meal edit the schema does not allow', async () => {
+    const logged = await app.inject({
+      method: 'POST',
+      url: '/meals',
+      headers: auth,
+      payload: { slot: 'snack', description: 'Pasta' },
+    });
+
+    const edited = await app.inject({
+      method: 'PATCH',
+      url: `/meals/${logged.json().meal.id}`,
+      headers: auth,
+      payload: { kcal: -5 },
+    });
+
+    expect(edited.statusCode).toBe(400);
+  });
+
   it('answers the Today screen', async () => {
     const response = await app.inject({ method: 'GET', url: '/today', headers: auth });
 

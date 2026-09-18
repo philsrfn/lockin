@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { anotherAthlete, resetData, resetProfile, phil } from '../../test/helpers';
 import { archiveFood, createFood, getFood, listFoods, updateFood } from '../foods';
-import { deleteMeal, logMeal, macrosToday, mealsToday } from '../meals';
+import { deleteMeal, logMeal, macrosToday, mealsToday, updateMeal } from '../meals';
 
 beforeEach(async () => {
   await resetData();
@@ -107,6 +107,76 @@ describe('deleteMeal', () => {
 
   it('404s on a meal that is already gone', async () => {
     await expect(deleteMeal(phil, 9999)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('updateMeal', () => {
+  it('corrects the numbers and hands back the corrected total', async () => {
+    const logged = await logMeal(phil, {
+      slot: 'snack',
+      description: 'Pasta',
+      kcal: 900,
+      proteinG: 30,
+      fatG: 20,
+      carbsG: 120,
+    });
+
+    const result = await updateMeal(phil, logged.meal.id, {
+      slot: 'lunch',
+      description: 'Pasta, half portion',
+      kcal: 450,
+      proteinG: 15,
+    });
+
+    expect(result.meal).toMatchObject({
+      slot: 'lunch',
+      description: 'Pasta, half portion',
+      kcal: 450,
+      proteinG: 15,
+      // Not sent, so not touched.
+      fatG: 20,
+      carbsG: 120,
+    });
+    expect(result.today).toEqual({ kcal: 450, proteinG: 15, fatG: 20, carbsG: 120 });
+  });
+
+  it('clears a macro when told null, rather than treating null as "leave it"', async () => {
+    const logged = await logMeal(phil, { slot: 'dinner', description: 'Curry', proteinG: 40, fatG: 25 });
+
+    const result = await updateMeal(phil, logged.meal.id, { fatG: null });
+
+    expect(result.meal.fatG).toBeNull();
+    expect(result.meal.proteinG).toBe(40);
+  });
+
+  it('keeps when it was eaten and which food it came from', async () => {
+    const food = await createFood(phil, SKYR);
+    const logged = await logMeal(phil, {
+      slot: 'breakfast',
+      description: food.name,
+      foodId: food.id,
+      proteinG: 55,
+    });
+
+    const result = await updateMeal(phil, logged.meal.id, { proteinG: 60 });
+
+    expect(result.meal.eatenAt).toBe(logged.meal.eatenAt);
+    expect(result.meal.foodId).toBe(food.id);
+  });
+
+  it('rejects a slot that is not one of the four, and an empty description', async () => {
+    const logged = await logMeal(phil, { slot: 'lunch', description: 'Soup' });
+
+    await expect(
+      updateMeal(phil, logged.meal.id, { slot: 'brunch' as 'lunch' }),
+    ).rejects.toThrow('slot must be one of');
+    await expect(updateMeal(phil, logged.meal.id, { description: '  ' })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it('404s on a meal that does not exist', async () => {
+    await expect(updateMeal(phil, 9999, { kcal: 1 })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 

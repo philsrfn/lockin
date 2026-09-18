@@ -35,6 +35,7 @@ import {
   SyncBatchSchema,
   TemplateIdSchema,
   UpdateFoodSchema,
+  UpdateMealSchema,
   UpdateProfileSchema,
 } from '../schemas';
 import { logWeight, summary as weightSummary } from '../services/bodyweight';
@@ -123,7 +124,7 @@ import {
   listMeasurements,
   logMeasurement,
 } from '../services/measurements';
-import { deleteMeal, logMeal, mealsToday } from '../services/meals';
+import { deleteMeal, logMeal, mealsToday, updateMeal } from '../services/meals';
 import { history, sendMessage } from '../llm/chat';
 import { noteForToday } from '../llm/coach';
 import { addRule, listRules, updateRule } from '../services/rules';
@@ -874,6 +875,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     if (body.grams) await rememberPortion(request.ctx, food.id, body.grams);
 
     return reply.code(201).send({ meal: result.meal, consumed: result.today });
+  });
+
+  app.patch('/meals/:id', async (request) => {
+    const { id } = IdParamSchema.parse(request.params);
+    const body = UpdateMealSchema.parse(request.body);
+    const result = await updateMeal(request.ctx, id, body);
+    return { meal: result.meal, consumed: result.today };
   });
 
   app.delete('/meals/:id', async (request) => {

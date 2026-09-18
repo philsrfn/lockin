@@ -112,12 +112,5 @@ export const type = {
   mono,
 } as const;
 
-/**
- * The tab bar's own height, above the home indicator. Icons and labels now, so
- * it is taller than the label-only bar it replaced. Screens allow for it
- * because the safe-area inset does not.
- */
-export const tabBarHeight = 68;
-
 /** Small caps, spaced. Used for every label in the app. */
 export const caps = (value: string) => value.toUpperCase();

@@ -247,6 +247,7 @@ Declared in `server/src/llm/tools.ts`, each mapping to a validated handler in
 | `get_program` | read the current programme, its days and its movements |
 | `set_program` | switch to another programme, theirs or built-in |
 | `edit_program` | create or replace a programme's days and movements |
+| `edit_meal` | correct a logged meal — portion, macros, slot — keeping when it was eaten |
 | `undo_entry` | remove one mis-logged meal or set, by id |
 | `add_place` | add a place they train, with what it has |
 | `set_training_days` | how many days a week the weekly targets expect |

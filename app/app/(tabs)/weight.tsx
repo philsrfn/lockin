@@ -7,6 +7,7 @@ import { enqueue } from '../../src/sync/queue';
 import type { WeightSummary } from '../../src/api/types';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
+import { PhysiqueCard } from '../../src/components/PhysiqueCard';
 import { Screen } from '../../src/components/Screen';
 import { WeightChart } from '../../src/components/WeightChart';
 import { kg, shortDate, signedKg } from '../../src/lib/format';
@@ -144,6 +145,11 @@ export default function WeightScreen() {
             ))}
         </Card>
       ) : null}
+
+      {/* Last, below the numbers, because it is the slower answer. The pad and
+          the average are what somebody came for at 07:00; the photograph is
+          the thing they scroll to on a Sunday. */}
+      <PhysiqueCard />
     </Screen>
   );
 }

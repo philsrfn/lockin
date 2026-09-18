@@ -178,6 +178,9 @@ fridge_inventory      confirmed vision output
 rules                 tier (hard|soft|never), text, scope, code → a checker
 chat_messages         role, content jsonb
 coach_notes           the cached daily read, so it does not drift per app open
+physique_checkins     the weekly progress photo, minus the photo: date, prose,
+                      how many pictures fed the comparison. The images live on
+                      the phone and nowhere else
 deloads               planned + earned
 daily_health          steps, sleep, resting HR, workouts, scale weight
 job_schedule/job_runs per-athlete cron state
@@ -321,6 +324,7 @@ clock**, not the server's. Times are adjustable per athlete.
 | `dinner_prompt` | 20:00 | One-tap dinner logging. |
 | `weekly_review` | Sunday 18:00 | 7-day average, adherence, next week's targets. |
 | `session_reminder` | 17:00 | Today's session and the place, if it has not happened yet. |
+| `physique_checkin` | Sunday 09:00 | Ask for the weekly progress photo, while the light and the hour are still repeatable. |
 
 §8 words the last one as "30 min before planned session". Nothing in the model
 records when today's session is meant to start, and that is deliberate — §5
@@ -422,6 +426,14 @@ repeats — sets, meals, weight. Chat handles the 5% that is novel.
 - **Weight** — one number pad, three seconds. The 7-day average is the
   headline, and the chart is a line in a coordinate system: the average is the
   line, daily weigh-ins are dots.
+
+  Below the numbers, the **weekly progress photo**: one picture a week, a push
+  on Sunday morning because the same light at the same hour is what makes two
+  photographs comparable, and a paragraph from the trainer saying what changed
+  against the three before it. The picture is written to the phone's own
+  sandbox and goes nowhere else — the server stores the words and the date.
+  Qualitative only, never a body fat percentage: §1's rule applied to the one
+  place where a number could only ever be fabricated. See migration 034.
 - **Progress** — per-exercise estimated 1RM over time, the weight trend, the
   Sunday review, and **measured expenditure**: what the athlete actually burns,
   from logged intake and the smoothed weight trend rather than from the

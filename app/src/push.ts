@@ -69,6 +69,8 @@ export function screenFromNotification(
       return data.sessionId != null ? `/report?sessionId=${data.sessionId}` : '/report';
     case 'today':
       return '/';
+    case 'weight':
+      return '/weight';
     default:
       return null;
   }

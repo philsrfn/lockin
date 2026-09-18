@@ -504,6 +504,27 @@ export type SessionReport = {
   createdAt: string;
 };
 
+/**
+ * What the trainer said about a week's photograph. The photograph itself is
+ * never here — it is on this phone and nowhere else, see
+ * `lib/physiquePhotos.ts`.
+ */
+export type PhysiqueCheckin = {
+  takenOn: string;
+  photoCount: number;
+  headline: string;
+  assessment: string;
+  /** Null on the first one: nothing to compare against yet. */
+  change: string | null;
+  createdAt: string;
+};
+
+export type PhysiqueStatus = {
+  checkins: PhysiqueCheckin[];
+  due: boolean;
+  daysSince: number | null;
+};
+
 export type RuleTier = 'hard' | 'soft' | 'never';
 export type Rule = {
   id: number;

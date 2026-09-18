@@ -18,9 +18,12 @@ import { colors, radius, space, type as typo } from '../src/theme';
  * they ever disagree, the numbers are right; that is what keeping them out
  * of the model buys.
  *
- * Reached from a push notification straight after finishing, from the Today
- * screen, and from history. It is also the one place in the app that answers
- * "was that a good session?" with something other than a chart.
+ * Reached from a push notification straight after finishing, and from any
+ * session in history that was closed out. That second way is the durable one:
+ * the screen that appears when a workout ends is gone as soon as somebody
+ * leaves it, and a notification is gone as soon as it is swiped. It is also
+ * the one place in the app that answers "was that a good session?" with
+ * something other than a chart.
  */
 export default function ReportScreen() {
   const router = useRouter();

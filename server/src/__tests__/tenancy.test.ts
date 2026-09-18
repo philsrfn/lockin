@@ -63,6 +63,7 @@ const OWNED_TABLES = [
   'programs',
   'sessions_tokens',
   'session_reports',
+  'physique_checkins',
 ];
 
 /**

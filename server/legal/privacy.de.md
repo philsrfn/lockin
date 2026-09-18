@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-**Fassung 2026-09-15**
+**Fassung 2026-09-16**
 
 Diese Erklärung beschreibt, was lockin speichert, warum, und wer es sonst noch
 zu sehen bekommt. Sie ist absichtlich konkret: sie zählt auf, was tatsächlich
@@ -29,10 +29,19 @@ deine Lebensmittel-Bibliothek und deine Ernährungsregeln. Wenn du deinen
 Kühlschrank fotografierst, wird die Liste gespeichert, die du danach
 bestätigst — nicht das Foto.
 
-**Fotos werden nicht gespeichert.** Weder von deinem Essen noch von deinem
-Kühlschrank, weder auf dem Server noch in deinem Konto. Ein Bild geht einmal
-an das Sprachmodell, das die Nährwerte schätzt, und ist danach weg. Was bleibt,
-ist die Zahl, die du bestätigt hast.
+**Auf dem Server wird kein Foto gespeichert.** Weder von deinem Essen, noch
+von deinem Kühlschrank, noch von dir. Ein Bild geht einmal an das Sprachmodell
+und ist danach weg. Was bleibt, ist die Zahl, die du bestätigt hast,
+beziehungsweise der Text, den der Trainer dazu geschrieben hat.
+
+**Fortschrittsfotos bleiben auf deinem Telefon.** Wenn du einmal in der Woche
+ein Foto von dir machst, wird es im Speicherbereich der App auf deinem Gerät
+abgelegt und von dort nirgendwohin übertragen — außer einmal an das
+Sprachmodell, zusammen mit bis zu drei früheren Fotos, damit es den Vergleich
+beschreiben kann. Gespeichert wird bei uns nur dieser Text und das Datum.
+Das heißt auch: ein neues Telefon bedeutet ein leeres Album, und dein
+Datenexport enthält die Texte, aber keine Bilder. Du kannst jedes Foto in der
+App einzeln löschen.
 
 **Aus Apple Health**, nur wenn du es erlaubst: Schritte, Schlaf, Ruhepuls,
 Trainingseinheiten und Gewicht von einer Waage.
@@ -42,6 +51,11 @@ an sie erinnern könnte.
 
 **Auswertungen nach dem Training:** die Zahlen einer Einheit und der kurze
 Text, den der Trainer dazu geschrieben hat.
+
+**Wöchentliche Foto-Auswertungen:** das Datum und der Text, den der Trainer zu
+deinen Fortschrittsfotos geschrieben hat. Bewusst ohne Zahlen: aus einem Bild
+lässt sich kein Körperfettanteil messen, und die App tut nicht so, als ginge
+das.
 
 **Technisch:** ein Push-Token je Gerät, und eine Zählung, wie viele Anfragen an
 das Sprachmodell auf dein Konto entfallen sind.
@@ -62,7 +76,9 @@ Weitergabe an Dritte zu deren eigenen Zwecken. Kein Profil für Werbezwecke.
 und der Zusammenhang, den er dafür braucht — deine aktuellen Zahlen samt der
 Daten aus Apple Health, dein Plan, die letzten zwei Wochen — an Googles
 Sprachmodell. Ebenso Fotos von Essen oder Kühlschrank, damit es sie lesen kann,
-und nach jedem Training die Zahlen dieser Einheit für die Auswertung. Das
+deine Fortschrittsfotos, wenn du eines machst — das aktuelle und bis zu drei
+frühere —, und nach jedem Training die Zahlen dieser Einheit für die
+Auswertung. Das
 findet außerhalb der EU statt, auf Grundlage der EU-Standardvertragsklauseln. Ohne diese Übermittlung
 gibt es keinen Trainer; alles andere in der App funktioniert auch ohne.
 
